@@ -1,0 +1,96 @@
+import { create } from 'zustand'
+import { authService } from '@/services/auth.service'
+import type { UserResponse, LoginRequest, RegisterRequest } from '@xiaowoniu/shared'
+
+interface AuthState {
+  user: UserResponse | null
+  token: string | null
+  isAuthenticated: boolean
+  isLoading: boolean
+  error: string | null
+  
+  // Actions
+  login: (data: LoginRequest) => Promise<void>
+  register: (data: RegisterRequest) => Promise<void>
+  logout: () => Promise<void>
+  checkAuth: () => void
+  clearError: () => void
+}
+
+export const useAuthStore = create<AuthState>((set) => ({
+  user: authService.getSavedUser(),
+  token: localStorage.getItem('token'),
+  isAuthenticated: authService.isAuthenticated(),
+  isLoading: false,
+  error: null,
+
+  login: async (data: LoginRequest) => {
+    set({ isLoading: true, error: null })
+    try {
+      const response = await authService.login(data)
+      authService.saveAuth(response.token, response.user)
+      set({
+        user: response.user,
+        token: response.token,
+        isAuthenticated: true,
+        isLoading: false,
+      })
+    } catch (error: any) {
+      const message = error.response?.data?.error?.message || '登录失败'
+      set({ error: message, isLoading: false })
+      throw error
+    }
+  },
+
+  register: async (data: RegisterRequest) => {
+    set({ isLoading: true, error: null })
+    try {
+      const response = await authService.register(data)
+      authService.saveAuth(response.token, response.user)
+      set({
+        user: response.user,
+        token: response.token,
+        isAuthenticated: true,
+        isLoading: false,
+      })
+    } catch (error: any) {
+      const message = error.response?.data?.error?.message || '注册失败'
+      set({ error: message, isLoading: false })
+      throw error
+    }
+  },
+
+  logout: async () => {
+    set({ isLoading: true })
+    try {
+      await authService.logout()
+      set({
+        user: null,
+        token: null,
+        isAuthenticated: false,
+        isLoading: false,
+        error: null,
+      })
+    } catch (error) {
+      // 即使服务端登出失败，也清除本地状态
+      authService.logout()
+      set({
+        user: null,
+        token: null,
+        isAuthenticated: false,
+        isLoading: false,
+      })
+    }
+  },
+
+  checkAuth: () => {
+    const user = authService.getSavedUser()
+    const token = localStorage.getItem('token')
+    const isAuthenticated = authService.isAuthenticated()
+    set({ user, token, isAuthenticated })
+  },
+
+  clearError: () => {
+    set({ error: null })
+  },
+}))
