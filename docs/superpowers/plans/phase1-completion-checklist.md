@@ -38,17 +38,39 @@ pnpm --filter @xiaowoniu/shared build
 
 ## ✅ 验证结果
 
-### 项目结构验证
+### 项目结构验证（2026-07-29）
+```
+.
+├── .ccb/
+├── docs/
+│   └── superpowers/
+│       ├── plans/
+│       └── specs/
+├── shared/
+│   └── src/
+│       ├── constants/
+│       └── types/
+├── package.json
+├── pnpm-workspace.yaml
+├── README.md
+└── .gitignore
+```
+
 - ✅ 根目录包含：package.json, pnpm-workspace.yaml, README.md, .gitignore
 - ✅ shared/ 包结构完整：src/, dist/, package.json, tsconfig.json
 - ✅ docs/superpowers/ 文档目录结构正确
 
 ### Shared 包导出验证
-导出的主要模块：
-- ActivityType, TimeOfDay (时间相关枚举)
-- ExpenseCategory, PaymentMethod (财务相关枚举)
-- WeddingTaskCategory, TaskStatus, PaidStatus (任务相关枚举)
-- 所有对应的中文标签映射 (Labels)
+**构建状态**: ✅ 成功  
+**导出项数量**: 14
+
+导出的完整列表：
+- `ActivityType`, `TimeOfDay` (时间相关枚举)
+- `ExpenseCategory`, `PaymentMethod` (财务相关枚举)
+- `WeddingTaskCategory`, `TaskStatus`, `PaidStatus` (任务相关枚举)
+- `ActivityTypeLabels`, `TimeOfDayLabels` (时间标签)
+- `ExpenseCategoryLabels`, `PaymentMethodLabels` (财务标签)
+- `WeddingTaskCategoryLabels`, `TaskStatusLabels`, `PaidStatusLabels` (任务标签)
 
 ### TypeScript 类型验证
 生成的类型声明文件：
