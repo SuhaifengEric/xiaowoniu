@@ -1,0 +1,26 @@
+{
+  "name": "xiaowoniu",
+  "version": "1.0.0",
+  "private": true,
+  "description": "小窝牛个人管理平台 - Monorepo",
+  "scripts": {
+    "dev": "pnpm --parallel run dev",
+    "build": "pnpm -r run build",
+    "test": "pnpm -r run test",
+    "lint": "pnpm -r run lint",
+    "clean": "pnpm -r run clean && rm -rf node_modules"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "keywords": [
+    "fitness",
+    "learning",
+    "finance",
+    "wedding",
+    "personal-management"
+  ],
+  "author": "",
+  "license": "MIT"
+}
