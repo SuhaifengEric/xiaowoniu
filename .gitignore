@@ -39,6 +39,3 @@ temp/
 # Database
 *.db
 *.sqlite
-
-# Prisma
-backend/prisma/migrations/
