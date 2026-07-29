@@ -1,30 +1,49 @@
 /**
- * 统一 API 响应格式
- */
-export interface ApiResponse<T = any> {
-  success: boolean
-  data?: T
-  error?: ApiError
-  message?: string
-}
-
-/**
  * API 错误格式
  */
 export interface ApiError {
   code: string
   message: string
-  details?: any
+  details?: unknown
+}
+
+/**
+ * 统一 API 响应格式（成功）
+ */
+export interface ApiSuccessResponse<T> {
+  success: true
+  data: T
+  message?: string
+}
+
+/**
+ * 统一 API 响应格式（失败）
+ */
+export interface ApiErrorResponse {
+  success: false
+  error: ApiError
+  message?: string
+}
+
+/**
+ * 统一 API 响应格式
+ */
+export type ApiResponse<T> = ApiSuccessResponse<T> | ApiErrorResponse
+
+/**
+ * 分页响应（成功）
+ */
+export interface PaginatedSuccessResponse<T> {
+  success: true
+  data: T[]
+  pagination: Pagination
+  message?: string
 }
 
 /**
  * 分页响应
  */
-export interface PaginatedResponse<T> {
-  success: boolean
-  data: T[]
-  pagination: Pagination
-}
+export type PaginatedResponse<T> = PaginatedSuccessResponse<T> | ApiErrorResponse
 
 /**
  * 分页信息
