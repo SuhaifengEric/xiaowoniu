@@ -1,0 +1,21 @@
+{
+  "name": "@xiaowoniu/shared",
+  "version": "1.0.0",
+  "description": "Shared types and constants for xiaowoniu platform",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rimraf dist"
+  },
+  "keywords": [
+    "types",
+    "shared"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.3.0"
+  }
+}
