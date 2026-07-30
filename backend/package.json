@@ -5,6 +5,7 @@
   "main": "dist/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
+    "test": "vitest run",
     "build": "tsc",
     "start": "node dist/server.js",
     "prisma:generate": "prisma generate",
@@ -42,7 +43,8 @@
     "prisma": "^5.9.0",
     "rimraf": "^5.0.5",
     "tsx": "^4.7.0",
-    "typescript": "^5.3.0"
+    "typescript": "^5.3.0",
+    "vitest": "^2.1.9"
   },
   "engines": {
     "node": ">=20.0.0"

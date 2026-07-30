@@ -6,7 +6,7 @@ import { error } from '../utils/response'
  * Zod 验证中间件工厂
  */
 export function validate(schema: AnyZodObject) {
-  return async (req: Request, res: Response, next: NextFunction) => {
+  return async function validateRequest(req: Request, res: Response, next: NextFunction) {
     try {
       await schema.parseAsync({
         body: req.body,
