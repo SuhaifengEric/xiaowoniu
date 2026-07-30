@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { authService } from '@/services/auth.service'
+import { useFitnessStore } from '@/store/fitness.store'
 import type { UserResponse, LoginRequest, RegisterRequest } from '@xiaowoniu/shared'
 
 interface AuthState {
@@ -28,6 +29,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ isLoading: true, error: null })
     try {
       const response = await authService.login(data)
+      useFitnessStore.getState().reset()
       authService.saveAuth(response.token, response.user)
       set({
         user: response.user,
@@ -46,6 +48,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ isLoading: true, error: null })
     try {
       const response = await authService.register(data)
+      useFitnessStore.getState().reset()
       authService.saveAuth(response.token, response.user)
       set({
         user: response.user,
@@ -80,6 +83,8 @@ export const useAuthStore = create<AuthState>((set) => ({
         isAuthenticated: false,
         isLoading: false,
       })
+    } finally {
+      useFitnessStore.getState().reset()
     }
   },
 
