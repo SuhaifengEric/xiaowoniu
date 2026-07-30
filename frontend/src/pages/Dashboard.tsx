@@ -39,13 +39,24 @@ export default function Dashboard() {
         </Card>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-8">
-          <Card>
+          <Card
+            role="button"
+            tabIndex={0}
+            onClick={() => navigate('/fitness')}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault()
+                navigate('/fitness')
+              }
+            }}
+            className="cursor-pointer transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
             <CardHeader>
               <CardTitle className="text-lg">瘦瘦瘦</CardTitle>
               <CardDescription>健身打卡与体重管理</CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground text-sm">即将上线...</p>
+              <p className="text-muted-foreground text-sm">记录今天的运动和体重</p>
             </CardContent>
           </Card>
 
