@@ -9,6 +9,10 @@ const prisma = vi.hoisted(() => ({
   savingPlan: { findMany: vi.fn(), create: vi.fn(), findFirst: vi.fn(), update: vi.fn(), deleteMany: vi.fn() },
 }))
 
+const transactionClient = vi.hoisted(() => ({
+  savingPlan: { findFirst: vi.fn(), update: vi.fn() },
+}))
+
 vi.mock('../config/database', () => ({ default: prisma }))
 
 import financeService, { FinanceConflictError, FinanceNotFoundError } from '../services/finance.service'
@@ -33,7 +37,7 @@ const savingPlan = {
 
 beforeEach(() => {
   vi.clearAllMocks()
-  prisma.$transaction.mockImplementation(async (callback: (tx: typeof prisma) => unknown) => callback(prisma))
+  prisma.$transaction.mockImplementation(async (callback: (tx: typeof transactionClient) => unknown) => callback(transactionClient))
 })
 
 describe('finance expenses', () => {
@@ -218,29 +222,33 @@ describe('saving plans', () => {
   })
 
   it('rejects updates when current amount exceeds the final target amount', async () => {
-    prisma.savingPlan.findFirst.mockResolvedValue(savingPlan)
+    transactionClient.savingPlan.findFirst.mockResolvedValue(savingPlan)
     await expect(financeService.updateSavingPlan('u1', 'p1', { currentAmount: 101 }))
       .rejects.toBeInstanceOf(FinanceConflictError)
+    expect(transactionClient.savingPlan.update).not.toHaveBeenCalled()
     expect(prisma.savingPlan.update).not.toHaveBeenCalled()
 
     await expect(financeService.updateSavingPlan('u1', 'p1', { targetAmount: 20 }))
       .rejects.toBeInstanceOf(FinanceConflictError)
+    expect(transactionClient.savingPlan.update).not.toHaveBeenCalled()
     expect(prisma.savingPlan.update).not.toHaveBeenCalled()
   })
 
   it('uses a Serializable transaction for plan validation and updates', async () => {
-    prisma.savingPlan.findFirst.mockResolvedValue(savingPlan)
-    prisma.savingPlan.update.mockResolvedValue({ ...savingPlan, currentAmount: decimal('40') })
+    transactionClient.savingPlan.findFirst.mockResolvedValue(savingPlan)
+    transactionClient.savingPlan.update.mockResolvedValue({ ...savingPlan, currentAmount: decimal('40') })
 
     await financeService.updateSavingPlan('u1', 'p1', { currentAmount: 40 })
 
     expect(prisma.$transaction).toHaveBeenCalledWith(expect.any(Function), {
       isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
     })
-    expect(prisma.savingPlan.findFirst).toHaveBeenCalledWith({ where: { id: 'p1', userId: 'u1' } })
-    expect(prisma.savingPlan.update).toHaveBeenCalledWith({
+    expect(transactionClient.savingPlan.findFirst).toHaveBeenCalledWith({ where: { id: 'p1', userId: 'u1' } })
+    expect(transactionClient.savingPlan.update).toHaveBeenCalledWith({
       where: { id: 'p1', userId: 'u1' }, data: { currentAmount: decimal('40') },
     })
+    expect(prisma.savingPlan.findFirst).not.toHaveBeenCalled()
+    expect(prisma.savingPlan.update).not.toHaveBeenCalled()
   })
 
   it('maps serializable and saving-plan CHECK conflicts to FinanceConflictError', async () => {
@@ -248,20 +256,20 @@ describe('saving plans', () => {
       code: 'P2034', clientVersion: '5.9.0',
     })
     let activeTransactions = 0
-    prisma.$transaction.mockImplementation(async (callback: (tx: typeof prisma) => unknown) => {
+    prisma.$transaction.mockImplementation(async (callback: (tx: typeof transactionClient) => unknown) => {
       activeTransactions += 1
       if (activeTransactions > 1) {
         activeTransactions -= 1
         throw serializationConflict
       }
       try {
-        return await callback(prisma)
+        return await callback(transactionClient)
       } finally {
         activeTransactions -= 1
       }
     })
-    prisma.savingPlan.findFirst.mockResolvedValue(savingPlan)
-    prisma.savingPlan.update.mockResolvedValue({ ...savingPlan, currentAmount: decimal('40') })
+    transactionClient.savingPlan.findFirst.mockResolvedValue(savingPlan)
+    transactionClient.savingPlan.update.mockResolvedValue({ ...savingPlan, currentAmount: decimal('40') })
 
     const concurrentResults = await Promise.allSettled([
       financeService.updateSavingPlan('u1', 'p1', { currentAmount: 40 }),
@@ -271,6 +279,8 @@ describe('saving plans', () => {
     const rejectedResult = concurrentResults.find((result) => result.status === 'rejected')
     expect(rejectedResult?.status === 'rejected' && rejectedResult.reason).toBeInstanceOf(FinanceConflictError)
     expect(prisma.$transaction).toHaveBeenCalledTimes(2)
+    expect(prisma.savingPlan.findFirst).not.toHaveBeenCalled()
+    expect(prisma.savingPlan.update).not.toHaveBeenCalled()
 
     const checkConflict = new Prisma.PrismaClientKnownRequestError('constraint failed', {
       code: 'P2004', clientVersion: '5.9.0', meta: { constraint: 'saving_plans_current_amount_limit_check' },
@@ -281,25 +291,29 @@ describe('saving plans', () => {
   })
 
   it('returns not found for cross-user saving plan updates', async () => {
-    prisma.savingPlan.findFirst.mockResolvedValue(null)
+    transactionClient.savingPlan.findFirst.mockResolvedValue(null)
     await expect(financeService.updateSavingPlan('u1', 'p-other', { name: 'new name' }))
       .rejects.toBeInstanceOf(FinanceNotFoundError)
-    expect(prisma.savingPlan.findFirst).toHaveBeenCalledWith({ where: { id: 'p-other', userId: 'u1' } })
+    expect(transactionClient.savingPlan.findFirst).toHaveBeenCalledWith({ where: { id: 'p-other', userId: 'u1' } })
+    expect(transactionClient.savingPlan.update).not.toHaveBeenCalled()
+    expect(prisma.savingPlan.findFirst).not.toHaveBeenCalled()
     expect(prisma.savingPlan.update).not.toHaveBeenCalled()
   })
 
   it('uses user-scoped lookups and updates for partial plan changes', async () => {
-    prisma.savingPlan.findFirst.mockResolvedValue(savingPlan)
-    prisma.savingPlan.update.mockResolvedValue({ ...savingPlan, name: '新名字' })
+    transactionClient.savingPlan.findFirst.mockResolvedValue(savingPlan)
+    transactionClient.savingPlan.update.mockResolvedValue({ ...savingPlan, name: '新名字' })
     await financeService.updateSavingPlan('u1', 'p1', { name: ' 新名字 ' })
-    expect(prisma.savingPlan.findFirst).toHaveBeenCalledWith({ where: { id: 'p1', userId: 'u1' } })
-    expect(prisma.savingPlan.update).toHaveBeenCalledWith({
+    expect(transactionClient.savingPlan.findFirst).toHaveBeenCalledWith({ where: { id: 'p1', userId: 'u1' } })
+    expect(transactionClient.savingPlan.update).toHaveBeenCalledWith({
       where: { id: 'p1', userId: 'u1' }, data: { name: '新名字' },
     })
+    expect(prisma.savingPlan.findFirst).not.toHaveBeenCalled()
+    expect(prisma.savingPlan.update).not.toHaveBeenCalled()
 
-    prisma.savingPlan.update.mockResolvedValue({ ...savingPlan, targetAmount: decimal('120'), currentAmount: decimal('50') })
+    transactionClient.savingPlan.update.mockResolvedValue({ ...savingPlan, targetAmount: decimal('120'), currentAmount: decimal('50') })
     await financeService.updateSavingPlan('u1', 'p1', { targetAmount: 120, currentAmount: 50 })
-    const updateData = prisma.savingPlan.update.mock.calls.at(-1)![0].data
+    const updateData = transactionClient.savingPlan.update.mock.calls.at(-1)![0].data
     expect(updateData.targetAmount).toBeInstanceOf(Prisma.Decimal)
     expect(updateData.targetAmount.toString()).toBe('120')
     expect(updateData.currentAmount).toBeInstanceOf(Prisma.Decimal)
