@@ -266,12 +266,18 @@ export class FinanceService {
   }
 
   async createSavingPlan(userId: string, data: CreateSavingPlanRequest): Promise<SavingPlanResponse> {
+    const targetAmount = decimalValue(data.targetAmount)
+    const currentAmount = decimalValue(data.currentAmount ?? 0)
+    if (currentAmount.gt(targetAmount)) {
+      throw new FinanceConflictError('当前金额不能超过目标金额')
+    }
+
     const record = await prisma.savingPlan.create({
       data: {
         userId,
         name: data.name.trim(),
-        targetAmount: data.targetAmount,
-        currentAmount: data.currentAmount ?? 0,
+        targetAmount,
+        currentAmount,
         targetDate: utcDate(data.targetDate),
       },
     })
@@ -294,8 +300,8 @@ export class FinanceService {
 
     const updateData: Record<string, unknown> = {}
     if (data.name !== undefined) updateData.name = data.name.trim()
-    if (data.targetAmount !== undefined) updateData.targetAmount = data.targetAmount
-    if (data.currentAmount !== undefined) updateData.currentAmount = data.currentAmount
+    if (data.targetAmount !== undefined) updateData.targetAmount = targetAmount
+    if (data.currentAmount !== undefined) updateData.currentAmount = currentAmount
     if (data.targetDate !== undefined) updateData.targetDate = utcDate(data.targetDate)
 
     const record = await prisma.savingPlan.update({ where: { id, userId } as any, data: updateData })

@@ -71,13 +71,25 @@ describe('finance expenses', () => {
     } })
 
     prisma.expense.findFirst.mockResolvedValue(expense)
-    prisma.expense.update.mockResolvedValue({ ...expense, amount: decimal('9.25') })
+    prisma.expense.update.mockResolvedValue({ ...expense, notes: null })
+    await financeService.updateExpense('u1', 'e1', { notes: '  revised note  ' })
+    expect(prisma.expense.update).toHaveBeenCalledWith({
+      where: { id: 'e1', userId: 'u1' }, data: { notes: 'revised note' },
+    })
+    await financeService.updateExpense('u1', 'e1', { notes: '   ' })
+    expect(prisma.expense.update).toHaveBeenLastCalledWith({
+      where: { id: 'e1', userId: 'u1' }, data: { notes: null },
+    })
+
+    prisma.expense.findFirst.mockResolvedValue(expense)
+    prisma.expense.update.mockResolvedValue({ ...expense, amount: decimal('9.25'), notes: null })
     await financeService.updateExpense('u1', 'e1', { amount: 9.25 })
     expect(prisma.expense.findFirst).toHaveBeenCalledWith({ where: { id: 'e1', userId: 'u1' } })
     expect(prisma.expense.update).toHaveBeenCalledWith({
       where: { id: 'e1', userId: 'u1' }, data: { amount: 9.25 },
     })
   })
+
 
   it('returns one not-found error for cross-user updates and deletes', async () => {
     prisma.expense.findFirst.mockResolvedValue(null)
@@ -131,6 +143,14 @@ describe('finance summary and budgets', () => {
     expect(result.budget).toMatchObject({ amount: 0, spent: 10, remaining: -10, usedPercentage: 0 })
   })
 
+  it('returns null when the requested budget is absent', async () => {
+    prisma.monthlyBudget.findUnique.mockResolvedValue(null)
+    await expect(financeService.getBudget('u1', '2026-07')).resolves.toBeNull()
+    expect(prisma.monthlyBudget.findUnique).toHaveBeenCalledWith({
+      where: { userId_month: { userId: 'u1', month: new Date('2026-07-01T00:00:00.000Z') } },
+    })
+  })
+
   it('uses the user/month compound key for budget reads and upserts', async () => {
     prisma.monthlyBudget.findUnique.mockResolvedValue(budget)
     await financeService.getBudget('u1', '2026-07')
@@ -149,6 +169,7 @@ describe('finance summary and budgets', () => {
 })
 
 describe('saving plans', () => {
+
   it('derives Decimal values, remaining amount, floored clamped progress, and completion', async () => {
     prisma.savingPlan.findMany.mockResolvedValue([savingPlan, {
       ...savingPlan, id: 'p2', name: '完成', targetAmount: decimal('10'), currentAmount: decimal('12'),
@@ -161,19 +182,42 @@ describe('saving plans', () => {
     expect(result[1]).toMatchObject({ remainingAmount: -2, progressPercentage: 100, isCompleted: true })
   })
 
-  it('creates explicit plan fields and rejects target reductions below current amount', async () => {
+  it('creates plans with Decimal amounts and rejects current amounts above target', async () => {
     prisma.savingPlan.create.mockResolvedValue(savingPlan)
     await financeService.createSavingPlan('u1', {
       name: '  旅行  ', targetAmount: 100, currentAmount: 33.33, targetDate: '2026-12-31',
     })
-    expect(prisma.savingPlan.create).toHaveBeenCalledWith({ data: {
-      userId: 'u1', name: '旅行', targetAmount: 100, currentAmount: 33.33,
-      targetDate: new Date('2026-12-31T00:00:00.000Z'),
-    } })
+    const createData = prisma.savingPlan.create.mock.calls[0][0].data
+    expect(createData).toMatchObject({
+      userId: 'u1', name: '旅行', targetDate: new Date('2026-12-31T00:00:00.000Z'),
+    })
+    expect(createData.targetAmount).toBeInstanceOf(Prisma.Decimal)
+    expect(createData.targetAmount.toString()).toBe('100')
+    expect(createData.currentAmount).toBeInstanceOf(Prisma.Decimal)
+    expect(createData.currentAmount.toString()).toBe('33.33')
 
+    await expect(financeService.createSavingPlan('u1', {
+      name: '非法计划', targetAmount: 20, currentAmount: 21, targetDate: '2026-12-31',
+    })).rejects.toBeInstanceOf(FinanceConflictError)
+    expect(prisma.savingPlan.create).toHaveBeenCalledTimes(1)
+  })
+
+  it('rejects updates when current amount exceeds the final target amount', async () => {
     prisma.savingPlan.findFirst.mockResolvedValue(savingPlan)
+    await expect(financeService.updateSavingPlan('u1', 'p1', { currentAmount: 101 }))
+      .rejects.toBeInstanceOf(FinanceConflictError)
+    expect(prisma.savingPlan.update).not.toHaveBeenCalled()
+
     await expect(financeService.updateSavingPlan('u1', 'p1', { targetAmount: 20 }))
       .rejects.toBeInstanceOf(FinanceConflictError)
+    expect(prisma.savingPlan.update).not.toHaveBeenCalled()
+  })
+
+  it('returns not found for cross-user saving plan updates', async () => {
+    prisma.savingPlan.findFirst.mockResolvedValue(null)
+    await expect(financeService.updateSavingPlan('u1', 'p-other', { name: 'new name' }))
+      .rejects.toBeInstanceOf(FinanceNotFoundError)
+    expect(prisma.savingPlan.findFirst).toHaveBeenCalledWith({ where: { id: 'p-other', userId: 'u1' } })
     expect(prisma.savingPlan.update).not.toHaveBeenCalled()
   })
 
@@ -185,6 +229,14 @@ describe('saving plans', () => {
     expect(prisma.savingPlan.update).toHaveBeenCalledWith({
       where: { id: 'p1', userId: 'u1' }, data: { name: '新名字' },
     })
+
+    prisma.savingPlan.update.mockResolvedValue({ ...savingPlan, targetAmount: decimal('120'), currentAmount: decimal('50') })
+    await financeService.updateSavingPlan('u1', 'p1', { targetAmount: 120, currentAmount: 50 })
+    const updateData = prisma.savingPlan.update.mock.calls.at(-1)![0].data
+    expect(updateData.targetAmount).toBeInstanceOf(Prisma.Decimal)
+    expect(updateData.targetAmount.toString()).toBe('120')
+    expect(updateData.currentAmount).toBeInstanceOf(Prisma.Decimal)
+    expect(updateData.currentAmount.toString()).toBe('50')
 
     prisma.savingPlan.deleteMany.mockResolvedValue({ count: 0 })
     await expect(financeService.deleteSavingPlan('u1', 'p-other')).rejects.toBeInstanceOf(FinanceNotFoundError)
