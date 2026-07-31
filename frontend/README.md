@@ -12,6 +12,7 @@
 - **路由**: React Router v6
 - **HTTP 客户端**: Axios
 - **图标**: Lucide React
+- **图表**: Recharts
 
 ## 开发环境要求
 
@@ -46,6 +47,7 @@ pnpm dev
 
 - `pnpm dev` - 启动开发服务器
 - `pnpm build` - 构建生产版本
+- `pnpm test` - 运行 Vitest 测试
 - `pnpm preview` - 预览生产构建
 - `pnpm lint` - 运行 ESLint
 
@@ -76,9 +78,11 @@ src/
 - ✅ 受保护路由
 - ✅ 响应式设计
 - ✅ 错误处理
+- ✅ 瘦瘦瘦模块
+
+瘦瘦瘦模块位于受保护路由 `/fitness`，可从 Dashboard 进入。页面支持运动打卡、体重记录、健身目标替换、月历查询、周/月统计、目标进度、体重趋势和最近体重删除，并提供加载、空数据、成功和错误状态。
 
 ### 待开发
-- ⏳ 瘦瘦瘦模块
 - ⏳ 学学学模块
 - ⏳ 省省省模块
 - ⏳ 嫁嫁嫁模块
@@ -87,7 +91,7 @@ src/
 
 | 变量 | 说明 | 默认值 |
 |------|------|--------|
-| `VITE_API_URL` | 后端 API 地址 | `http://localhost:3000` |
+| `VITE_API_URL` | 后端服务根地址，客户端请求会追加 `/api/...` | `http://localhost:3000` |
 
 ## 测试账号
 

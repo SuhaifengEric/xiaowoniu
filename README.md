@@ -50,18 +50,34 @@ pnpm --filter frontend dev
 pnpm build
 ```
 
+### 数据库初始化
+
+```bash
+pnpm --filter backend prisma:generate
+pnpm --filter backend prisma:migrate
+```
+
+### 测试
+
+```bash
+pnpm test
+```
+
 ## 四大模块
 
-- 💪 **瘦瘦瘦** - 健身打卡、体重记录
-- 📚 **学学学** - 考试倒计时、学习进度
-- 💰 **省省省** - 消费记录、存钱计划
-- 💒 **嫁嫁嫁** - 备婚任务、预算管理
+- **瘦瘦瘦（已实现）** - 运动打卡与月历、体重记录与趋势图、健身目标和周/月统计
+- **学学学（待开发）** - 考试倒计时、学习进度
+- **省省省（待开发）** - 消费记录、存钱计划
+- **嫁嫁嫁（待开发）** - 备婚任务、预算管理
 
 ## 文档
 
 - [架构设计](docs/superpowers/specs/2026-07-29-architecture-design.md)
 - [设计系统](DESIGN_SYSTEM.md)
 - [项目规划](PROJECT_PLAN.md)
+- [后端说明](backend/README.md)
+- [API 文档](backend/API.md)
+- [前端说明](frontend/README.md)
 
 ## License
 

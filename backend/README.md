@@ -64,6 +64,7 @@ pnpm dev
 
 - `pnpm dev` - 启动开发服务器（热重载）
 - `pnpm build` - 编译 TypeScript
+- `pnpm test` - 运行 Vitest 测试
 - `pnpm start` - 启动生产服务器
 - `pnpm prisma:generate` - 生成 Prisma Client
 - `pnpm prisma:migrate` - 运行数据库迁移
@@ -86,9 +87,13 @@ src/
 └── server.ts        # 服务器入口
 ```
 
+Fitness 后端提供按当前用户隔离的运动打卡、体重记录、单一有效目标及周/月统计 API，所有端点均需要 JWT。对应实现位于 `fitness.controller.ts`、`fitness.service.ts`、`fitness.routes.ts` 和 `fitness.schemas.ts`。
+
+数据库迁移包含 `add_fitness_tables` 和 `ensure_single_active_fitness_goal`，后者保证每位用户最多有一个有效目标。测试覆盖路由中间件、请求边界、用户隔离删除、目标替换事务及 UTC 周/月统计。
+
 ## API 文档
 
-详见 [API.md](./API.md)
+认证和 Fitness 接口契约详见 [API.md](./API.md)。
 
 ## 环境变量
 
