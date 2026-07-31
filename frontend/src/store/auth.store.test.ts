@@ -4,18 +4,21 @@ const mocks = vi.hoisted(() => ({
   login: vi.fn(),
   register: vi.fn(),
   logout: vi.fn(),
+  getSavedUser: vi.fn(),
+  isAuthenticated: vi.fn(() => false),
   saveAuth: vi.fn(),
   clearAuth: vi.fn(() => {
     localStorage.removeItem('token')
     localStorage.removeItem('user')
   }),
   resetFitness: vi.fn(),
+  resetLearning: vi.fn(),
 }))
 
 vi.mock('@/services/auth.service', () => ({
   authService: {
-    getSavedUser: vi.fn(() => null),
-    isAuthenticated: vi.fn(() => false),
+    getSavedUser: mocks.getSavedUser,
+    isAuthenticated: mocks.isAuthenticated,
     logout: mocks.logout,
     login: mocks.login,
     register: mocks.register,
@@ -30,6 +33,12 @@ vi.mock('./fitness.store', () => ({
   },
 }))
 
+vi.mock('./learning.store', () => ({
+  useLearningStore: {
+    getState: () => ({ reset: mocks.resetLearning }),
+  },
+}))
+
 const storage = new Map<string, string>()
 vi.stubGlobal('localStorage', {
   getItem: (key: string) => storage.get(key) ?? null,
@@ -40,13 +49,15 @@ vi.stubGlobal('localStorage', {
 
 let useAuthStore: typeof import('./auth.store').useAuthStore
 
-describe('useAuthStore logout fitness cleanup', () => {
+describe('useAuthStore auth-scoped cleanup', () => {
   beforeAll(async () => {
     ;({ useAuthStore } = await import('./auth.store'))
   })
   beforeEach(() => {
     vi.clearAllMocks()
     storage.clear()
+    mocks.getSavedUser.mockReturnValue(null)
+    mocks.isAuthenticated.mockReturnValue(false)
   })
 
   it('resets fitness before saving a successful login identity', async () => {
@@ -62,7 +73,10 @@ describe('useAuthStore logout fitness cleanup', () => {
     await useAuthStore.getState().login({ email: 'login@example.com', password: 'password123' })
 
     expect(mocks.resetFitness).toHaveBeenCalledOnce()
+    expect(mocks.resetLearning).toHaveBeenCalledOnce()
     expect(mocks.resetFitness.mock.invocationCallOrder[0])
+      .toBeLessThan(mocks.saveAuth.mock.invocationCallOrder[0])
+    expect(mocks.resetLearning.mock.invocationCallOrder[0])
       .toBeLessThan(mocks.saveAuth.mock.invocationCallOrder[0])
   })
 
@@ -75,6 +89,7 @@ describe('useAuthStore logout fitness cleanup', () => {
     })).rejects.toBe(failure)
 
     expect(mocks.resetFitness).not.toHaveBeenCalled()
+    expect(mocks.resetLearning).not.toHaveBeenCalled()
   })
 
   it('resets fitness before saving a successful registration identity', async () => {
@@ -92,7 +107,10 @@ describe('useAuthStore logout fitness cleanup', () => {
     })
 
     expect(mocks.resetFitness).toHaveBeenCalledOnce()
+    expect(mocks.resetLearning).toHaveBeenCalledOnce()
     expect(mocks.resetFitness.mock.invocationCallOrder[0])
+      .toBeLessThan(mocks.saveAuth.mock.invocationCallOrder[0])
+    expect(mocks.resetLearning.mock.invocationCallOrder[0])
       .toBeLessThan(mocks.saveAuth.mock.invocationCallOrder[0])
   })
 
@@ -105,6 +123,7 @@ describe('useAuthStore logout fitness cleanup', () => {
     })).rejects.toBe(failure)
 
     expect(mocks.resetFitness).not.toHaveBeenCalled()
+    expect(mocks.resetLearning).not.toHaveBeenCalled()
   })
 
   it('resets fitness state after a successful logout', async () => {
@@ -113,18 +132,45 @@ describe('useAuthStore logout fitness cleanup', () => {
     await useAuthStore.getState().logout()
 
     expect(mocks.resetFitness).toHaveBeenCalledOnce()
+    expect(mocks.resetLearning).toHaveBeenCalledOnce()
   })
 
-  it('clears local credentials after a failed server logout', async () => {
-    storage.set('token', 'stale-token')
-    storage.set('user', '{"id":"user-1"}')
-    mocks.logout.mockRejectedValue(new Error('server unavailable'))
+  it('resets both module states when checkAuth detects an identity change', () => {
+    const previousUser = {
+      id: 'user-1', username: 'old-user', email: 'old@example.com', nickname: null,
+      avatarUrl: null, createdAt: 'created', updatedAt: 'updated',
+    }
+    const nextUser = {
+      id: 'user-2', username: 'next-user', email: 'next@example.com', nickname: null,
+      avatarUrl: null, createdAt: 'created', updatedAt: 'updated',
+    }
+    useAuthStore.setState({ user: previousUser, token: 'old-token', isAuthenticated: true })
+    mocks.getSavedUser.mockReturnValue(nextUser)
+    mocks.isAuthenticated.mockReturnValue(true)
 
-    await useAuthStore.getState().logout()
+    useAuthStore.getState().checkAuth()
 
-    expect(mocks.logout).toHaveBeenCalledOnce()
-    expect(localStorage.getItem('token')).toBeNull()
-    expect(localStorage.getItem('user')).toBeNull()
     expect(mocks.resetFitness).toHaveBeenCalledOnce()
+    expect(mocks.resetLearning).toHaveBeenCalledOnce()
+    expect(useAuthStore.getState().user).toEqual(nextUser)
+    expect(useAuthStore.getState().token).toBeNull()
+  })
+
+  it('keeps module state when checkAuth sees the same identity', () => {
+    const user = {
+      id: 'user-1', username: 'same-user', email: 'same@example.com', nickname: null,
+      avatarUrl: null, createdAt: 'created', updatedAt: 'updated',
+    }
+    useAuthStore.setState({ user, token: 'saved-token', isAuthenticated: true })
+    mocks.getSavedUser.mockReturnValue(user)
+    mocks.isAuthenticated.mockReturnValue(true)
+    storage.set('token', 'saved-token')
+
+    useAuthStore.getState().checkAuth()
+
+    expect(mocks.resetFitness).not.toHaveBeenCalled()
+    expect(mocks.resetLearning).not.toHaveBeenCalled()
+    expect(useAuthStore.getState().user).toEqual(user)
+    expect(useAuthStore.getState().token).toBe('saved-token')
   })
 })

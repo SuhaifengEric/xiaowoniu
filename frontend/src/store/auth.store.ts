@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { authService } from '@/services/auth.service'
 import { useFitnessStore } from '@/store/fitness.store'
+import { useLearningStore } from '@/store/learning.store'
 import type { UserResponse, LoginRequest, RegisterRequest } from '@xiaowoniu/shared'
 
 interface AuthState {
@@ -30,6 +31,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const response = await authService.login(data)
       useFitnessStore.getState().reset()
+      useLearningStore.getState().reset()
       authService.saveAuth(response.token, response.user)
       set({
         user: response.user,
@@ -49,6 +51,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const response = await authService.register(data)
       useFitnessStore.getState().reset()
+      useLearningStore.getState().reset()
       authService.saveAuth(response.token, response.user)
       set({
         user: response.user,
@@ -72,6 +75,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     } finally {
       authService.clearAuth()
       useFitnessStore.getState().reset()
+      useLearningStore.getState().reset()
       set({
         user: null,
         token: null,
@@ -83,9 +87,14 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   checkAuth: () => {
+    const previousUserId = useAuthStore.getState().user?.id
     const user = authService.getSavedUser()
     const token = localStorage.getItem('token')
     const isAuthenticated = authService.isAuthenticated()
+    if (previousUserId !== user?.id) {
+      useFitnessStore.getState().reset()
+      useLearningStore.getState().reset()
+    }
     set({ user, token, isAuthenticated })
   },
 
