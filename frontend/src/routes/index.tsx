@@ -6,6 +6,7 @@ import Dashboard from '@/pages/Dashboard'
 import ProtectedRoute from './ProtectedRoute'
 
 const Fitness = lazy(() => import('@/pages/Fitness'))
+const Learning = lazy(() => import('@/pages/Learning'))
 
 export default function AppRoutes() {
   return (
@@ -27,6 +28,16 @@ export default function AppRoutes() {
             <ProtectedRoute>
               <Suspense fallback={<main className="flex min-h-screen items-center justify-center" role="status">健身页面加载中…</main>}>
                 <Fitness />
+              </Suspense>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/learning"
+          element={
+            <ProtectedRoute>
+              <Suspense fallback={<main className="flex min-h-screen items-center justify-center" role="status">学习页面加载中…</main>}>
+                <Learning />
               </Suspense>
             </ProtectedRoute>
           }

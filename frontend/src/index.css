@@ -109,15 +109,68 @@
     background: rgb(var(--fitness-coral) / 0.1);
   }
 
-  .fitness-skeleton {
-    @apply block animate-pulse rounded-sm bg-stone-200;
+  .learning-page {
+    letter-spacing: 0;
+  }
+
+  .learning-panel {
+    @apply rounded-sm border border-slate-200 bg-white p-4 sm:p-5;
+  }
+
+  .learning-toolbar {
+    @apply flex flex-wrap items-end justify-between gap-4 rounded-sm border border-slate-200 bg-white p-4 sm:p-5;
+  }
+
+  .learning-kicker {
+    @apply text-xs font-semibold uppercase tracking-wider text-blue-800;
+  }
+
+  .learning-icon-button {
+    @apply min-h-11 min-w-11 rounded-sm focus-visible:ring-blue-700;
+  }
+
+  .learning-countdown {
+    @apply border-blue-200 bg-blue-50/60;
+  }
+
+  .learning-countdown--empty {
+    @apply border-dashed;
+  }
+
+  .learning-countdown__value {
+    @apply max-w-full break-words text-3xl font-semibold text-blue-900 sm:text-4xl;
+  }
+
+  .learning-subject-card {
+    @apply min-w-0 rounded-sm border border-slate-200 bg-slate-50 p-4;
+  }
+
+  .learning-calendar-day {
+    @apply flex min-h-16 min-w-0 flex-col items-center justify-center rounded-sm border border-transparent px-1 text-sm text-slate-800 hover:border-blue-300 hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-700 focus-visible:ring-offset-1;
+  }
+
+  .learning-calendar-day--outside {
+    @apply text-slate-400 opacity-60;
+  }
+
+  .learning-calendar-day--today {
+    @apply bg-amber-50 font-bold;
+    border-color: rgb(217 119 6 / 0.45);
+    box-shadow: inset 0 0 0 1px rgb(217 119 6 / 0.35);
+  }
+
+  .learning-skeleton {
+    @apply block animate-pulse rounded-sm bg-slate-200;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .fitness-page *,
   .fitness-page *::before,
-  .fitness-page *::after {
+  .fitness-page *::after,
+  .learning-page *,
+  .learning-page *::before,
+  .learning-page *::after {
     scroll-behavior: auto !important;
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;

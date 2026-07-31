@@ -157,7 +157,7 @@ export const useLearningStore = create<LearningState>((set, get) => {
       })
     },
     fetchSubjects: (examId) => { const token = nextToken('subjects'); return runAction(async () => { const subjects = await learningService.getSubjects(examId); if (isCurrent(token)) set({ subjects }) }, () => isCurrent(token)) },
-    fetchCheckins: (params) => { const token = nextToken('checkins'); return runAction(async () => { const checkins = await learningService.getCheckins(params); if (isCurrent(token)) set({ checkins }) }, () => isCurrent(token)) },
+    fetchCheckins: (params) => { const token = nextToken('checkins'); return runAction(async () => { const checkins = await learningService.getCheckins(params); if (isCurrent(token)) set({ checkins: (params?.offset ?? 0) > 0 ? [...get().checkins, ...checkins.filter((item) => !get().checkins.some((current) => current.id === item.id))] : checkins }) }, () => isCurrent(token)) },
     fetchProgress: (params) => { const token = nextToken('progress'); return runAction(async () => { const progress = await learningService.getProgress(params); if (isCurrent(token)) set({ progress }) }, () => isCurrent(token)) },
     createExam: (data) => {
       const token = nextToken('exams')
