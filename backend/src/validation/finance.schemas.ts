@@ -9,15 +9,18 @@ const dateString = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
 const monthString = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, '月份必须是有效的 YYYY-MM')
 
 const amount = (min: number, max: number) => z.number().finite().min(min).max(max)
-  .refine((value) => Number.isInteger(value * 100), '金额最多保留两位小数')
+  .refine((value) => {
+    const scaled = value * 100
+    return Math.abs(scaled - Math.round(scaled)) <= Number.EPSILON * Math.max(1, Math.abs(scaled))
+  }, '金额最多保留两位小数')
 
 const boundedInteger = (min: number, max: number) => z.string()
   .regex(/^\d+$/)
   .refine((value) => Number.isSafeInteger(Number(value)) && Number(value) >= min && Number(value) <= max)
   .transform(Number)
 
-const name = z.string().min(1).max(100)
-  .refine((value) => value.trim().length > 0, '名称不能为空')
+const name = z.string()
+  .refine((value) => value.trim().length >= 1 && value.trim().length <= 100, '名称 trim 后长度必须在 1 到 100 个字符之间')
 
 const expenseAmount = amount(0.01, 9_999_999_999.99)
 const budgetAmount = amount(0, 9_999_999_999.99)

@@ -49,9 +49,10 @@ describe('finance validation schemas', () => {
     expect(emptySchema.safeParse({ body: {}, query: {}, params: {} }).success).toBe(true)
   })
 
-  it('accepts expense amounts with two decimals including the smallest nonzero value', () => {
-    expect(createExpenseSchema.safeParse({ body: { ...expense, amount: 0.01 } }).success).toBe(true)
-    expect(createExpenseSchema.safeParse({ body: { ...expense, amount: 9999999999.99 } }).success).toBe(true)
+  it('accepts expense amounts with two decimals including floating point-sensitive values', () => {
+    for (const amount of [0.01, 0.07, 0.14, 1.11, 9999999999.99]) {
+      expect(createExpenseSchema.safeParse({ body: { ...expense, amount } }).success).toBe(true)
+    }
   })
 
   it('rejects zero, negative, overlarge, non-finite, and more-than-two-decimal expense amounts', () => {
@@ -77,10 +78,16 @@ describe('finance validation schemas', () => {
     expect(monthQuerySchema.safeParse({ query: { month: '2026-02' } }).success).toBe(true)
   })
 
+  it('accepts complete validator envelopes for month queries', () => {
+    expect(monthQuerySchema.safeParse({ body: {}, query: { month: '2026-07' }, params: {} }).success).toBe(true)
+  })
+
   it('rejects invalid enums, blank names, and unknown inner fields', () => {
     expect(createExpenseSchema.safeParse({ body: { ...expense, category: 'invalid' } }).success).toBe(false)
     expect(createExpenseSchema.safeParse({ body: { ...expense, paymentMethod: 'invalid' } }).success).toBe(false)
     expect(createSavingPlanSchema.safeParse({ body: { ...savingPlan, name: '   ' } }).success).toBe(false)
+    expect(createSavingPlanSchema.safeParse({ body: { ...savingPlan, name: ` ${'x'.repeat(100)} ` } }).success).toBe(true)
+    expect(createSavingPlanSchema.safeParse({ body: { ...savingPlan, name: ` ${'x'.repeat(101)} ` } }).success).toBe(false)
     expect(createSavingPlanSchema.safeParse({ body: { ...savingPlan, name: 'x'.repeat(101) } }).success).toBe(false)
     expect(createExpenseSchema.safeParse({ body: { ...expense, injected: true } }).success).toBe(false)
     expect(expenseQuerySchema.safeParse({ query: { category: 'food', injected: true } }).success).toBe(false)
@@ -129,5 +136,6 @@ describe('finance validation schemas', () => {
   it('requires strict empty body, query, and params for empty requests', () => {
     expect(emptySchema.safeParse({ body: { injected: true }, query: {}, params: {} }).success).toBe(false)
     expect(emptySchema.safeParse({ body: {}, query: { injected: true }, params: {} }).success).toBe(false)
+    expect(emptySchema.safeParse({ body: {}, query: {}, params: { injected: true } }).success).toBe(false)
   })
 })
