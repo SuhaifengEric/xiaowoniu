@@ -41,6 +41,11 @@ interface HttpResponse {
   body: any
 }
 
+interface ValidatorResponse {
+  statusCode: number
+  body: any
+}
+
 function httpRequest(method: string, path: string, body?: unknown, authorization = `Bearer ${token}`): Promise<HttpResponse> {
   const address = server.address() as AddressInfo
   const payload = body === undefined ? undefined : JSON.stringify(body)
@@ -69,6 +74,40 @@ function httpRequest(method: string, path: string, body?: unknown, authorization
     if (payload) request.write(payload)
     request.end()
   })
+}
+
+async function invokeRouteValidator(
+  method: string,
+  path: string,
+  parts: { body?: unknown; query?: unknown; params?: unknown },
+): Promise<{ response: ValidatorResponse; next: ReturnType<typeof vi.fn> }> {
+  const layer = routeLayers.find((candidate: any) => (
+    candidate.route.path === path && candidate.route.methods[method]
+  ))
+  expect(layer).toBeDefined()
+
+  const response: ValidatorResponse & {
+    status: (code: number) => ValidatorResponse
+    json: (body: unknown) => ValidatorResponse
+  } = {
+    statusCode: 200,
+    body: undefined,
+    status(code) {
+      response.statusCode = code
+      return response
+    },
+    json(body) {
+      response.body = body
+      return response
+    },
+  }
+  const next = vi.fn()
+  await layer.route.stack[1].handle({
+    body: parts.body ?? {},
+    query: parts.query ?? {},
+    params: parts.params ?? {},
+  }, response, next)
+  return { response, next }
 }
 
 beforeAll(async () => {
@@ -113,71 +152,159 @@ describe('finance routes', () => {
     expect(response.body).toMatchObject({ success: false, error: { code: 'UNAUTHORIZED' } })
   })
 
-  it('runs the real validation middleware for invalid amount, date, and month', async () => {
-    const invalidAmount = await httpRequest('POST', '/api/finance/expenses', {
-      date: '2026-07-31', amount: 1.001, category: 'food', paymentMethod: 'cash',
-    })
-    expect(invalidAmount.statusCode).toBe(400)
-    expect(invalidAmount.body).toMatchObject({ success: false, error: { code: 'VALIDATION_ERROR' } })
+  it('rejects schema-specific invalid requests for every endpoint through real HTTP', async () => {
+    const cases = [
+      {
+        method: 'GET', path: '/api/finance/expenses?month=2026-07',
+        service: 'getExpenses', body: undefined,
+      },
+      {
+        method: 'POST', path: '/api/finance/expenses',
+        service: 'createExpense', body: { name: '旅行', targetAmount: 10, targetDate: '2026-12-31' },
+      },
+      {
+        method: 'PATCH', path: '/api/finance/expenses/e1',
+        service: 'updateExpense', body: { name: '新旅行' },
+      },
+      {
+        method: 'GET', path: '/api/finance/summary?month=2026-13',
+        service: 'getSummary', body: undefined,
+      },
+      {
+        method: 'GET', path: '/api/finance/summary?limit=1',
+        service: 'getSummary', body: undefined,
+      },
+      {
+        method: 'GET', path: '/api/finance/budgets?month=2026-13',
+        service: 'getBudget', body: undefined,
+      },
+      {
+        method: 'GET', path: '/api/finance/budgets?limit=1',
+        service: 'getBudget', body: undefined,
+      },
+      {
+        method: 'PUT', path: '/api/finance/budgets',
+        service: 'upsertBudget', body: { name: '旅行', targetAmount: 10, targetDate: '2026-12-31' },
+      },
+      {
+        method: 'GET', path: '/api/finance/saving-plans',
+        service: 'getSavingPlans', body: { date: '2026-07-31', amount: 1, category: 'food', paymentMethod: 'cash' },
+      },
+      {
+        method: 'POST', path: '/api/finance/saving-plans',
+        service: 'createSavingPlan', body: { date: '2026-07-31', amount: 1, category: 'food', paymentMethod: 'cash' },
+      },
+      {
+        method: 'PATCH', path: '/api/finance/saving-plans/p1',
+        service: 'updateSavingPlan', body: { paymentMethod: 'cash' },
+      },
+    ] as const
 
-    const invalidDate = await httpRequest('POST', '/api/finance/expenses', {
-      date: '2026-02-30', amount: 1, category: 'food', paymentMethod: 'cash',
-    })
-    expect(invalidDate.statusCode).toBe(400)
-    expect(invalidDate.body).toMatchObject({ success: false, error: { code: 'VALIDATION_ERROR' } })
-
-    const invalidMonth = await httpRequest('GET', '/api/finance/summary?month=2026-13')
-    expect(invalidMonth.statusCode).toBe(400)
-    expect(invalidMonth.body).toMatchObject({ success: false, error: { code: 'VALIDATION_ERROR' } })
+    for (const route of cases) {
+      const serviceMethod = vi.spyOn(financeService, route.service as any)
+      const response = await httpRequest(route.method, route.path, route.body)
+      expect(response.statusCode, `${route.method} ${route.path}`).toBe(400)
+      expect(response.body).toMatchObject({ success: false, error: { code: 'VALIDATION_ERROR' } })
+      expect(serviceMethod).not.toHaveBeenCalled()
+    }
   })
 
-  it('binds every endpoint to its schema and controller through real requests', async () => {
+  it('binds route params to the intended validator contracts', async () => {
+    const invalidExpenseUpdate = await invokeRouteValidator('patch', '/expenses/:id', {
+      params: { id: '' }, body: { amount: 2 },
+    })
+    expect(invalidExpenseUpdate.response.statusCode).toBe(400)
+    expect(invalidExpenseUpdate.next).not.toHaveBeenCalled()
+
+    const invalidSavingPlanUpdate = await invokeRouteValidator('patch', '/saving-plans/:id', {
+      params: { id: '' }, body: { name: '新旅行' },
+    })
+    expect(invalidSavingPlanUpdate.response.statusCode).toBe(400)
+    expect(invalidSavingPlanUpdate.next).not.toHaveBeenCalled()
+
+    for (const [method, path] of [['delete', '/expenses/:id'], ['delete', '/saving-plans/:id']] as const) {
+      const invalid = await invokeRouteValidator(method, path, { params: { id: '' } })
+      expect(invalid.response.statusCode).toBe(400)
+      expect(invalid.next).not.toHaveBeenCalled()
+    }
+
+    const validExpenseUpdate = await invokeRouteValidator('patch', '/expenses/:id', {
+      params: { id: 'e1' }, body: { amount: 2 },
+    })
+    expect(validExpenseUpdate.response.statusCode).toBe(200)
+    expect(validExpenseUpdate.next).toHaveBeenCalledOnce()
+
+    const validSavingPlanUpdate = await invokeRouteValidator('patch', '/saving-plans/:id', {
+      params: { id: 'p1' }, body: { name: '新旅行' },
+    })
+    expect(validSavingPlanUpdate.response.statusCode).toBe(200)
+    expect(validSavingPlanUpdate.next).toHaveBeenCalledOnce()
+
+    for (const path of ['/expenses/:id', '/saving-plans/:id']) {
+      const valid = await invokeRouteValidator('delete', path, { params: { id: 'resource-1' } })
+      expect(valid.response.statusCode).toBe(200)
+      expect(valid.next).toHaveBeenCalledOnce()
+    }
+  })
+
+  it('returns the complete success envelope for every endpoint through real requests', async () => {
     const cases = [
       {
         method: 'GET', path: '/api/finance/expenses', service: 'getExpenses', body: undefined,
-        result: [], args: ['u1', {}],
+        result: [{ id: 'e1' }], args: ['u1', {}],
+        expected: { success: true, data: [{ id: 'e1' }] },
       },
       {
         method: 'POST', path: '/api/finance/expenses', service: 'createExpense',
         body: { date: '2026-07-31', amount: 1, category: 'food', paymentMethod: 'cash' },
-        result: { id: 'e1' }, args: ['u1', { date: '2026-07-31', amount: 1, category: 'food', paymentMethod: 'cash' }],
+        result: { id: 'e1', amount: 1 }, args: ['u1', { date: '2026-07-31', amount: 1, category: 'food', paymentMethod: 'cash' }],
+        expected: { success: true, data: { id: 'e1', amount: 1 }, message: '消费记录已创建' },
       },
       {
         method: 'PATCH', path: '/api/finance/expenses/e1', service: 'updateExpense', body: { amount: 2 },
-        result: { id: 'e1' }, args: ['u1', 'e1', { amount: 2 }],
+        result: { id: 'e1', amount: 2 }, args: ['u1', 'e1', { amount: 2 }],
+        expected: { success: true, data: { id: 'e1', amount: 2 }, message: '消费记录已更新' },
       },
       {
         method: 'DELETE', path: '/api/finance/expenses/e1', service: 'deleteExpense', body: undefined,
         result: undefined, args: ['u1', 'e1'],
+        expected: { success: true, data: null, message: '消费记录已删除' },
       },
       {
         method: 'GET', path: '/api/finance/summary?month=2026-07', service: 'getSummary', body: undefined,
-        result: { month: '2026-07' }, args: ['u1', '2026-07'],
+        result: { month: '2026-07', total: 12 }, args: ['u1', '2026-07'],
+        expected: { success: true, data: { month: '2026-07', total: 12 } },
       },
       {
         method: 'GET', path: '/api/finance/budgets?month=2026-07', service: 'getBudget', body: undefined,
         result: null, args: ['u1', '2026-07'],
+        expected: { success: true, data: null },
       },
       {
         method: 'PUT', path: '/api/finance/budgets', service: 'upsertBudget', body: { month: '2026-07', amount: 0 },
-        result: { id: 'b1' }, args: ['u1', { month: '2026-07', amount: 0 }],
+        result: { id: 'b1', amount: 0 }, args: ['u1', { month: '2026-07', amount: 0 }],
+        expected: { success: true, data: { id: 'b1', amount: 0 }, message: '预算已更新' },
       },
       {
         method: 'GET', path: '/api/finance/saving-plans', service: 'getSavingPlans', body: undefined,
-        result: [], args: ['u1'],
+        result: [{ id: 'p1' }], args: ['u1'],
+        expected: { success: true, data: [{ id: 'p1' }] },
       },
       {
         method: 'POST', path: '/api/finance/saving-plans', service: 'createSavingPlan',
         body: { name: '旅行', targetAmount: 10, targetDate: '2026-12-31' },
-        result: { id: 'p1' }, args: ['u1', { name: '旅行', targetAmount: 10, targetDate: '2026-12-31' }],
+        result: { id: 'p1', targetAmount: 10 }, args: ['u1', { name: '旅行', targetAmount: 10, targetDate: '2026-12-31' }],
+        expected: { success: true, data: { id: 'p1', targetAmount: 10 }, message: '存钱计划已创建' },
       },
       {
         method: 'PATCH', path: '/api/finance/saving-plans/p1', service: 'updateSavingPlan', body: { name: '新旅行' },
-        result: { id: 'p1' }, args: ['u1', 'p1', { name: '新旅行' }],
+        result: { id: 'p1', name: '新旅行' }, args: ['u1', 'p1', { name: '新旅行' }],
+        expected: { success: true, data: { id: 'p1', name: '新旅行' }, message: '存钱计划已更新' },
       },
       {
         method: 'DELETE', path: '/api/finance/saving-plans/p1', service: 'deleteSavingPlan', body: undefined,
         result: undefined, args: ['u1', 'p1'],
+        expected: { success: true, data: null, message: '存钱计划已删除' },
       },
     ] as const
 
@@ -186,27 +313,7 @@ describe('finance routes', () => {
       const response = await httpRequest(route.method, route.path, route.body)
       expect(response.statusCode).toBe(200)
       expect(serviceMethod).toHaveBeenCalledWith(...route.args)
-      expect(response.body.success).toBe(true)
-    }
-  })
-
-  it('returns required success messages through real endpoints', async () => {
-    const cases = [
-      ['POST', '/api/finance/expenses', 'createExpense', { date: '2026-07-31', amount: 1, category: 'food', paymentMethod: 'cash' }, '消费记录已创建'],
-      ['PATCH', '/api/finance/expenses/e1', 'updateExpense', { amount: 2 }, '消费记录已更新'],
-      ['DELETE', '/api/finance/expenses/e1', 'deleteExpense', undefined, '消费记录已删除'],
-      ['PUT', '/api/finance/budgets', 'upsertBudget', { month: '2026-07', amount: 0 }, '预算已更新'],
-      ['POST', '/api/finance/saving-plans', 'createSavingPlan', { name: '旅行', targetAmount: 10, targetDate: '2026-12-31' }, '存钱计划已创建'],
-      ['PATCH', '/api/finance/saving-plans/p1', 'updateSavingPlan', { name: '新旅行' }, '存钱计划已更新'],
-      ['DELETE', '/api/finance/saving-plans/p1', 'deleteSavingPlan', undefined, '存钱计划已删除'],
-    ] as const
-
-    for (const [method, path, service, body, message] of cases) {
-      vi.spyOn(financeService, service as any).mockResolvedValue(service.startsWith('delete') ? undefined : { id: 'resource-1' } as never)
-      const response = await httpRequest(method, path, body)
-      expect(response.statusCode).toBe(200)
-      expect(response.body).toMatchObject({ success: true, message })
-      if (service.startsWith('delete')) expect(response.body.data).toBeNull()
+      expect(response.body).toEqual(route.expected)
     }
   })
 
