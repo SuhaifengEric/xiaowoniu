@@ -89,6 +89,10 @@ src/
 
 Fitness 后端提供按当前用户隔离的运动打卡、体重记录、单一有效目标及周/月统计 API，所有端点均需要 JWT。对应实现位于 `fitness.controller.ts`、`fitness.service.ts`、`fitness.routes.ts` 和 `fitness.schemas.ts`。
 
+学习模块提供按用户隔离的考试倒计时、考试科目和学习打卡 API，路由前缀为 `/api/learning`。考试、科目和打卡分别支持查询、创建、更新或删除；打卡创建和删除会在事务内按章节去重重算科目进度，并使用 PostgreSQL advisory transaction lock 保护同一科目的并发更新。删除考试会级联删除科目和打卡，删除科目会级联删除打卡。日期使用 `YYYY-MM-DD`，资源不存在或跨用户访问统一返回 `404`。
+
+学习模块相关 Prisma 表为 `exam_countdowns`、`study_subjects` 和 `study_checkins`，迁移目录为 `prisma/migrations/20260731120000_add_learning_tables`。执行迁移前必须配置可用的 PostgreSQL；`prisma validate` 和 `prisma generate` 只能验证 schema 或生成 client，不代表迁移已经部署。
+
 数据库迁移包含 `add_fitness_tables` 和 `ensure_single_active_fitness_goal`，后者保证每位用户最多有一个有效目标。测试覆盖路由中间件、请求边界、用户隔离删除、目标替换事务及 UTC 周/月统计。
 
 ## API 文档

@@ -3,6 +3,7 @@ import {
   createCheckinSchema,
   createExamSchema,
   createSubjectSchema,
+  emptySchema,
   learningQuerySchema,
   progressQuerySchema,
   updateExamSchema,
@@ -72,5 +73,10 @@ describe('learning validation schemas', () => {
     expect(learningQuerySchema.safeParse({ query: { limit: '0' } }).success).toBe(false)
     expect(learningQuerySchema.safeParse({ query: { limit: '101', offset: '1000001' } }).success).toBe(false)
     expect(progressQuerySchema.safeParse({ query: { examId, startDate: '2026-07-01', endDate: '2026-07-31' } }).success).toBe(true)
+  })
+
+  it('accepts the full Express request envelope used by validation middleware', () => {
+    expect(emptySchema.safeParse({ body: {}, query: {}, params: {} }).success).toBe(true)
+    expect(learningQuerySchema.safeParse({ body: {}, query: { examId }, params: {} }).success).toBe(true)
   })
 })

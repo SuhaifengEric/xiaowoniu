@@ -83,6 +83,15 @@ describe('useLearningStore', () => {
     expect(useLearningStore.getState().error).toBe('操作已成功，但数据刷新失败')
   })
 
+  it('appends paginated checkins without dropping the first page', async () => {
+    const nextCheckin = { ...checkin, id: 'checkin-2', date: '2026-07-29' }
+    await useLearningStore.getState().fetchCheckins({ examId: 'exam-1', limit: 10, offset: 0 })
+    service.getCheckins.mockResolvedValue([nextCheckin])
+
+    await useLearningStore.getState().fetchCheckins({ examId: 'exam-1', limit: 10, offset: 10 })
+
+    expect(useLearningStore.getState().checkins).toEqual([checkin, nextCheckin])
+  })
   it('invalidates in-flight responses after reset', async () => {
     let resolve!: (value: any[]) => void
     service.getExams.mockImplementation(() => new Promise((result) => { resolve = result }))

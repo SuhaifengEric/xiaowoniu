@@ -4,7 +4,7 @@ const prisma = vi.hoisted(() => ({
   examCountdown: { findMany: vi.fn(), findFirst: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
   studySubject: { findMany: vi.fn(), findFirst: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
   studyCheckin: { findMany: vi.fn(), findFirst: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
-  $queryRaw: vi.fn(),
+  $executeRaw: vi.fn(),
   $transaction: vi.fn(),
 }))
 
@@ -33,7 +33,7 @@ const checkinRecord = {
 beforeEach(() => {
   vi.clearAllMocks()
   prisma.$transaction.mockImplementation(async (callback) => callback(prisma))
-  prisma.$queryRaw.mockResolvedValue([])
+  prisma.$executeRaw.mockResolvedValue(0)
 })
 
 describe('learning resource isolation and DTOs', () => {
@@ -76,7 +76,7 @@ describe('learning resource isolation and DTOs', () => {
       subjectId: 's1', date: '2026-07-30', completedChapters: [2, 1], studyHours: 1.5,
     })
     expect(prisma.$transaction).toHaveBeenCalled()
-    expect(prisma.$queryRaw).toHaveBeenCalled()
+    expect(prisma.$executeRaw).toHaveBeenCalled()
     expect(prisma.studySubject.update).toHaveBeenCalledWith({ where: { id: 's1' }, data: { currentChapter: 3, progressPercentage: 75 } })
     expect(result).toMatchObject({ id: 'c1', studyHours: 1.5 })
   })

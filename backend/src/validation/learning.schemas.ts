@@ -24,14 +24,14 @@ const dateRange = z.object({
   path: ['endDate'],
 })
 
-export const idParamSchema = z.object({ params: z.object({ id: z.string().min(1) }).strict() }).strict()
+export const idParamSchema = z.object({ params: z.object({ id: z.string().min(1) }).strict() })
 
 export const createExamSchema = z.object({
   body: z.object({
     examName: name,
     examDate: dateString,
   }).strict(),
-}).strict()
+})
 
 export const updateExamSchema = z.object({
   body: z.object({
@@ -41,7 +41,7 @@ export const updateExamSchema = z.object({
   }).strict().refine((value) => Object.keys(value).length > 0, {
     message: '至少提供一个可更新字段',
   }),
-}).strict()
+})
 
 export const createSubjectSchema = z.object({
   body: z.object({
@@ -50,7 +50,7 @@ export const createSubjectSchema = z.object({
     totalChapters: z.number().int().safe().min(1).max(10_000),
     targetCompletionDate: dateString.nullable().optional(),
   }).strict(),
-}).strict()
+})
 
 export const updateSubjectSchema = z.object({
   body: z.object({
@@ -60,7 +60,7 @@ export const updateSubjectSchema = z.object({
   }).strict().refine((value) => Object.keys(value).length > 0, {
     message: '至少提供一个可更新字段',
   }),
-}).strict()
+})
 
 export const createCheckinSchema = z.object({
   body: z.object({
@@ -72,12 +72,12 @@ export const createCheckinSchema = z.object({
       .refine((value) => Number.isInteger(value * 100), '学习时长最多保留两位小数'),
     notes: z.string().max(2000).optional(),
   }).strict(),
-}).strict()
+})
 
-export const learningQuerySchema = z.object({ query: dateRange }).strict()
+export const learningQuerySchema = z.object({ query: dateRange })
 export const subjectQuerySchema = z.object({
   query: z.object({ examId: uuid }).strict(),
-}).strict()
+})
 export const progressQuerySchema = z.object({
   query: z.object({
     examId: uuid,
@@ -87,6 +87,6 @@ export const progressQuerySchema = z.object({
     message: '开始日期不能晚于结束日期',
     path: ['endDate'],
   }),
-}).strict()
+})
 
-export const emptySchema = z.object({}).strict()
+export const emptySchema = z.object({})

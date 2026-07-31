@@ -111,7 +111,7 @@ function calculateProgress(completedChapters: number[], totalChapters: number) {
 }
 
 async function lockSubject(tx: any, subjectId: string) {
-  await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${subjectId}, 0))`
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${subjectId}, 0))`
 }
 
 async function recalculateSubject(tx: any, subjectId: string, totalChapters: number) {
