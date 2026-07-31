@@ -19,6 +19,9 @@ model User {
   fitnessCheckins FitnessCheckin[] @relation("UserFitnessCheckins")
   weightRecords   WeightRecord[]   @relation("UserWeightRecords")
   fitnessGoals    FitnessGoal[]    @relation("UserFitnessGoals")
+  examCountdowns  ExamCountdown[]  @relation("UserExamCountdowns")
+  studySubjects   StudySubject[]   @relation("UserStudySubjects")
+  studyCheckins   StudyCheckin[]   @relation("UserStudyCheckins")
 
   @@map("users")
 }
@@ -65,4 +68,58 @@ model FitnessGoal {
   updatedAt           DateTime  @updatedAt @map("updated_at")
 
   @@map("fitness_goals")
+}
+
+model ExamCountdown {
+  id         String          @id @default(uuid())
+  userId     String          @map("user_id")
+  user       User            @relation("UserExamCountdowns", fields: [userId], references: [id], onDelete: Cascade)
+  examName   String          @map("exam_name") @db.VarChar(100)
+  examDate   DateTime        @map("exam_date") @db.Date
+  isArchived Boolean         @default(false) @map("is_archived")
+  createdAt  DateTime        @default(now()) @map("created_at")
+  updatedAt  DateTime        @updatedAt @map("updated_at")
+  subjects   StudySubject[]  @relation("ExamStudySubjects")
+
+  @@index([userId, isArchived, examDate])
+  @@map("exam_countdowns")
+}
+
+model StudySubject {
+  id                   String          @id @default(uuid())
+  userId               String          @map("user_id")
+  user                 User            @relation("UserStudySubjects", fields: [userId], references: [id], onDelete: Cascade)
+  examId               String          @map("exam_id")
+  exam                 ExamCountdown   @relation("ExamStudySubjects", fields: [examId], references: [id], onDelete: Cascade)
+  subjectName          String          @map("subject_name") @db.VarChar(100)
+  totalChapters        Int             @map("total_chapters")
+  currentChapter       Int             @default(0) @map("current_chapter")
+  progressPercentage   Int             @default(0) @map("progress_percentage")
+  targetCompletionDate DateTime?       @map("target_completion_date") @db.Date
+  createdAt            DateTime        @default(now()) @map("created_at")
+  updatedAt            DateTime        @updatedAt @map("updated_at")
+  checkins             StudyCheckin[]  @relation("SubjectStudyCheckins")
+
+  @@index([userId, examId])
+  @@unique([examId, subjectName])
+  @@map("study_subjects")
+}
+
+model StudyCheckin {
+  id                 String        @id @default(uuid())
+  userId             String        @map("user_id")
+  user               User          @relation("UserStudyCheckins", fields: [userId], references: [id], onDelete: Cascade)
+  subjectId          String        @map("subject_id")
+  subject            StudySubject  @relation("SubjectStudyCheckins", fields: [subjectId], references: [id], onDelete: Cascade)
+  date               DateTime      @db.Date
+  completedChapters  Int[]         @map("completed_chapters")
+  studyHours         Decimal       @map("study_hours") @db.Decimal(4, 2)
+  notes              String?       @db.Text
+  progressPercentage Int           @map("progress_percentage")
+  createdAt          DateTime      @default(now()) @map("created_at")
+  updatedAt          DateTime      @updatedAt @map("updated_at")
+
+  @@index([userId, date])
+  @@index([subjectId, date])
+  @@map("study_checkins")
 }
