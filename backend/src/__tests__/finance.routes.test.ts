@@ -398,7 +398,9 @@ describe('finance routes', () => {
     }
   })
 
-  it('binds route params to the intended validator contracts', async () => {
+  it('covers route-param validator middleware contract directly, including empty IDs', async () => {
+    // Express does not match /:id for an empty path segment, so empty IDs are
+    // covered here by invoking the validator middleware contract directly.
     const invalidExpenseUpdate = await invokeRouteValidator('patch', '/expenses/:id', {
       params: { id: '' }, body: { amount: 2 },
     })
@@ -520,17 +522,25 @@ describe('finance routes', () => {
     }
   })
 
-  it('rejects missing and unknown delete IDs through real HTTP endpoints', async () => {
+  it('returns route-level 404 for missing delete route segments without invoking services', async () => {
+    for (const [resource, service] of [
+      ['expenses', 'deleteExpense'],
+      ['saving-plans', 'deleteSavingPlan'],
+    ] as const) {
+      const serviceMethod = vi.spyOn(financeService, service)
+      const missing = await httpRequest('DELETE', `/api/finance/${resource}/`)
+      expect(missing.statusCode).toBe(404)
+      expect(missing.body).toMatchObject({ success: false, error: { code: 'NOT_FOUND' } })
+      expect(serviceMethod).not.toHaveBeenCalled()
+    }
+  })
+
+  it('maps unknown non-empty delete IDs to service not found through real HTTP routes', async () => {
     for (const [resource, service] of [
       ['expenses', 'deleteExpense'],
       ['saving-plans', 'deleteSavingPlan'],
     ] as const) {
       const serviceMethod = vi.spyOn(financeService, service).mockRejectedValue(new FinanceNotFoundError('财务记录不存在'))
-      const missing = await httpRequest('DELETE', `/api/finance/${resource}/`)
-      expect(missing.statusCode).toBe(404)
-      expect(missing.body).toMatchObject({ success: false, error: { code: 'NOT_FOUND' } })
-      expect(serviceMethod).not.toHaveBeenCalled()
-
       const unknown = await httpRequest('DELETE', `/api/finance/${resource}/missing-id`)
       expect(unknown.statusCode).toBe(404)
       expect(unknown.body).toMatchObject({ success: false, error: { code: 'NOT_FOUND' } })

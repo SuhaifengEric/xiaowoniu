@@ -401,6 +401,7 @@ Authorization: Bearer <token>
 ```
 
 `month` 必填且必须是有效的 `YYYY-MM`。返回的 `data` 包含 `month`、`totalExpense`、`expenseCount`、`budget`、`categoryBreakdown` 和 `dailyBreakdown`。`categoryBreakdown` 按消费类别返回 `category`、`amount`、`percentage` 和 `count`；`dailyBreakdown` 为该月每天的 `date`、`amount` 和 `count`，没有消费的日期也返回零值。若没有该月预算，`budget` 为 `null`；有预算时还包含 `spent`、`remaining` 和 `usedPercentage`。预算金额为 `0` 表示预算已设置但不计算使用率，`usedPercentage` 返回 `0`，剩余金额仍按 `预算 - 消费` 计算。
+
 获取月度预算：
 
 ```http
@@ -483,7 +484,9 @@ Authorization: Bearer <token>
 除资源不存在和目标金额冲突外，Finance 请求遵循统一错误包络：
 
 - `400 VALIDATION_ERROR`：请求体、路径参数、日期、月份、金额或查询参数不合法；金额超过两位小数、日期不是有效的 `YYYY-MM-DD`、月份不是有效的 `YYYY-MM` 也属于此类。
-- `401 UNAUTHORIZED`：未提供或无效的 JWT Token。
+- `401 UNAUTHORIZED`：未提供认证 Token。
+- `401 INVALID_TOKEN`：Token 格式或签名无效。
+- `401 TOKEN_EXPIRED`：Token 已过期。
 - `404 NOT_FOUND`：消费记录或存钱计划不存在，或属于其他用户。
 - `409 CONFLICT`：存钱计划当前金额超过目标金额，或更新后的目标金额低于当前金额。
 
@@ -508,7 +511,8 @@ Authorization: Bearer <token>
 
 | 错误码 | HTTP 状态码 | 说明 |
 |--------|------------|------|
-| `UNAUTHORIZED` | 401 | 未认证或 Token 无效 |
+| `UNAUTHORIZED` | 401 | 未提供认证 Token |
+| `INVALID_TOKEN` | 401 | Token 格式或签名无效 |
 | `TOKEN_EXPIRED` | 401 | Token 已过期 |
 | `INVALID_CREDENTIALS` | 401 | 邮箱或密码错误 |
 | `VALIDATION_ERROR` | 400 | 请求参数验证失败 |
