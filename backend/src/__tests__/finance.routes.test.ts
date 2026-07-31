@@ -33,6 +33,12 @@ const token = generateToken({ userId: 'u1', email: 'u1@example.com' })
 const app = express()
 app.use(express.json())
 app.use('/api', routes)
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    error: { code: 'NOT_FOUND', message: '路由不存在' },
+  })
+})
 app.use(errorHandler)
 const server = http.createServer(app)
 
@@ -338,6 +344,10 @@ describe('finance routes', () => {
       },
       {
         method: 'POST', path: '/api/finance/saving-plans',
+        service: 'createSavingPlan', body: { name: '旅行', targetAmount: 10, currentAmount: 1.001, targetDate: '2026-12-31' },
+      },
+      {
+        method: 'POST', path: '/api/finance/saving-plans',
         service: 'createSavingPlan', body: { name: '旅行', targetAmount: 10, currentAmount: 10000000000, targetDate: '2026-12-31' },
       },
       {
@@ -507,6 +517,24 @@ describe('finance routes', () => {
       expect(response.statusCode).toBe(200)
       expect(serviceMethod).toHaveBeenCalledWith(...route.args)
       expect(response.body).toEqual(route.expected)
+    }
+  })
+
+  it('rejects missing and unknown delete IDs through real HTTP endpoints', async () => {
+    for (const [resource, service] of [
+      ['expenses', 'deleteExpense'],
+      ['saving-plans', 'deleteSavingPlan'],
+    ] as const) {
+      const serviceMethod = vi.spyOn(financeService, service).mockRejectedValue(new FinanceNotFoundError('财务记录不存在'))
+      const missing = await httpRequest('DELETE', `/api/finance/${resource}/`)
+      expect(missing.statusCode).toBe(404)
+      expect(missing.body).toMatchObject({ success: false, error: { code: 'NOT_FOUND' } })
+      expect(serviceMethod).not.toHaveBeenCalled()
+
+      const unknown = await httpRequest('DELETE', `/api/finance/${resource}/missing-id`)
+      expect(unknown.statusCode).toBe(404)
+      expect(unknown.body).toMatchObject({ success: false, error: { code: 'NOT_FOUND' } })
+      expect(serviceMethod).toHaveBeenCalledWith('u1', 'missing-id')
     }
   })
 
