@@ -75,6 +75,9 @@ export const createCheckinSchema = z.object({
 }).strict()
 
 export const learningQuerySchema = z.object({ query: dateRange }).strict()
+export const subjectQuerySchema = z.object({
+  query: z.object({ examId: uuid }).strict(),
+}).strict()
 export const progressQuerySchema = z.object({
   query: z.object({
     examId: uuid,

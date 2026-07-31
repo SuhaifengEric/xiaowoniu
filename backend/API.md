@@ -241,6 +241,86 @@ Authorization: Bearer <token>
 
 ---
 
+## 学习模块
+
+所有学习接口均需要 JWT，且只读写当前认证用户的数据。日期字段严格使用 `YYYY-MM-DD`，成功响应统一为 HTTP `200`，包络为 `{ "success": true, "data": ..., "message": ... }`。
+
+### 考试倒计时
+
+| 方法 | 路径 | 成功消息 |
+| --- | --- | --- |
+| `GET` | `/learning/exams` | - |
+| `POST` | `/learning/exams` | `考试已创建` |
+| `PATCH` | `/learning/exams/:id` | `考试已更新` |
+| `DELETE` | `/learning/exams/:id` | `考试已删除` |
+
+创建请求：
+
+```json
+{
+  "examName": "教师资格证笔试",
+  "examDate": "2026-11-01"
+}
+```
+
+考试名称 trim 后必须为 1–100 字符；考试日期可以是今天、未来或过去。更新至少提供一个字段，可更新 `examName`、`examDate`、`isArchived`。查询默认未归档优先，然后按考试日期和创建时间升序。
+
+### 学习科目
+
+| 方法 | 路径 | 成功消息 |
+| --- | --- | --- |
+| `GET` | `/learning/subjects?examId=:examId` | - |
+| `POST` | `/learning/subjects` | `科目已创建` |
+| `PATCH` | `/learning/subjects/:id` | `科目已更新` |
+| `DELETE` | `/learning/subjects/:id` | `科目已删除` |
+
+创建请求：
+
+```json
+{
+  "examId": "uuid",
+  "subjectName": "教育知识与能力",
+  "totalChapters": 24,
+  "targetCompletionDate": "2026-10-15"
+}
+```
+
+科目名称 trim 后必须为 1–100 字符，`totalChapters` 为 1–10000 的整数，同一考试内名称唯一。目标日期可为 `null`，非空时不得早于考试日期；更新总章节数不得小于当前已完成章节数。
+
+### 学习打卡
+
+| 方法 | 路径 | 成功消息 |
+| --- | --- | --- |
+| `GET` | `/learning/checkins` | - |
+| `POST` | `/learning/checkins` | `学习打卡已保存` |
+| `DELETE` | `/learning/checkins/:id` | `学习打卡已删除` |
+
+查询支持 `examId`、`subjectId`、`startDate`、`endDate`、`limit`、`offset`。日期范围包含首尾日期，允许只传一端；两端均传时不可反转。`limit` 为 1–100，`offset` 为 0–1000000。
+
+创建请求：
+
+```json
+{
+  "subjectId": "uuid",
+  "date": "2026-07-30",
+  "completedChapters": [3, 4],
+  "studyHours": 1.5,
+  "notes": "完成了重点章节练习"
+}
+```
+
+章节数组长度为 1–1000，必须是唯一正整数；章节不得超过科目总章节数。`studyHours` 为 0.01–24 且最多两位小数，`notes` 最多 2000 字符，保存时 trim，空文本保存为 `null`。
+
+### 进度统计
+
+**GET** `/learning/progress?examId=:examId&startDate=&endDate=`
+
+`examId` 必填。返回考试信息（含后端按 UTC 计算的 `daysRemaining`）、按总章节数加权的考试进度、各科目当前进度与范围内学习统计，以及日期范围内每天的 `dailyActivity`；没有活动的日期也返回零值。若省略日期范围，默认返回当前可见月的 42 天范围。
+
+所有学习资源按当前 JWT 的 `userId` 过滤。资源不存在或属于其他用户统一返回 `404 NOT_FOUND`，不暴露资源归属。删除考试会级联删除科目和学习打卡，删除科目会级联删除其打卡；删除打卡会在事务内重新计算科目进度。章节统计使用所有打卡章节的去重并集，进度按 `floor(currentChapter / totalChapters * 100)` 限制在 `0..100`。学习打卡创建和删除均使用同一事务及科目级 PostgreSQL advisory lock。
+
+---
+
 ## 错误响应格式
 
 所有错误响应遵循统一格式：
