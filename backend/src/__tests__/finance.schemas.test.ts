@@ -56,7 +56,7 @@ describe('finance validation schemas', () => {
   })
 
   it('rejects zero, negative, overlarge, non-finite, and more-than-two-decimal expense amounts', () => {
-    for (const amount of [0, -0.01, 10000000000, 1.001, Infinity, NaN]) {
+    for (const amount of [0, -0.01, 10000000000, 1.001, 9999999999.980001, 1000000000.0000001, Infinity, NaN]) {
       expect(createExpenseSchema.safeParse({ body: { ...expense, amount } }).success).toBe(false)
     }
   })

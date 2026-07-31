@@ -9,10 +9,7 @@ const dateString = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
 const monthString = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, '月份必须是有效的 YYYY-MM')
 
 const amount = (min: number, max: number) => z.number().finite().min(min).max(max)
-  .refine((value) => {
-    const scaled = value * 100
-    return Math.abs(scaled - Math.round(scaled)) <= Number.EPSILON * Math.max(1, Math.abs(scaled))
-  }, '金额最多保留两位小数')
+  .refine((value) => Math.round(value * 100) / 100 === value, '金额最多保留两位小数')
 
 const boundedInteger = (min: number, max: number) => z.string()
   .regex(/^\d+$/)
