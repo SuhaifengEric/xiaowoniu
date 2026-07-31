@@ -159,12 +159,114 @@ describe('finance routes', () => {
         service: 'getExpenses', body: undefined,
       },
       {
+        method: 'GET', path: '/api/finance/expenses?limit=0',
+        service: 'getExpenses', body: undefined,
+      },
+      {
+        method: 'GET', path: '/api/finance/expenses?offset=-1',
+        service: 'getExpenses', body: undefined,
+      },
+      {
+        method: 'GET', path: '/api/finance/expenses?category=unknown',
+        service: 'getExpenses', body: undefined,
+      },
+      {
+        method: 'GET', path: '/api/finance/expenses?paymentMethod=unknown',
+        service: 'getExpenses', body: undefined,
+      },
+      {
+        method: 'GET', path: '/api/finance/expenses?startDate=2026-02-30',
+        service: 'getExpenses', body: undefined,
+      },
+      {
+        method: 'GET', path: '/api/finance/expenses?endDate=2026-02-30',
+        service: 'getExpenses', body: undefined,
+      },
+      {
+        method: 'GET', path: '/api/finance/expenses?startDate=2026-08-01&endDate=2026-07-01',
+        service: 'getExpenses', body: undefined,
+      },
+      {
+        method: 'POST', path: '/api/finance/expenses',
+        service: 'createExpense', body: {},
+      },
+      {
+        method: 'POST', path: '/api/finance/expenses',
+        service: 'createExpense', body: {
+          date: '2026-02-30', amount: 1, category: 'food', paymentMethod: 'cash',
+        },
+      },
+      {
+        method: 'POST', path: '/api/finance/expenses',
+        service: 'createExpense', body: {
+          date: '2026-07-31', amount: 0, category: 'food', paymentMethod: 'cash',
+        },
+      },
+      {
+        method: 'POST', path: '/api/finance/expenses',
+        service: 'createExpense', body: {
+          date: '2026-07-31', amount: 1.001, category: 'food', paymentMethod: 'cash',
+        },
+      },
+      {
+        method: 'POST', path: '/api/finance/expenses',
+        service: 'createExpense', body: {
+          date: '2026-07-31', amount: 10000000000, category: 'food', paymentMethod: 'cash',
+        },
+      },
+      {
+        method: 'POST', path: '/api/finance/expenses',
+        service: 'createExpense', body: {
+          date: '2026-07-31', amount: 1, category: 'unknown', paymentMethod: 'cash',
+        },
+      },
+      {
+        method: 'POST', path: '/api/finance/expenses',
+        service: 'createExpense', body: {
+          date: '2026-07-31', amount: 1, category: 'food', paymentMethod: 'unknown',
+        },
+      },
+      {
+        method: 'POST', path: '/api/finance/expenses',
+        service: 'createExpense', body: {
+          date: '2026-07-31', amount: 1, category: 'food', paymentMethod: 'cash', notes: 'x'.repeat(2001),
+        },
+      },
+      {
         method: 'POST', path: '/api/finance/expenses',
         service: 'createExpense', body: { name: '旅行', targetAmount: 10, targetDate: '2026-12-31' },
       },
       {
         method: 'PATCH', path: '/api/finance/expenses/e1',
         service: 'updateExpense', body: { name: '新旅行' },
+      },
+      {
+        method: 'PATCH', path: '/api/finance/expenses/e1',
+        service: 'updateExpense', body: { date: '2026-02-30' },
+      },
+      {
+        method: 'PATCH', path: '/api/finance/expenses/e1',
+        service: 'updateExpense', body: { amount: 0 },
+      },
+      {
+        method: 'PATCH', path: '/api/finance/expenses/e1',
+        service: 'updateExpense', body: { amount: 1.001 },
+      },
+      {
+        method: 'PATCH', path: '/api/finance/expenses/e1',
+        service: 'updateExpense', body: { amount: 10000000000 },
+      },
+      {
+        method: 'PATCH', path: '/api/finance/expenses/e1',
+        service: 'updateExpense', body: { category: 'unknown' },
+      },
+      {
+        method: 'PATCH', path: '/api/finance/expenses/e1',
+        service: 'updateExpense', body: { paymentMethod: 'unknown' },
+      },
+      {
+        method: 'PATCH', path: '/api/finance/expenses/e1',
+        service: 'updateExpense', body: { notes: 'x'.repeat(2001) },
       },
       {
         method: 'GET', path: '/api/finance/summary?month=2026-13',
@@ -184,11 +286,63 @@ describe('finance routes', () => {
       },
       {
         method: 'PUT', path: '/api/finance/budgets',
+        service: 'upsertBudget', body: { month: '2026-07', amount: -1 },
+      },
+      {
+        method: 'PUT', path: '/api/finance/budgets',
+        service: 'upsertBudget', body: { month: '2026-07', amount: 1.001 },
+      },
+      {
+        method: 'PUT', path: '/api/finance/budgets',
+        service: 'upsertBudget', body: { month: '2026-13', amount: 1 },
+      },
+      {
+        method: 'PUT', path: '/api/finance/budgets',
         service: 'upsertBudget', body: { name: '旅行', targetAmount: 10, targetDate: '2026-12-31' },
       },
       {
+        method: 'GET', path: '/api/finance/saving-plans?month=2026-07',
+        service: 'getSavingPlans', body: undefined,
+      },
+      {
         method: 'GET', path: '/api/finance/saving-plans',
-        service: 'getSavingPlans', body: { date: '2026-07-31', amount: 1, category: 'food', paymentMethod: 'cash' },
+        service: 'getSavingPlans', body: { injected: true },
+      },
+      {
+        method: 'GET', path: '/api/finance/saving-plans?injected=true',
+        service: 'getSavingPlans', body: undefined,
+      },
+      {
+        method: 'POST', path: '/api/finance/saving-plans',
+        service: 'createSavingPlan', body: {},
+      },
+      {
+        method: 'POST', path: '/api/finance/saving-plans',
+        service: 'createSavingPlan', body: { name: '   ', targetAmount: 10, targetDate: '2026-12-31' },
+      },
+      {
+        method: 'POST', path: '/api/finance/saving-plans',
+        service: 'createSavingPlan', body: { name: '旅行', targetAmount: 0, targetDate: '2026-12-31' },
+      },
+      {
+        method: 'POST', path: '/api/finance/saving-plans',
+        service: 'createSavingPlan', body: { name: '旅行', targetAmount: 1.001, targetDate: '2026-12-31' },
+      },
+      {
+        method: 'POST', path: '/api/finance/saving-plans',
+        service: 'createSavingPlan', body: { name: '旅行', targetAmount: 10000000000, targetDate: '2026-12-31' },
+      },
+      {
+        method: 'POST', path: '/api/finance/saving-plans',
+        service: 'createSavingPlan', body: { name: '旅行', targetAmount: 10, currentAmount: -1, targetDate: '2026-12-31' },
+      },
+      {
+        method: 'POST', path: '/api/finance/saving-plans',
+        service: 'createSavingPlan', body: { name: '旅行', targetAmount: 10, currentAmount: 10000000000, targetDate: '2026-12-31' },
+      },
+      {
+        method: 'POST', path: '/api/finance/saving-plans',
+        service: 'createSavingPlan', body: { name: '旅行', targetAmount: 10, targetDate: '2026-02-30' },
       },
       {
         method: 'POST', path: '/api/finance/saving-plans',
@@ -198,9 +352,34 @@ describe('finance routes', () => {
         method: 'PATCH', path: '/api/finance/saving-plans/p1',
         service: 'updateSavingPlan', body: { paymentMethod: 'cash' },
       },
+      {
+        method: 'PATCH', path: '/api/finance/saving-plans/p1',
+        service: 'updateSavingPlan', body: { targetDate: '2026-02-30' },
+      },
+      {
+        method: 'PATCH', path: '/api/finance/saving-plans/p1',
+        service: 'updateSavingPlan', body: { name: '   ' },
+      },
+      {
+        method: 'PATCH', path: '/api/finance/saving-plans/p1',
+        service: 'updateSavingPlan', body: { targetAmount: 0 },
+      },
+      {
+        method: 'PATCH', path: '/api/finance/saving-plans/p1',
+        service: 'updateSavingPlan', body: { targetAmount: 1.001 },
+      },
+      {
+        method: 'PATCH', path: '/api/finance/saving-plans/p1',
+        service: 'updateSavingPlan', body: { targetAmount: 10000000000 },
+      },
+      {
+        method: 'PATCH', path: '/api/finance/saving-plans/p1',
+        service: 'updateSavingPlan', body: { currentAmount: -1 },
+      },
     ] as const
 
     for (const route of cases) {
+      vi.restoreAllMocks()
       const serviceMethod = vi.spyOn(financeService, route.service as any)
       const response = await httpRequest(route.method, route.path, route.body)
       expect(response.statusCode, `${route.method} ${route.path}`).toBe(400)
@@ -227,6 +406,20 @@ describe('finance routes', () => {
       expect(invalid.response.statusCode).toBe(400)
       expect(invalid.next).not.toHaveBeenCalled()
     }
+
+    for (const parts of [
+      { body: { injected: true } },
+      { query: { injected: true } },
+      { params: { injected: true } },
+    ]) {
+      const invalid = await invokeRouteValidator('get', '/saving-plans', parts)
+      expect(invalid.response.statusCode).toBe(400)
+      expect(invalid.next).not.toHaveBeenCalled()
+    }
+
+    const validEmptyRequest = await invokeRouteValidator('get', '/saving-plans', {})
+    expect(validEmptyRequest.response.statusCode).toBe(200)
+    expect(validEmptyRequest.next).toHaveBeenCalledOnce()
 
     const validExpenseUpdate = await invokeRouteValidator('patch', '/expenses/:id', {
       params: { id: 'e1' }, body: { amount: 2 },
@@ -266,7 +459,7 @@ describe('finance routes', () => {
         expected: { success: true, data: { id: 'e1', amount: 2 }, message: '消费记录已更新' },
       },
       {
-        method: 'DELETE', path: '/api/finance/expenses/e1', service: 'deleteExpense', body: undefined,
+        method: 'DELETE', path: '/api/finance/expenses/e1', service: 'deleteExpense', body: { amount: 0 },
         result: undefined, args: ['u1', 'e1'],
         expected: { success: true, data: null, message: '消费记录已删除' },
       },
@@ -302,7 +495,7 @@ describe('finance routes', () => {
         expected: { success: true, data: { id: 'p1', name: '新旅行' }, message: '存钱计划已更新' },
       },
       {
-        method: 'DELETE', path: '/api/finance/saving-plans/p1', service: 'deleteSavingPlan', body: undefined,
+        method: 'DELETE', path: '/api/finance/saving-plans/p1', service: 'deleteSavingPlan', body: { amount: 0 },
         result: undefined, args: ['u1', 'p1'],
         expected: { success: true, data: null, message: '存钱计划已删除' },
       },

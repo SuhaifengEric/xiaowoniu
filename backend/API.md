@@ -401,7 +401,6 @@ Authorization: Bearer <token>
 ```
 
 `month` 必填且必须是有效的 `YYYY-MM`。返回的 `data` 包含 `month`、`totalExpense`、`expenseCount`、`budget`、`categoryBreakdown` 和 `dailyBreakdown`。`categoryBreakdown` 按消费类别返回 `category`、`amount`、`percentage` 和 `count`；`dailyBreakdown` 为该月每天的 `date`、`amount` 和 `count`，没有消费的日期也返回零值。若没有该月预算，`budget` 为 `null`；有预算时还包含 `spent`、`remaining` 和 `usedPercentage`。预算金额为 `0` 表示预算已设置但不计算使用率，`usedPercentage` 返回 `0`，剩余金额仍按 `预算 - 消费` 计算。
-
 获取月度预算：
 
 ```http
