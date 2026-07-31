@@ -5,6 +5,10 @@ const mocks = vi.hoisted(() => ({
   register: vi.fn(),
   logout: vi.fn(),
   saveAuth: vi.fn(),
+  clearAuth: vi.fn(() => {
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+  }),
   resetFitness: vi.fn(),
 }))
 
@@ -16,6 +20,7 @@ vi.mock('@/services/auth.service', () => ({
     login: mocks.login,
     register: mocks.register,
     saveAuth: mocks.saveAuth,
+    clearAuth: mocks.clearAuth,
   },
 }))
 
@@ -110,13 +115,16 @@ describe('useAuthStore logout fitness cleanup', () => {
     expect(mocks.resetFitness).toHaveBeenCalledOnce()
   })
 
-  it('resets fitness state after a failed server logout', async () => {
-    mocks.logout
-      .mockRejectedValueOnce(new Error('server unavailable'))
-      .mockResolvedValueOnce(undefined)
+  it('clears local credentials after a failed server logout', async () => {
+    storage.set('token', 'stale-token')
+    storage.set('user', '{"id":"user-1"}')
+    mocks.logout.mockRejectedValue(new Error('server unavailable'))
 
     await useAuthStore.getState().logout()
 
+    expect(mocks.logout).toHaveBeenCalledOnce()
+    expect(localStorage.getItem('token')).toBeNull()
+    expect(localStorage.getItem('user')).toBeNull()
     expect(mocks.resetFitness).toHaveBeenCalledOnce()
   })
 })

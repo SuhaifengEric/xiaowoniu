@@ -1,9 +1,11 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Login from '@/pages/Login'
 import Register from '@/pages/Register'
 import Dashboard from '@/pages/Dashboard'
-import Fitness from '@/pages/Fitness'
 import ProtectedRoute from './ProtectedRoute'
+
+const Fitness = lazy(() => import('@/pages/Fitness'))
 
 export default function AppRoutes() {
   return (
@@ -23,7 +25,9 @@ export default function AppRoutes() {
           path="/fitness"
           element={
             <ProtectedRoute>
-              <Fitness />
+              <Suspense fallback={<main className="flex min-h-screen items-center justify-center" role="status">健身页面加载中…</main>}>
+                <Fitness />
+              </Suspense>
             </ProtectedRoute>
           }
         />

@@ -22,7 +22,7 @@ interface FitnessDataState {
 }
 
 interface FitnessActions {
-  fetchDashboard: () => Promise<void>
+  fetchDashboard: (checkinParams?: FitnessQueryParams) => Promise<void>
   fetchCheckins: (params?: FitnessQueryParams) => Promise<void>
   fetchWeights: (params?: FitnessQueryParams) => Promise<void>
   fetchGoal: () => Promise<void>
@@ -135,13 +135,13 @@ export const useFitnessStore = create<FitnessState>((set, get) => {
   return {
     ...initialFitnessState,
 
-    fetchDashboard: () => {
+    fetchDashboard: (checkinParams) => {
       const tokens = Object.fromEntries(
         resourceNames.map((resource) => [resource, nextToken(resource)])
       ) as Record<Resource, RequestToken>
       return runAction(async () => {
         const [checkins, weights, goal, stats] = await Promise.all([
-          fitnessService.getCheckins(),
+          fitnessService.getCheckins(checkinParams),
           fitnessService.getWeights(),
           fitnessService.getGoal(),
           fitnessService.getStats(),

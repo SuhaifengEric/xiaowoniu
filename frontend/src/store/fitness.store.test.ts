@@ -46,14 +46,16 @@ describe('useFitnessStore', () => {
     service.getStats.mockResolvedValue(stats)
   })
 
-  it('fetches all dashboard resources concurrently and updates state atomically', async () => {
+  it('fetches all dashboard resources concurrently and scopes visible checkins', async () => {
+    const range = { startDate: '2026-07-27', endDate: '2026-09-06' }
     const resolvers: Array<() => void> = []
     service.getCheckins.mockImplementation(() => new Promise((resolve) => resolvers.push(() => resolve([checkin]))))
     service.getWeights.mockImplementation(() => new Promise((resolve) => resolvers.push(() => resolve([weight]))))
     service.getGoal.mockImplementation(() => new Promise((resolve) => resolvers.push(() => resolve(goal))))
     service.getStats.mockImplementation(() => new Promise((resolve) => resolvers.push(() => resolve(stats))))
 
-    const pending = useFitnessStore.getState().fetchDashboard()
+    const pending = useFitnessStore.getState().fetchDashboard(range)
+    expect(service.getCheckins).toHaveBeenCalledWith(range)
     expect(resolvers).toHaveLength(4)
     expect(useFitnessStore.getState().loading).toBe(true)
     resolvers.forEach((resolve) => resolve())

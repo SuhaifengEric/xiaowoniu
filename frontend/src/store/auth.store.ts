@@ -67,6 +67,11 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ isLoading: true })
     try {
       await authService.logout()
+    } catch {
+      // Local logout must succeed even when the server is unavailable.
+    } finally {
+      authService.clearAuth()
+      useFitnessStore.getState().reset()
       set({
         user: null,
         token: null,
@@ -74,17 +79,6 @@ export const useAuthStore = create<AuthState>((set) => ({
         isLoading: false,
         error: null,
       })
-    } catch (error) {
-      // 即使服务端登出失败，也清除本地状态
-      authService.logout()
-      set({
-        user: null,
-        token: null,
-        isAuthenticated: false,
-        isLoading: false,
-      })
-    } finally {
-      useFitnessStore.getState().reset()
     }
   },
 

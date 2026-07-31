@@ -57,3 +57,70 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer components {
+  .fitness-page {
+    --fitness-green: 21 128 61;
+    --fitness-coral: 194 86 64;
+    letter-spacing: 0;
+  }
+
+  .fitness-panel {
+    @apply rounded-sm border border-stone-200 bg-white p-4 sm:p-5;
+  }
+
+  .fitness-kicker {
+    @apply text-xs font-semibold uppercase text-emerald-800;
+    letter-spacing: 0.08em;
+  }
+
+  .fitness-action {
+    @apply min-h-11 gap-2 rounded-sm border-stone-300 bg-white px-4 text-stone-800 hover:bg-stone-100;
+  }
+
+  .fitness-action--green {
+    @apply border-emerald-800 bg-emerald-800 text-white hover:bg-emerald-900;
+  }
+
+  .fitness-icon-button {
+    @apply min-h-11 min-w-11 rounded-sm focus-visible:ring-emerald-700;
+  }
+
+  .fitness-calendar-day {
+    @apply flex h-14 min-w-0 flex-col items-center justify-center rounded-sm border border-transparent text-sm text-stone-800 hover:border-emerald-300 hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-1 sm:h-16;
+  }
+
+  .fitness-calendar-day--outside {
+    @apply text-stone-400 opacity-60;
+  }
+
+  .fitness-calendar-day--today {
+    @apply bg-orange-50 font-bold;
+    border-color: rgb(var(--fitness-coral) / 0.45);
+    box-shadow: inset 0 0 0 1px rgb(var(--fitness-coral) / 0.35);
+  }
+
+  .fitness-symbol {
+    @apply flex h-9 w-9 shrink-0 items-center justify-center rounded-sm bg-emerald-50 text-emerald-800;
+  }
+
+  .fitness-symbol--coral {
+    color: rgb(var(--fitness-coral));
+    background: rgb(var(--fitness-coral) / 0.1);
+  }
+
+  .fitness-skeleton {
+    @apply block animate-pulse rounded-sm bg-stone-200;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fitness-page *,
+  .fitness-page *::before,
+  .fitness-page *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

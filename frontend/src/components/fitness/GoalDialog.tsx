@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import type { UpsertGoalRequest } from '@xiaowoniu/shared'
+import type { FitnessGoalResponse, UpsertGoalRequest } from '@xiaowoniu/shared'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -10,6 +10,7 @@ interface GoalDialogProps {
   onOpenChange: (open: boolean) => void
   onSubmit: (data: UpsertGoalRequest) => Promise<unknown>
   initialDate?: string
+  goal?: FitnessGoalResponse | null
 }
 
 type Errors = Partial<Record<'targetWeightKg' | 'weeklyWorkoutTarget' | 'startDate' | 'targetDate', string>>
@@ -21,7 +22,7 @@ function validDate(value: string) {
   return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
 }
 
-export default function GoalDialog({ open, onOpenChange, onSubmit, initialDate = '' }: GoalDialogProps) {
+export default function GoalDialog({ open, onOpenChange, onSubmit, initialDate = '', goal }: GoalDialogProps) {
   const [targetWeight, setTargetWeight] = useState('')
   const [weeklyTarget, setWeeklyTarget] = useState('')
   const [startDate, setStartDate] = useState(initialDate)
@@ -32,14 +33,14 @@ export default function GoalDialog({ open, onOpenChange, onSubmit, initialDate =
 
   useEffect(() => {
     if (!open) return
-    setTargetWeight('')
-    setWeeklyTarget('')
-    setStartDate(initialDate)
-    setTargetDate('')
+    setTargetWeight(goal?.targetWeightKg?.toString() ?? '')
+    setWeeklyTarget(goal?.weeklyWorkoutTarget.toString() ?? '')
+    setStartDate(goal?.startDate ?? initialDate)
+    setTargetDate(goal?.targetDate ?? '')
     setErrors({})
     setSubmitError('')
     setSubmitting(false)
-  }, [initialDate, open])
+  }, [goal, initialDate, open])
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault()
@@ -47,7 +48,7 @@ export default function GoalDialog({ open, onOpenChange, onSubmit, initialDate =
     const weeklyWorkoutTarget = Number(weeklyTarget)
     const nextErrors: Errors = {}
     if (targetWeight && (!Number.isFinite(targetWeightKg) || targetWeightKg <= 0 || targetWeightKg > 999.99)) nextErrors.targetWeightKg = '目标体重必须大于 0 且不超过 999.99 kg'
-    if (!weeklyTarget || !Number.isInteger(weeklyWorkoutTarget) || weeklyWorkoutTarget < 0) nextErrors.weeklyWorkoutTarget = '每周目标必须为非负整数'
+    if (!weeklyTarget || !Number.isInteger(weeklyWorkoutTarget) || weeklyWorkoutTarget < 0 || weeklyWorkoutTarget > 100) nextErrors.weeklyWorkoutTarget = '每周目标必须为 0 到 100 之间的整数'
     if (!validDate(startDate)) nextErrors.startDate = '请输入合法日期'
     if (targetDate && !validDate(targetDate)) nextErrors.targetDate = '请输入合法日期'
     else if (targetDate && validDate(startDate) && targetDate < startDate) nextErrors.targetDate = '目标日期不能早于开始日期'
@@ -73,7 +74,7 @@ export default function GoalDialog({ open, onOpenChange, onSubmit, initialDate =
         <form className="grid gap-5" onSubmit={handleSubmit} noValidate>
           <div className="grid gap-2">
             <Label htmlFor="goal-weekly">每周运动目标（次）</Label>
-            <Input id="goal-weekly" type="number" min="0" step="1" inputMode="numeric" value={weeklyTarget} onChange={(event) => setWeeklyTarget(event.target.value)} aria-invalid={Boolean(errors.weeklyWorkoutTarget)} aria-describedby={errors.weeklyWorkoutTarget ? 'goal-weekly-error' : undefined} disabled={submitting} />
+            <Input id="goal-weekly" type="number" min="0" max="100" step="1" inputMode="numeric" value={weeklyTarget} onChange={(event) => setWeeklyTarget(event.target.value)} aria-invalid={Boolean(errors.weeklyWorkoutTarget)} aria-describedby={errors.weeklyWorkoutTarget ? 'goal-weekly-error' : undefined} disabled={submitting} />
             {errors.weeklyWorkoutTarget && <p id="goal-weekly-error" className="text-sm text-destructive">{errors.weeklyWorkoutTarget}</p>}
           </div>
           <div className="grid gap-2">

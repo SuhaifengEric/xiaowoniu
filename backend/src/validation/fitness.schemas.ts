@@ -28,7 +28,7 @@ export const createCheckinSchema = z.object({
   body: z.object({
     date: dateString,
     activityType: z.nativeEnum(ActivityType),
-    durationMinutes: z.number().int().positive(),
+    durationMinutes: z.number().int().positive().max(1440),
     notes: z.string().max(2000).optional(),
   }),
 })
@@ -49,7 +49,7 @@ export const idParamSchema = z.object({
 export const goalSchema = z.object({
   body: z.object({
     targetWeightKg: z.number().positive().max(999.99).optional(),
-    weeklyWorkoutTarget: z.number().int().nonnegative(),
+    weeklyWorkoutTarget: z.number().int().min(0).max(100),
     startDate: dateString,
     targetDate: dateString.optional(),
   }).refine(({ startDate, targetDate }) => !targetDate || startDate <= targetDate, {

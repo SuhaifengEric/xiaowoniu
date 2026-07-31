@@ -6,9 +6,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const navigate = vi.fn()
 const fitnessPagePath = '@/pages/Fitness'
 const fitnessActions = vi.hoisted(() => ({
+  checkins: [],
+  weights: [],
+  goal: null,
+  stats: null,
+  loading: false,
+  error: null,
+  fetchDashboard: vi.fn().mockResolvedValue(undefined),
+  fetchCheckins: vi.fn().mockResolvedValue(undefined),
   createCheckin: vi.fn().mockResolvedValue(undefined),
   createWeight: vi.fn().mockResolvedValue(undefined),
+  deleteWeight: vi.fn().mockResolvedValue(undefined),
   upsertGoal: vi.fn().mockResolvedValue(undefined),
+  clearError: vi.fn(),
 }))
 
 vi.mock('@/store/fitness.store', () => ({
@@ -31,7 +41,7 @@ vi.mock('react-router-dom', async (importOriginal) => {
 describe('fitness routing', () => {
   beforeEach(() => {
     navigate.mockReset()
-    Object.values(fitnessActions).forEach((action) => action.mockClear())
+    Object.values(fitnessActions).forEach((action) => typeof action === 'function' && action.mockClear())
   })
 
   it('registers the protected /fitness route', async () => {
@@ -39,7 +49,7 @@ describe('fitness routing', () => {
     const AppRoutes = (await import('@/routes')).default
     render(<AppRoutes />)
 
-    expect(await screen.findByRole('heading', { name: '健身记录' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: '健身记录' }, { timeout: 3000 })).toBeInTheDocument()
   })
 
   it('navigates from the fitness dashboard card by click', async () => {

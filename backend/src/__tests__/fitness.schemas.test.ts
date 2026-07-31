@@ -43,6 +43,24 @@ describe('fitness validation schemas', () => {
     expect(fitnessQuerySchema.safeParse({ query }).success).toBe(true)
   })
 
+  it('rejects fitness integer values above their business limits', () => {
+    expect(createCheckinSchema.safeParse({ body: {
+      date: '2026-07-30', activityType: 'other', durationMinutes: 1441,
+    } }).success).toBe(false)
+    expect(goalSchema.safeParse({ body: {
+      weeklyWorkoutTarget: 101, startDate: '2026-07-30',
+    } }).success).toBe(false)
+  })
+
+  it('accepts fitness integer values at their business limits', () => {
+    expect(createCheckinSchema.safeParse({ body: {
+      date: '2026-07-30', activityType: 'other', durationMinutes: 1440,
+    } }).success).toBe(true)
+    expect(goalSchema.safeParse({ body: {
+      weeklyWorkoutTarget: 100, startDate: '2026-07-30',
+    } }).success).toBe(true)
+  })
+
   it('rejects a goal whose target date precedes its start date', () => {
     expect(goalSchema.safeParse({ body: {
       weeklyWorkoutTarget: 3,

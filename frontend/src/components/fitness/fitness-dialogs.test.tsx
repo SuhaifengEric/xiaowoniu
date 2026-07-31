@@ -24,7 +24,21 @@ describe('CheckinDialog', () => {
 
     expect(await screen.findByText('请输入合法日期')).toBeInTheDocument()
     expect(screen.getByText('请选择运动类型')).toBeInTheDocument()
-    expect(screen.getByText('运动时长必须为正整数')).toBeInTheDocument()
+    expect(screen.getByText('运动时长必须为 1 到 1440 之间的整数')).toBeInTheDocument()
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('rejects durations above one day', async () => {
+    const CheckinDialog = (await import(/* @vite-ignore */ checkinDialogPath)).default
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(<CheckinDialog open onOpenChange={vi.fn()} onSubmit={onSubmit} initialDate="2026-07-30" />)
+
+    await selectFirstOption(user, '运动类型')
+    await user.type(screen.getByLabelText('运动时长（分钟）'), '1441')
+    await user.click(screen.getByRole('button', { name: '保存打卡' }))
+
+    expect(await screen.findByText('运动时长必须为 1 到 1440 之间的整数')).toBeInTheDocument()
     expect(onSubmit).not.toHaveBeenCalled()
   })
 
@@ -173,7 +187,7 @@ describe('GoalDialog', () => {
     await user.type(screen.getByLabelText('目标日期（可选）'), '2026-07-29')
     await user.click(screen.getByRole('button', { name: '保存目标' }))
 
-    expect(await screen.findByText('每周目标必须为非负整数')).toBeInTheDocument()
+    expect(await screen.findByText('每周目标必须为 0 到 100 之间的整数')).toBeInTheDocument()
     expect(screen.getByText('目标日期不能早于开始日期')).toBeInTheDocument()
     expect(onSubmit).not.toHaveBeenCalled()
   })
@@ -191,6 +205,55 @@ describe('GoalDialog', () => {
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ weeklyWorkoutTarget: 0, startDate: '2026-07-30', targetWeightKg: 52.5 })))
     expect(onOpenChange).toHaveBeenCalledWith(false)
+  })
+
+  it('prefills an existing goal and preserves unchanged fields', async () => {
+    const GoalDialog = (await import(/* @vite-ignore */ goalDialogPath)).default
+    const user = userEvent.setup()
+    const onSubmit = vi.fn().mockResolvedValue(undefined)
+    render(<GoalDialog
+      open
+      onOpenChange={vi.fn()}
+      onSubmit={onSubmit}
+      initialDate="2026-07-30"
+      goal={{
+        id: 'goal-1',
+        userId: 'user-1',
+        targetWeightKg: 52.5,
+        weeklyWorkoutTarget: 3,
+        startDate: '2026-07-01',
+        targetDate: '2026-12-31',
+        isActive: true,
+        createdAt: '2026-07-01T00:00:00.000Z',
+        updatedAt: '2026-07-01T00:00:00.000Z',
+      }}
+    />)
+
+    expect(screen.getByLabelText('每周运动目标（次）')).toHaveValue(3)
+    expect(screen.getByLabelText('目标体重（kg，可选）')).toHaveValue(52.5)
+    expect(screen.getByLabelText('开始日期')).toHaveValue('2026-07-01')
+    expect(screen.getByLabelText('目标日期（可选）')).toHaveValue('2026-12-31')
+
+    await user.click(screen.getByRole('button', { name: '保存目标' }))
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledWith({
+      weeklyWorkoutTarget: 3,
+      startDate: '2026-07-01',
+      targetWeightKg: 52.5,
+      targetDate: '2026-12-31',
+    }))
+  })
+
+  it('rejects values above the fitness business limits', async () => {
+    const GoalDialog = (await import(/* @vite-ignore */ goalDialogPath)).default
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(<GoalDialog open onOpenChange={vi.fn()} onSubmit={onSubmit} initialDate="2026-07-30" />)
+
+    await user.type(screen.getByLabelText('每周运动目标（次）'), '101')
+    await user.click(screen.getByRole('button', { name: '保存目标' }))
+
+    expect(await screen.findByText('每周目标必须为 0 到 100 之间的整数')).toBeInTheDocument()
+    expect(onSubmit).not.toHaveBeenCalled()
   })
 
   it('keeps the goal dialog open and exposes submit errors', async () => {

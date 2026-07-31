@@ -61,7 +61,7 @@ export default function CheckinDialog({ open, onOpenChange, onSubmit, initialDat
     const nextErrors: Errors = {}
     if (!validDate(date)) nextErrors.date = '请输入合法日期'
     if (!activityOptions.some((option) => option.value === activityType)) nextErrors.activityType = '请选择运动类型'
-    if (!Number.isInteger(minutes) || minutes <= 0) nextErrors.durationMinutes = '运动时长必须为正整数'
+    if (!Number.isInteger(minutes) || minutes < 1 || minutes > 1440) nextErrors.durationMinutes = '运动时长必须为 1 到 1440 之间的整数'
     if (notes.trim().length > 2000) nextErrors.notes = '备注不能超过 2000 个字符'
     setErrors(nextErrors)
     setSubmitError('')
@@ -101,7 +101,7 @@ export default function CheckinDialog({ open, onOpenChange, onSubmit, initialDat
           </div>
           <div className="grid gap-2">
             <Label htmlFor="checkin-duration">运动时长（分钟）</Label>
-            <Input id="checkin-duration" type="number" min="1" step="1" inputMode="numeric" value={duration} onChange={(event) => setDuration(event.target.value)} aria-invalid={Boolean(errors.durationMinutes)} aria-describedby={errors.durationMinutes ? 'checkin-duration-error' : undefined} disabled={submitting} />
+            <Input id="checkin-duration" type="number" min="1" max="1440" step="1" inputMode="numeric" value={duration} onChange={(event) => setDuration(event.target.value)} aria-invalid={Boolean(errors.durationMinutes)} aria-describedby={errors.durationMinutes ? 'checkin-duration-error' : undefined} disabled={submitting} />
             {errors.durationMinutes && <p id="checkin-duration-error" className="text-sm text-destructive">{errors.durationMinutes}</p>}
           </div>
           <div className="grid gap-2">
