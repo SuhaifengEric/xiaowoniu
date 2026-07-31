@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client'
 import { ExpenseCategory, PaymentMethod } from '@xiaowoniu/shared'
 
 const prisma = vi.hoisted(() => ({
+  $transaction: vi.fn(),
   expense: { findMany: vi.fn(), create: vi.fn(), findFirst: vi.fn(), update: vi.fn(), deleteMany: vi.fn() },
   monthlyBudget: { findUnique: vi.fn(), upsert: vi.fn() },
   savingPlan: { findMany: vi.fn(), create: vi.fn(), findFirst: vi.fn(), update: vi.fn(), deleteMany: vi.fn() },
@@ -30,7 +31,10 @@ const savingPlan = {
   targetDate: new Date('2026-12-31T00:00:00.000Z'), createdAt, updatedAt,
 }
 
-beforeEach(() => vi.clearAllMocks())
+beforeEach(() => {
+  vi.clearAllMocks()
+  prisma.$transaction.mockImplementation(async (callback: (tx: typeof prisma) => unknown) => callback(prisma))
+})
 
 describe('finance expenses', () => {
   it('returns explicit DTO values and inclusive user/date filters with converted pagination', async () => {
@@ -66,9 +70,12 @@ describe('finance expenses', () => {
       paymentMethod: PaymentMethod.ALIPAY, notes: '   ',
     })
     expect(prisma.expense.create).toHaveBeenCalledWith({ data: {
-      userId: 'u1', date: new Date('2026-07-30T00:00:00.000Z'), amount: 12.5,
+      userId: 'u1', date: new Date('2026-07-30T00:00:00.000Z'), amount: decimal('12.5'),
       category: ExpenseCategory.FOOD, paymentMethod: PaymentMethod.ALIPAY, notes: null,
     } })
+    const createExpenseData = prisma.expense.create.mock.calls[0][0].data
+    expect(createExpenseData.amount).toBeInstanceOf(Prisma.Decimal)
+    expect(createExpenseData.amount.toString()).toBe('12.5')
 
     prisma.expense.findFirst.mockResolvedValue(expense)
     prisma.expense.update.mockResolvedValue({ ...expense, notes: null })
@@ -86,8 +93,11 @@ describe('finance expenses', () => {
     await financeService.updateExpense('u1', 'e1', { amount: 9.25 })
     expect(prisma.expense.findFirst).toHaveBeenCalledWith({ where: { id: 'e1', userId: 'u1' } })
     expect(prisma.expense.update).toHaveBeenCalledWith({
-      where: { id: 'e1', userId: 'u1' }, data: { amount: 9.25 },
+      where: { id: 'e1', userId: 'u1' }, data: { amount: decimal('9.25') },
     })
+    const updateExpenseData = prisma.expense.update.mock.calls.at(-1)![0].data
+    expect(updateExpenseData.amount).toBeInstanceOf(Prisma.Decimal)
+    expect(updateExpenseData.amount.toString()).toBe('9.25')
   })
 
 
@@ -162,9 +172,14 @@ describe('finance summary and budgets', () => {
     await financeService.upsertBudget('u1', { month: '2026-07', amount: 0 })
     expect(prisma.monthlyBudget.upsert).toHaveBeenCalledWith({
       where: { userId_month: { userId: 'u1', month: new Date('2026-07-01T00:00:00.000Z') } },
-      create: { userId: 'u1', month: new Date('2026-07-01T00:00:00.000Z'), amount: 0 },
-      update: { amount: 0 },
+      create: { userId: 'u1', month: new Date('2026-07-01T00:00:00.000Z'), amount: decimal('0') },
+      update: { amount: decimal('0') },
     })
+    const budgetWrite = prisma.monthlyBudget.upsert.mock.calls[0][0]
+    expect(budgetWrite.create.amount).toBeInstanceOf(Prisma.Decimal)
+    expect(budgetWrite.create.amount.toString()).toBe('0')
+    expect(budgetWrite.update.amount).toBeInstanceOf(Prisma.Decimal)
+    expect(budgetWrite.update.amount.toString()).toBe('0')
   })
 })
 
@@ -176,7 +191,7 @@ describe('saving plans', () => {
     }])
     const result = await financeService.getSavingPlans('u1')
     expect(prisma.savingPlan.findMany).toHaveBeenCalledWith({
-      where: { userId: 'u1' }, orderBy: [{ targetDate: 'asc' }, { createdAt: 'asc' }],
+      where: { userId: 'u1' }, orderBy: [{ targetDate: 'desc' }, { createdAt: 'desc' }],
     })
     expect(result[0]).toMatchObject({ targetAmount: 100, currentAmount: 33.33, remainingAmount: 66.67, progressPercentage: 33, isCompleted: false })
     expect(result[1]).toMatchObject({ remainingAmount: -2, progressPercentage: 100, isCompleted: true })
@@ -211,6 +226,58 @@ describe('saving plans', () => {
     await expect(financeService.updateSavingPlan('u1', 'p1', { targetAmount: 20 }))
       .rejects.toBeInstanceOf(FinanceConflictError)
     expect(prisma.savingPlan.update).not.toHaveBeenCalled()
+  })
+
+  it('uses a Serializable transaction for plan validation and updates', async () => {
+    prisma.savingPlan.findFirst.mockResolvedValue(savingPlan)
+    prisma.savingPlan.update.mockResolvedValue({ ...savingPlan, currentAmount: decimal('40') })
+
+    await financeService.updateSavingPlan('u1', 'p1', { currentAmount: 40 })
+
+    expect(prisma.$transaction).toHaveBeenCalledWith(expect.any(Function), {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+    })
+    expect(prisma.savingPlan.findFirst).toHaveBeenCalledWith({ where: { id: 'p1', userId: 'u1' } })
+    expect(prisma.savingPlan.update).toHaveBeenCalledWith({
+      where: { id: 'p1', userId: 'u1' }, data: { currentAmount: decimal('40') },
+    })
+  })
+
+  it('maps serializable and saving-plan CHECK conflicts to FinanceConflictError', async () => {
+    const serializationConflict = new Prisma.PrismaClientKnownRequestError('write conflict', {
+      code: 'P2034', clientVersion: '5.9.0',
+    })
+    let activeTransactions = 0
+    prisma.$transaction.mockImplementation(async (callback: (tx: typeof prisma) => unknown) => {
+      activeTransactions += 1
+      if (activeTransactions > 1) {
+        activeTransactions -= 1
+        throw serializationConflict
+      }
+      try {
+        return await callback(prisma)
+      } finally {
+        activeTransactions -= 1
+      }
+    })
+    prisma.savingPlan.findFirst.mockResolvedValue(savingPlan)
+    prisma.savingPlan.update.mockResolvedValue({ ...savingPlan, currentAmount: decimal('40') })
+
+    const concurrentResults = await Promise.allSettled([
+      financeService.updateSavingPlan('u1', 'p1', { currentAmount: 40 }),
+      financeService.updateSavingPlan('u1', 'p1', { currentAmount: 40 }),
+    ])
+    expect(concurrentResults.filter((result) => result.status === 'fulfilled')).toHaveLength(1)
+    const rejectedResult = concurrentResults.find((result) => result.status === 'rejected')
+    expect(rejectedResult?.status === 'rejected' && rejectedResult.reason).toBeInstanceOf(FinanceConflictError)
+    expect(prisma.$transaction).toHaveBeenCalledTimes(2)
+
+    const checkConflict = new Prisma.PrismaClientKnownRequestError('constraint failed', {
+      code: 'P2004', clientVersion: '5.9.0', meta: { constraint: 'saving_plans_current_amount_limit_check' },
+    })
+    prisma.$transaction.mockRejectedValueOnce(checkConflict)
+    await expect(financeService.updateSavingPlan('u1', 'p1', { currentAmount: 40 }))
+      .rejects.toBeInstanceOf(FinanceConflictError)
   })
 
   it('returns not found for cross-user saving plan updates', async () => {

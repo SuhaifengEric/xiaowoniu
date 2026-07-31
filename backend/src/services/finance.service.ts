@@ -35,6 +35,22 @@ const numberValue = (value: Prisma.Decimal | number) => typeof value === 'number
 const decimalValue = (value: Prisma.Decimal | number | string) => new Prisma.Decimal(value)
 const clamp = (value: number) => Math.min(100, Math.max(0, value))
 
+function prismaErrorCode(error: unknown) {
+  if (typeof error !== 'object' || error === null || !('code' in error)) return undefined
+  const code = (error as { code?: unknown }).code
+  return typeof code === 'string' ? code : undefined
+}
+
+function isSavingPlanCheckConflict(error: unknown) {
+  if (prismaErrorCode(error) !== 'P2004') return false
+  const message = error instanceof Error ? error.message : String(error)
+  const meta = typeof error === 'object' && error !== null && 'meta' in error
+    ? JSON.stringify((error as { meta?: unknown }).meta)
+    : ''
+  const details = `${message} ${meta}`.toLowerCase()
+  return details.includes('saving_plans') && details.includes('check')
+}
+
 export function monthBounds(month: string): [Date, Date] {
   const start = utcDate(`${month}-01`)
   const next = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1))
@@ -138,7 +154,7 @@ export class FinanceService {
       data: {
         userId,
         date: utcDate(data.date),
-        amount: data.amount,
+        amount: decimalValue(data.amount),
         category: data.category,
         paymentMethod: data.paymentMethod,
         notes: data.notes?.trim() || null,
@@ -153,7 +169,7 @@ export class FinanceService {
 
     const updateData: Record<string, unknown> = {}
     if (data.date !== undefined) updateData.date = utcDate(data.date)
-    if (data.amount !== undefined) updateData.amount = data.amount
+    if (data.amount !== undefined) updateData.amount = decimalValue(data.amount)
     if (data.category !== undefined) updateData.category = data.category
     if (data.paymentMethod !== undefined) updateData.paymentMethod = data.paymentMethod
     if (data.notes !== undefined) updateData.notes = data.notes?.trim() || null
@@ -251,8 +267,8 @@ export class FinanceService {
     const [start] = monthBounds(data.month)
     const record = await prisma.monthlyBudget.upsert({
       where: { userId_month: { userId, month: start } },
-      create: { userId, month: start, amount: data.amount },
-      update: { amount: data.amount },
+      create: { userId, month: start, amount: decimalValue(data.amount) },
+      update: { amount: decimalValue(data.amount) },
     })
     return toBudgetResponse(record)
   }
@@ -260,7 +276,7 @@ export class FinanceService {
   async getSavingPlans(userId: string): Promise<SavingPlanResponse[]> {
     const records = await prisma.savingPlan.findMany({
       where: { userId },
-      orderBy: [{ targetDate: 'asc' }, { createdAt: 'asc' }],
+      orderBy: [{ targetDate: 'desc' }, { createdAt: 'desc' }],
     })
     return records.map(toSavingPlanResponse)
   }
@@ -285,27 +301,38 @@ export class FinanceService {
   }
 
   async updateSavingPlan(userId: string, id: string, data: UpdateSavingPlanRequest): Promise<SavingPlanResponse> {
-    const existing = await prisma.savingPlan.findFirst({ where: { id, userId } })
-    if (!existing) throw new FinanceNotFoundError('储蓄计划不存在')
+    try {
+      const record = await prisma.$transaction(async (tx) => {
+        const existing = await tx.savingPlan.findFirst({ where: { id, userId } })
+        if (!existing) throw new FinanceNotFoundError('储蓄计划不存在')
 
-    const targetAmount = data.targetAmount === undefined
-      ? decimalValue(existing.targetAmount)
-      : decimalValue(data.targetAmount)
-    const currentAmount = data.currentAmount === undefined
-      ? decimalValue(existing.currentAmount)
-      : decimalValue(data.currentAmount)
-    if (targetAmount.lt(currentAmount)) {
-      throw new FinanceConflictError('目标金额不能低于当前金额')
+        const targetAmount = data.targetAmount === undefined
+          ? decimalValue(existing.targetAmount)
+          : decimalValue(data.targetAmount)
+        const currentAmount = data.currentAmount === undefined
+          ? decimalValue(existing.currentAmount)
+          : decimalValue(data.currentAmount)
+        if (targetAmount.lt(currentAmount)) {
+          throw new FinanceConflictError('目标金额不能低于当前金额')
+        }
+
+        const updateData: Record<string, unknown> = {}
+        if (data.name !== undefined) updateData.name = data.name.trim()
+        if (data.targetAmount !== undefined) updateData.targetAmount = targetAmount
+        if (data.currentAmount !== undefined) updateData.currentAmount = currentAmount
+        if (data.targetDate !== undefined) updateData.targetDate = utcDate(data.targetDate)
+
+        return tx.savingPlan.update({ where: { id, userId } as any, data: updateData })
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
+      return toSavingPlanResponse(record)
+    } catch (error) {
+      if (error instanceof FinanceNotFoundError || error instanceof FinanceConflictError) throw error
+      if (prismaErrorCode(error) === 'P2025') throw new FinanceNotFoundError('储蓄计划不存在')
+      if (prismaErrorCode(error) === 'P2034' || isSavingPlanCheckConflict(error)) {
+        throw new FinanceConflictError('储蓄计划金额在并发更新中发生冲突')
+      }
+      throw error
     }
-
-    const updateData: Record<string, unknown> = {}
-    if (data.name !== undefined) updateData.name = data.name.trim()
-    if (data.targetAmount !== undefined) updateData.targetAmount = targetAmount
-    if (data.currentAmount !== undefined) updateData.currentAmount = currentAmount
-    if (data.targetDate !== undefined) updateData.targetDate = utcDate(data.targetDate)
-
-    const record = await prisma.savingPlan.update({ where: { id, userId } as any, data: updateData })
-    return toSavingPlanResponse(record)
   }
 
   async deleteSavingPlan(userId: string, id: string): Promise<void> {
