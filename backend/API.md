@@ -319,6 +319,175 @@ Authorization: Bearer <token>
 
 所有学习资源按当前 JWT 的 `userId` 过滤。资源不存在或属于其他用户统一返回 `404 NOT_FOUND`，不暴露资源归属。删除考试会级联删除科目和学习打卡，删除科目会级联删除其打卡；删除打卡会在事务内重新计算科目进度。章节统计使用所有打卡章节的去重并集，进度按 `floor(currentChapter / totalChapters * 100)` 限制在 `0..100`。学习打卡创建和删除均使用同一事务及科目级 PostgreSQL advisory lock。
 
+## Finance 模块
+
+所有 Finance 接口均需要 JWT 认证，并且只读写当前认证用户的数据。请求头统一为：
+
+```http
+Authorization: Bearer <token>
+```
+
+所有成功响应均为 HTTP `200`，统一包络为 `{ "success": true, "data": ..., "message": ... }`；GET 接口不设置 `message`。金额均为数字，最多保留两位小数；日期严格使用 `YYYY-MM-DD`，月份严格使用 `YYYY-MM`。
+
+### 消费记录
+
+| 方法 | 路径 | 认证 | 成功消息 |
+| --- | --- | --- | --- |
+| `GET` | `/finance/expenses` | JWT | - |
+| `POST` | `/finance/expenses` | JWT | `消费记录已创建` |
+| `PATCH` | `/finance/expenses/:id` | JWT | `消费记录已更新` |
+| `DELETE` | `/finance/expenses/:id` | JWT | `消费记录已删除` |
+
+查询消费记录：
+
+```http
+GET /api/finance/expenses?startDate=2026-07-01&endDate=2026-07-31&category=food&paymentMethod=alipay&limit=20&offset=0
+Authorization: Bearer <token>
+```
+
+`startDate`、`endDate`、`category`、`paymentMethod`、`limit` 和 `offset` 均可选。日期范围包含首尾日期，开始日期不得晚于结束日期；`limit` 为 1–100，`offset` 为 0–1000000。`category` 使用 `food`、`transport`、`shopping`、`entertainment`、`health` 或 `other`；`paymentMethod` 使用 `cash`、`alipay`、`wechat`、`card` 或 `other`。
+
+创建消费记录：
+
+```http
+POST /api/finance/expenses
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "date": "2026-07-31",
+  "amount": 35.50,
+  "category": "food",
+  "paymentMethod": "alipay",
+  "notes": "午餐"
+}
+```
+
+更新消费记录：
+
+```http
+PATCH /api/finance/expenses/expense-id
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "amount": 38.00,
+  "notes": "含饮料"
+}
+```
+
+更新请求至少提供一个字段，可更新 `date`、`amount`、`category`、`paymentMethod` 或 `notes`；`notes` 可以为 `null`。删除消费记录：
+
+```http
+DELETE /api/finance/expenses/expense-id
+Authorization: Bearer <token>
+```
+
+删除成功时 `data` 为 `null`，消息为 `消费记录已删除`。记录不存在或属于其他用户时统一返回 `404 NOT_FOUND`，不泄露记录是否存在。
+
+### 月度汇总与预算
+
+| 方法 | 路径 | 认证 | 成功消息 |
+| --- | --- | --- | --- |
+| `GET` | `/finance/summary` | JWT | - |
+| `GET` | `/finance/budgets` | JWT | - |
+| `PUT` | `/finance/budgets` | JWT | `预算已更新` |
+
+获取月度汇总：
+
+```http
+GET /api/finance/summary?month=2026-07
+Authorization: Bearer <token>
+```
+
+`month` 必填且必须是有效的 `YYYY-MM`。返回的 `data` 包含 `month`、`totalExpense`、`expenseCount`、`budget`、`categoryBreakdown` 和 `dailyBreakdown`。`categoryBreakdown` 按消费类别返回 `category`、`amount`、`percentage` 和 `count`；`dailyBreakdown` 为该月每天的 `date`、`amount` 和 `count`，没有消费的日期也返回零值。若没有该月预算，`budget` 为 `null`；有预算时还包含 `spent`、`remaining` 和 `usedPercentage`。预算金额为 `0` 表示预算已设置但不计算使用率，`usedPercentage` 返回 `0`，剩余金额仍按 `预算 - 消费` 计算。
+
+获取月度预算：
+
+```http
+GET /api/finance/budgets?month=2026-07
+Authorization: Bearer <token>
+```
+
+没有预算时 `data` 为 `null`。创建或更新月度预算：
+
+```http
+PUT /api/finance/budgets
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "month": "2026-07",
+  "amount": 5000.00
+}
+```
+
+预算金额允许为 `0`，但不得为负数，最多保留两位小数；同一用户同一月份会更新已有预算。
+
+### 存钱计划
+
+| 方法 | 路径 | 认证 | 成功消息 |
+| --- | --- | --- | --- |
+| `GET` | `/finance/saving-plans` | JWT | - |
+| `POST` | `/finance/saving-plans` | JWT | `存钱计划已创建` |
+| `PATCH` | `/finance/saving-plans/:id` | JWT | `存钱计划已更新` |
+| `DELETE` | `/finance/saving-plans/:id` | JWT | `存钱计划已删除` |
+
+获取存钱计划：
+
+```http
+GET /api/finance/saving-plans
+Authorization: Bearer <token>
+```
+
+创建存钱计划：
+
+```http
+POST /api/finance/saving-plans
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "name": "旅行基金",
+  "targetAmount": 10000.00,
+  "currentAmount": 500.00,
+  "targetDate": "2027-07-01"
+}
+```
+
+`name` trim 后必须为 1–100 个字符；`targetAmount` 必须大于 `0`，`currentAmount` 默认为 `0` 且不得为负数；金额最多保留两位小数；`targetDate` 使用 `YYYY-MM-DD`。创建时 `currentAmount` 不得超过 `targetAmount`，否则返回 `409 CONFLICT`。
+
+更新存钱计划：
+
+```http
+PATCH /api/finance/saving-plans/plan-id
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "currentAmount": 2500.00,
+  "targetDate": "2027-09-01"
+}
+```
+
+更新请求至少提供一个字段，可更新 `name`、`targetAmount`、`currentAmount` 或 `targetDate`；更新后的 `currentAmount` 不得超过更新后的 `targetAmount`，否则返回 `409 CONFLICT`。删除存钱计划：
+
+```http
+DELETE /api/finance/saving-plans/plan-id
+Authorization: Bearer <token>
+```
+
+每个计划的响应会返回服务端派生字段 `progressPercentage`、`remainingAmount` 和 `isCompleted`：进度为已存金额除以目标金额后向下取整并限制在 `0..100`，剩余金额为目标金额减当前金额，当前金额达到目标金额时 `isCompleted` 为 `true`。计划不存在或属于其他用户时统一返回 `404 NOT_FOUND`，不泄露计划是否存在。
+
+### Finance 错误
+
+除资源不存在和目标金额冲突外，Finance 请求遵循统一错误包络：
+
+- `400 VALIDATION_ERROR`：请求体、路径参数、日期、月份、金额或查询参数不合法；金额超过两位小数、日期不是有效的 `YYYY-MM-DD`、月份不是有效的 `YYYY-MM` 也属于此类。
+- `401 UNAUTHORIZED`：未提供或无效的 JWT Token。
+- `404 NOT_FOUND`：消费记录或存钱计划不存在，或属于其他用户。
+- `409 CONFLICT`：存钱计划当前金额超过目标金额，或更新后的目标金额低于当前金额。
+
 ---
 
 ## 错误响应格式
