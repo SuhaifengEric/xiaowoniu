@@ -50,6 +50,7 @@ describe('useFinanceStore', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     useFinanceStore.getState().reset()
+    useFinanceStore.getState().setMonth('2026-07')
     setDefaultResponses()
   })
 

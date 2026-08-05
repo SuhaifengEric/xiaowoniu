@@ -7,6 +7,7 @@ import ProtectedRoute from './ProtectedRoute'
 
 const Fitness = lazy(() => import('@/pages/Fitness'))
 const Learning = lazy(() => import('@/pages/Learning'))
+const Finance = lazy(() => import('@/pages/Finance'))
 
 export default function AppRoutes() {
   return (
@@ -38,6 +39,16 @@ export default function AppRoutes() {
             <ProtectedRoute>
               <Suspense fallback={<main className="flex min-h-screen items-center justify-center" role="status">学习页面加载中…</main>}>
                 <Learning />
+              </Suspense>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/finance"
+          element={
+            <ProtectedRoute>
+              <Suspense fallback={<main className="flex min-h-screen items-center justify-center" role="status">财务页面加载中…</main>}>
+                <Finance />
               </Suspense>
             </ProtectedRoute>
           }

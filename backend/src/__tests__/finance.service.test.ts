@@ -85,11 +85,11 @@ describe('finance expenses', () => {
     prisma.expense.update.mockResolvedValue({ ...expense, notes: null })
     await financeService.updateExpense('u1', 'e1', { notes: '  revised note  ' })
     expect(prisma.expense.update).toHaveBeenCalledWith({
-      where: { id: 'e1', userId: 'u1' }, data: { notes: 'revised note' },
+      where: { id: 'e1' }, data: { notes: 'revised note' },
     })
     await financeService.updateExpense('u1', 'e1', { notes: '   ' })
     expect(prisma.expense.update).toHaveBeenLastCalledWith({
-      where: { id: 'e1', userId: 'u1' }, data: { notes: null },
+      where: { id: 'e1' }, data: { notes: null },
     })
 
     prisma.expense.findFirst.mockResolvedValue(expense)
@@ -97,7 +97,7 @@ describe('finance expenses', () => {
     await financeService.updateExpense('u1', 'e1', { amount: 9.25 })
     expect(prisma.expense.findFirst).toHaveBeenCalledWith({ where: { id: 'e1', userId: 'u1' } })
     expect(prisma.expense.update).toHaveBeenCalledWith({
-      where: { id: 'e1', userId: 'u1' }, data: { amount: decimal('9.25') },
+      where: { id: 'e1' }, data: { amount: decimal('9.25') },
     })
     const updateExpenseData = prisma.expense.update.mock.calls.at(-1)![0].data
     expect(updateExpenseData.amount).toBeInstanceOf(Prisma.Decimal)
@@ -245,7 +245,7 @@ describe('saving plans', () => {
     })
     expect(transactionClient.savingPlan.findFirst).toHaveBeenCalledWith({ where: { id: 'p1', userId: 'u1' } })
     expect(transactionClient.savingPlan.update).toHaveBeenCalledWith({
-      where: { id: 'p1', userId: 'u1' }, data: { currentAmount: decimal('40') },
+      where: { id: 'p1' }, data: { currentAmount: decimal('40') },
     })
     expect(prisma.savingPlan.findFirst).not.toHaveBeenCalled()
     expect(prisma.savingPlan.update).not.toHaveBeenCalled()
@@ -306,7 +306,7 @@ describe('saving plans', () => {
     await financeService.updateSavingPlan('u1', 'p1', { name: ' 新名字 ' })
     expect(transactionClient.savingPlan.findFirst).toHaveBeenCalledWith({ where: { id: 'p1', userId: 'u1' } })
     expect(transactionClient.savingPlan.update).toHaveBeenCalledWith({
-      where: { id: 'p1', userId: 'u1' }, data: { name: '新名字' },
+      where: { id: 'p1' }, data: { name: '新名字' },
     })
     expect(prisma.savingPlan.findFirst).not.toHaveBeenCalled()
     expect(prisma.savingPlan.update).not.toHaveBeenCalled()

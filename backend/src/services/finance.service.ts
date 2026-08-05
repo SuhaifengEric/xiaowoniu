@@ -174,7 +174,7 @@ export class FinanceService {
     if (data.paymentMethod !== undefined) updateData.paymentMethod = data.paymentMethod
     if (data.notes !== undefined) updateData.notes = data.notes?.trim() || null
 
-    const record = await prisma.expense.update({ where: { id, userId } as any, data: updateData })
+    const record = await prisma.expense.update({ where: { id }, data: updateData })
     return toExpenseResponse(record)
   }
 
@@ -322,7 +322,7 @@ export class FinanceService {
         if (data.currentAmount !== undefined) updateData.currentAmount = currentAmount
         if (data.targetDate !== undefined) updateData.targetDate = utcDate(data.targetDate)
 
-        return tx.savingPlan.update({ where: { id, userId } as any, data: updateData })
+        return tx.savingPlan.update({ where: { id }, data: updateData })
       }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
       return toSavingPlanResponse(record)
     } catch (error) {

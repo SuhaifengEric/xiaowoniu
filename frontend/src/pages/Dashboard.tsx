@@ -44,7 +44,7 @@ export default function Dashboard() {
             tabIndex={0}
             onClick={() => navigate('/fitness')}
             onKeyDown={(event) => {
-              if (event.key === 'Enter' || event.key === ' ') {
+              if (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar' || event.key === 'Space') {
                 event.preventDefault()
                 navigate('/fitness')
               }
@@ -65,7 +65,7 @@ export default function Dashboard() {
             tabIndex={0}
             onClick={() => navigate('/learning')}
             onKeyDown={(event) => {
-              if (event.key === 'Enter' || event.key === ' ') {
+              if (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar' || event.key === 'Space') {
                 event.preventDefault()
                 navigate('/learning')
               }
@@ -81,13 +81,24 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card
+            role="button"
+            tabIndex={0}
+            onClick={() => navigate('/finance')}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar' || event.key === 'Space') {
+                event.preventDefault()
+                navigate('/finance')
+              }
+            }}
+            className="cursor-pointer transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
             <CardHeader>
               <CardTitle className="text-lg">省省省</CardTitle>
               <CardDescription>财务记录与预算管理</CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground text-sm">即将上线...</p>
+              <p className="text-muted-foreground text-sm">记录消费、预算和存钱目标</p>
             </CardContent>
           </Card>
 
