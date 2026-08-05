@@ -58,7 +58,7 @@ export function WeddingOverview({ overview, loading, onEditBudget }: WeddingOver
       <div className="mt-3 grid gap-2" aria-label="分类花费汇总">
         {categories.map((item) => <div key={item.category} className="wedding-category-row grid min-w-0 grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 border-b border-stone-100 py-2 text-sm"><span className="truncate">{weddingCategoryLabels[item.category] ?? item.category}</span><span className="text-stone-600">{item.expenseCount} 笔</span><span className="font-medium">{money(item.actualAmount)} <span className="ml-1 text-xs text-stone-500">{item.actualPercentage}%</span></span></div>)}
       </div>
-      <div className="mt-4 min-h-[220px]" aria-label="类别计划与实际花费对比">
+      <div className="mt-4 min-h-[220px] min-w-0 overflow-hidden" aria-label="类别计划与实际花费对比">
         <ResponsiveContainer width="100%" height={220}>
           <BarChart data={categories.map((item) => ({ name: weddingCategoryLabels[item.category] ?? item.category, planned: item.plannedAmount, actual: item.actualAmount }))} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
             <CartesianGrid vertical={false} stroke="#e7e5e4" />

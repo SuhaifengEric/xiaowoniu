@@ -196,3 +196,55 @@ describe('Wedding expense list', () => {
     expect(screen.getByText('场地定金')).toBeInTheDocument()
   })
 })
+
+describe('Wedding accessibility details', () => {
+  it('gives every icon-only button an aria-label', () => {
+    render(<WeddingTaskBoard tasks={[task]} loading={false} hasMore={false} onLoadMore={vi.fn()} onEdit={vi.fn()} onDelete={vi.fn()} onStatusChange={vi.fn()} />)
+    const iconButtons = Array.from(document.querySelectorAll('button')).filter((button) => button.querySelector('svg') && !button.textContent?.trim())
+    expect(iconButtons.length).toBeGreaterThan(0)
+    for (const button of iconButtons) {
+      expect(button.getAttribute('aria-label')).toBeTruthy()
+    }
+  })
+
+  it('marks the archive disclosure with aria-expanded and aria-controls', async () => {
+    const user = userEvent.setup()
+    render(<WeddingTaskBoard tasks={[task, cancelled]} loading={false} hasMore={false} onLoadMore={vi.fn()} onEdit={vi.fn()} onDelete={vi.fn()} onStatusChange={vi.fn()} />)
+    const disclosure = screen.getByRole('button', { name: /已取消归档/ })
+    expect(disclosure).toHaveAttribute('aria-expanded', 'false')
+    expect(disclosure).toHaveAttribute('aria-controls', 'wedding-cancelled-archive')
+    await user.click(disclosure)
+    expect(disclosure).toHaveAttribute('aria-expanded', 'true')
+  })
+
+  it('uses role status for loading states', () => {
+    render(<WeddingOverview overview={null} loading onEditBudget={vi.fn()} />)
+    expect(screen.getAllByRole('status').length).toBeGreaterThan(0)
+  })
+
+  it('keeps 44px targets and min-w-0 for long text rows', () => {
+    const longTask = { ...task, taskName: '很长的任务名称'.repeat(10) }
+    const { container } = render(<WeddingTaskBoard tasks={[longTask]} loading={false} hasMore={false} onLoadMore={vi.fn()} onEdit={vi.fn()} onDelete={vi.fn()} onStatusChange={vi.fn()} />)
+    const iconButton = container.querySelector('button.wedding-icon-button')
+    expect(iconButton?.getAttribute('aria-label')).toBeTruthy()
+    expect(container.querySelector('.wedding-task-card')?.className).toContain('min-w-0')
+    expect(container.querySelector('h4')?.className).toContain('break-words')
+
+    const css = require('node:fs').readFileSync(require('node:path').resolve(__dirname, '../../index.css'), 'utf8')
+    const iconRule = css.match(/\.wedding-icon-button\s*\{[^}]+\}/)?.[0] ?? ''
+    expect(iconRule).toContain('min-h-11')
+    expect(iconRule).toContain('min-w-11')
+    const cardRule = css.match(/\.wedding-task-card\s*\{[^}]+\}/)?.[0] ?? ''
+    expect(cardRule).toContain('min-w-0')
+    const rowRule = css.match(/\.wedding-expense-row\s*\{[^}]+\}/)?.[0] ?? ''
+    expect(rowRule).toContain('min-w-0')
+  })
+
+  it('wraps long item names without overlapping action buttons', () => {
+    const longExpense = { ...expense, itemName: '非常长的花费条目名称'.repeat(12) }
+    render(<WeddingExpenseList expenses={[longExpense]} loading={false} hasMore={false} onLoadMore={vi.fn()} onEdit={vi.fn()} onDelete={vi.fn()} onCreate={vi.fn()} />)
+    const row = screen.getByText((content) => content.includes('非常长的花费条目名称')).closest('li')
+    expect(row?.className).toContain('min-w-0')
+    expect(row?.querySelector('div')?.className).toContain('min-w-0')
+  })
+})

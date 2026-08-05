@@ -147,6 +147,78 @@
     min-height: 220px;
   }
 
+  .wedding-page {
+    --wedding-pink: 190 18 60;
+    --wedding-blue: 14 116 144;
+    letter-spacing: 0;
+  }
+
+  .wedding-toolbar {
+    @apply min-w-0;
+  }
+
+  .wedding-panel {
+    @apply min-w-0 rounded-sm border border-stone-200 bg-white p-4 sm:p-5;
+  }
+
+  .wedding-kicker {
+    @apply text-xs font-semibold uppercase text-pink-800;
+    letter-spacing: 0.08em;
+  }
+
+  .wedding-icon-button {
+    @apply min-h-11 min-w-11 rounded-sm focus-visible:ring-pink-700;
+  }
+
+  .wedding-skeleton {
+    @apply block animate-pulse rounded-sm bg-stone-200;
+  }
+
+  .wedding-overview-grid {
+    min-height: 124px;
+  }
+
+  .wedding-category-row {
+    min-height: 44px;
+  }
+
+  .wedding-tabs {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .wedding-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .wedding-board-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  }
+
+  .wedding-task-card {
+    @apply min-w-0 rounded-sm;
+  }
+
+  .wedding-expense-row {
+    @apply min-w-0;
+  }
+
+  .wedding-timeline-list {
+    @apply min-w-0;
+  }
+
+  @media (min-width: 768px) {
+    .wedding-overview-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .wedding-overview-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+
 
   .learning-panel {
     @apply rounded-sm border border-slate-200 bg-white p-4 sm:p-5;
@@ -208,7 +280,10 @@
   .learning-page *::after,
   .finance-page *,
   .finance-page *::before,
-  .finance-page *::after {
+  .finance-page *::after,
+  .wedding-page *,
+  .wedding-page *::before,
+  .wedding-page *::after {
     scroll-behavior: auto !important;
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
