@@ -492,6 +492,207 @@ Authorization: Bearer <token>
 
 ---
 
+## Wedding 模块
+
+所有 Wedding 接口均需要 JWT 认证，并且只读写当前认证用户的数据。请求头统一为：
+
+```http
+Authorization: Bearer <token>
+```
+
+所有成功响应均为 HTTP `200`，统一包络为 `{ "success": true, "data": ..., "message": ... }`；GET 接口不设置 `message`。金额均为数字，最多保留两位小数；日期严格使用 `YYYY-MM-DD`。资源不存在或属于其他用户时统一返回 `404 NOT_FOUND`，消息不泄露记录是否存在。本模块没有 409 业务规则。
+
+Wedding 共 12 条路由，全部以 `/api/wedding` 为前缀。
+
+### 备婚任务
+
+| 方法 | 路径 | 认证 | 成功消息 |
+| --- | --- | --- | --- |
+| `GET` | `/wedding/tasks` | JWT | - |
+| `POST` | `/wedding/tasks` | JWT | `备婚任务已创建` |
+| `PATCH` | `/wedding/tasks/:id` | JWT | `备婚任务已更新` |
+| `DELETE` | `/wedding/tasks/:id` | JWT | `备婚任务已删除` |
+
+查询任务：
+
+```http
+GET /api/wedding/tasks?status=pending&category=venue&limit=50&offset=0
+Authorization: Bearer <token>
+```
+
+`status`、`category`、`limit` 和 `offset` 均可选。`status` 使用 `pending`、`in_progress`、`completed` 或 `cancelled`；`category` 使用 `venue`、`photo`、`invitation`、`dress`、`makeup`、`honeymoon` 或 `other`；`limit` 为 1–100，`offset` 为 0–1000000。列表按 `priority` 降序、`plannedDate` 升序（null 最后）、`createdAt` 升序、`id` 升序稳定排序。
+
+创建任务：
+
+```http
+POST /api/wedding/tasks
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "taskName": "确认婚礼场地",
+  "category": "venue",
+  "plannedDate": "2026-10-01",
+  "status": "pending",
+  "priority": 5,
+  "notes": "确认档期、菜单和定金"
+}
+```
+
+`taskName` 和 `category` 必填；`plannedDate`、`status`、`priority`、`notes` 可缺省，缺省时分别取 `null`、`pending`、`3`、`null`。`plannedDate` 和 `notes` 可传 `null`。`priority` 为 1–5 的整数，5 最高。客户端不能提交 `completedDate`；当创建任务的最终状态为 `completed` 时，服务端写入 UTC 当天的完成日期。
+
+更新任务：
+
+```http
+PATCH /api/wedding/tasks/task-id
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "status": "completed"
+}
+```
+
+更新请求至少提供一个字段，可更新 `taskName`、`category`、`plannedDate`、`status`、`priority` 或 `notes`；`plannedDate: null` 清空计划日期，`notes: null` 清空备注，字段缺省表示不修改。完成日期完全由服务端维护：从非 `completed` 转为 `completed` 时写入服务端 UTC 当天；`completed -> completed` 保留原完成日期；从 `completed` 转为其他状态时清空完成日期，以后再完成时写入新的服务端 UTC 当天。
+
+删除任务：
+
+```http
+DELETE /api/wedding/tasks/task-id
+Authorization: Bearer <token>
+```
+
+删除成功时 `data` 为 `null`，消息为 `备婚任务已删除`。删除任务时，关联花费通过外键 `ON DELETE SET NULL` 解除关联，花费记录本身、金额、类别和日期全部保留。
+
+### 备婚花费
+
+| 方法 | 路径 | 认证 | 成功消息 |
+| --- | --- | --- | --- |
+| `GET` | `/wedding/expenses` | JWT | - |
+| `POST` | `/wedding/expenses` | JWT | `备婚花费已创建` |
+| `PATCH` | `/wedding/expenses/:id` | JWT | `备婚花费已更新` |
+| `DELETE` | `/wedding/expenses/:id` | JWT | `备婚花费已删除` |
+
+查询花费：
+
+```http
+GET /api/wedding/expenses?startDate=2026-08-01&endDate=2026-08-31&category=venue&paidStatus=partial&limit=50&offset=0
+Authorization: Bearer <token>
+```
+
+`startDate`、`endDate`、`category`、`paidStatus`、`limit` 和 `offset` 均可选。日期范围包含首尾日期，开始日期不得晚于结束日期。`paidStatus` 使用 `unpaid`、`partial` 或 `paid`。列表按 `date` 降序、`createdAt` 降序、`id` 降序稳定排序。
+
+创建花费：
+
+```http
+POST /api/wedding/expenses
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "taskId": "task-id",
+  "date": "2026-08-04",
+  "itemName": "场地定金",
+  "category": "venue",
+  "plannedAmount": 20000,
+  "actualAmount": 18000,
+  "paidStatus": "partial",
+  "notes": "已支付首期"
+}
+```
+
+`date`、`itemName`、`category`、`plannedAmount`、`actualAmount` 和 `paidStatus` 必填；`taskId` 和 `notes` 可缺省（`taskId` 可传 `null`）。两个金额均为 `0..9999999999.99`，最多两位小数。`taskId` 非 `null` 时，服务端必须先确认该任务属于当前用户，其他用户任务 id 与不存在的 id 一样返回 `404 NOT_FOUND`。`actualAmount` 表示已确认发生的成本而非已支付现金，`unpaid` 且 `actualAmount > 0` 是合法组合；服务端不从 `paidStatus` 推导任何支付金额。
+
+更新花费：
+
+```http
+PATCH /api/wedding/expenses/expense-id
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "taskId": null,
+  "actualAmount": 18500
+}
+```
+
+更新请求至少提供一个字段，可更新 `taskId`、`date`、`itemName`、`category`、`plannedAmount`、`actualAmount`、`paidStatus` 或 `notes`；`taskId: null` 解除任务关联，`notes: null` 清空备注。改绑 `taskId` 时同样执行当前用户任务门禁。
+
+删除花费：
+
+```http
+DELETE /api/wedding/expenses/expense-id
+Authorization: Bearer <token>
+```
+
+删除成功时 `data` 为 `null`，消息为 `备婚花费已删除`。
+
+### WeddingBudget
+
+| 方法 | 路径 | 认证 | 成功消息 |
+| --- | --- | --- | --- |
+| `GET` | `/wedding/budget` | JWT | - |
+| `PUT` | `/wedding/budget` | JWT | `备婚预算已更新` |
+
+每位用户最多一条预算记录。`GET` 没有记录时 `data` 为 `null`；`PUT` 以当前用户为键幂等创建或替换预算与婚礼日期：
+
+```http
+PUT /api/wedding/budget
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "totalBudget": 150000,
+  "weddingDate": "2026-12-01"
+}
+```
+
+两个字段均必填；`totalBudget` 为 `0..9999999999.99`，最多两位小数。预算记录不持久化任何花费、百分比或倒计时派生值。
+
+### 概览统计
+
+| 方法 | 路径 | 认证 | 成功消息 |
+| --- | --- | --- | --- |
+| `GET` | `/wedding/overview` | JWT | - |
+
+```http
+GET /api/wedding/overview
+Authorization: Bearer <token>
+```
+
+响应中的预算、花费和任务统计全部由服务端按当前用户实时计算：
+
+- `plannedExpenseTotal` 为全部当前用户花费的计划金额之和；`actualExpenseTotal` 为实际金额之和；两者包含未关联任务、已取消任务关联和任务删除后解除关联的全部花费。
+- 有预算时 `remainingBudget = totalBudget - actualExpenseTotal`（允许为负数）；无预算时为 `null`。
+- 有预算且 `totalBudget > 0` 时，`budgetUsedPercentage` 和 `plannedBudgetPercentage` 按实际/计划金额除以总预算计算，四舍五入到两位且不 clamp（允许大于 100）；无预算或预算为 0 时两者均为 `null`，不伪装成 0%。
+- `actualVsPlannedPercentage = actualExpenseTotal / plannedExpenseTotal * 100`，计划总额为 0 时返回 `null`。
+- `taskCounts.activeTotal` 只统计 `pending + in_progress + completed`，`cancelled` 不计入分母；`completionPercentage` 为完成数除以 activeTotal，没有非取消任务时为 0。
+- `categoryBreakdown` 固定按类别枚举顺序返回全部七个类别（`venue`、`photo`、`invitation`、`dress`、`makeup`、`honeymoon`、`other`），零值类别也返回；`actualPercentage` 为该类别实际金额占全部实际金额的百分比，实际总额为 0 时所有类别返回 0。四舍五入后类别百分比之和不强求等于 100。
+- `daysUntilWedding` 为婚礼日期与服务端 UTC 当天之间的有符号日历日差（未来为正、当天为 0、过去为负）；无预算时为 `null`。
+
+### 里程碑时间线
+
+| 方法 | 路径 | 认证 | 成功消息 |
+| --- | --- | --- | --- |
+| `GET` | `/wedding/timeline` | JWT | - |
+
+```http
+GET /api/wedding/timeline
+Authorization: Bearer <token>
+```
+
+时间线 item 只来源于当前用户、`status != cancelled` 且 `plannedDate != null` 的任务，按 `plannedDate` 升序、`createdAt` 升序、`id` 升序稳定排序；`completedDate` 只作为完成信息展示，不代替 `plannedDate` 定位。`isOverdue` 为 `status != completed` 且计划日期早于服务端 UTC 当天。响应 header 返回 `weddingDate` 与有符号 `daysUntilWedding`（规则同概览），婚礼已过去不会自动改变任务状态。这是日期里程碑视图，不支持任务依赖或甘特关系。
+
+### Wedding 错误
+
+- `400 VALIDATION_ERROR`：请求体、路径参数、日期或查询参数不合法；金额超过两位小数、负数、超出上界、日期不是有效的 `YYYY-MM-DD`、空 PATCH、未知字段、`completedDate` 被提交、无效 UUID、反向日期范围均属于此类。
+- `401 UNAUTHORIZED`：未提供认证 Token。
+- `401 INVALID_TOKEN`：Token 格式或签名无效。
+- `401 TOKEN_EXPIRED`：Token 已过期。
+- `404 NOT_FOUND`：任务、花费或预算不存在，或属于其他用户；也用于把花费关联到不存在或跨用户的任务。
+
+---
+
 ## 错误响应格式
 
 所有错误响应遵循统一格式：
