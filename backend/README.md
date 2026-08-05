@@ -91,6 +91,8 @@ Fitness 后端提供按当前用户隔离的运动打卡、体重记录、单一
 
 学习模块提供按用户隔离的考试倒计时、考试科目和学习打卡 API，路由前缀为 `/api/learning`。考试、科目和打卡分别支持查询、创建、更新或删除；打卡创建和删除会在事务内按章节去重重算科目进度，并使用 PostgreSQL advisory transaction lock 保护同一科目的并发更新。删除考试会级联删除科目和打卡，删除科目会级联删除打卡。日期使用 `YYYY-MM-DD`，资源不存在或跨用户访问统一返回 `404`。
 
+Finance 模块提供按用户隔离的消费记录、月度预算、支出汇总和存钱计划 API，路由前缀为 `/api/finance`。11 条路由为：消费记录 `GET/POST /expenses`、`PATCH/DELETE /expenses/:id`；汇总 `GET /summary`；预算 `GET /budgets`、`PUT /budgets`；存钱计划 `GET/POST /saving-plans`、`PATCH/DELETE /saving-plans/:id`。预算使用 `(userId, month)` 复合唯一键 upsert；汇总由 Prisma Decimal 聚合后转换为 shared DTO 的 number；存钱计划更新在 Serializable 事务中校验最终金额，`currentAmount > targetAmount` 返回 `409`。对应表为 `expenses`、`monthly_budgets` 和 `saving_plans`，迁移目录为 `prisma/migrations/20260731160000_add_finance_tables`。所有 Finance 资源都通过认证用户 `userId` 过滤，不存在或跨用户资源统一返回 `404`。
+
 学习模块相关 Prisma 表为 `exam_countdowns`、`study_subjects` 和 `study_checkins`，迁移目录为 `prisma/migrations/20260731120000_add_learning_tables`。执行迁移前必须配置可用的 PostgreSQL；`prisma validate` 和 `prisma generate` 只能验证 schema 或生成 client，不代表迁移已经部署。
 
 数据库迁移包含 `add_fitness_tables` 和 `ensure_single_active_fitness_goal`，后者保证每位用户最多有一个有效目标。测试覆盖路由中间件、请求边界、用户隔离删除、目标替换事务及 UTC 周/月统计。
