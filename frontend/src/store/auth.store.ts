@@ -2,6 +2,8 @@ import { create } from 'zustand'
 import { authService } from '@/services/auth.service'
 import { useFitnessStore } from '@/store/fitness.store'
 import { useLearningStore } from '@/store/learning.store'
+import { useFinanceStore } from '@/store/finance.store'
+import { useWeddingStore } from '@/store/wedding.store'
 import type { UserResponse, LoginRequest, RegisterRequest } from '@xiaowoniu/shared'
 
 interface AuthState {
@@ -19,19 +21,24 @@ interface AuthState {
   clearError: () => void
 }
 
+const resetAllModuleStores = (): void => {
+  useFitnessStore.getState().reset()
+  useLearningStore.getState().reset()
+  useFinanceStore.getState().reset()
+  useWeddingStore.getState().reset()
+}
+
 export const useAuthStore = create<AuthState>((set) => ({
   user: authService.getSavedUser(),
   token: localStorage.getItem('token'),
   isAuthenticated: authService.isAuthenticated(),
   isLoading: false,
   error: null,
-
   login: async (data: LoginRequest) => {
     set({ isLoading: true, error: null })
     try {
       const response = await authService.login(data)
-      useFitnessStore.getState().reset()
-      useLearningStore.getState().reset()
+      resetAllModuleStores()
       authService.saveAuth(response.token, response.user)
       set({
         user: response.user,
@@ -50,8 +57,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ isLoading: true, error: null })
     try {
       const response = await authService.register(data)
-      useFitnessStore.getState().reset()
-      useLearningStore.getState().reset()
+      resetAllModuleStores()
       authService.saveAuth(response.token, response.user)
       set({
         user: response.user,
@@ -74,8 +80,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       // Local logout must succeed even when the server is unavailable.
     } finally {
       authService.clearAuth()
-      useFitnessStore.getState().reset()
-      useLearningStore.getState().reset()
+      resetAllModuleStores()
       set({
         user: null,
         token: null,
@@ -92,8 +97,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     const token = localStorage.getItem('token')
     const isAuthenticated = authService.isAuthenticated()
     if (previousUserId !== user?.id) {
-      useFitnessStore.getState().reset()
-      useLearningStore.getState().reset()
+      resetAllModuleStores()
     }
     set({ user, token, isAuthenticated })
   },

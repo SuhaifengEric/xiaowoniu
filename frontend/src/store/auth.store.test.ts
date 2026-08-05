@@ -13,6 +13,8 @@ const mocks = vi.hoisted(() => ({
   }),
   resetFitness: vi.fn(),
   resetLearning: vi.fn(),
+  resetFinance: vi.fn(),
+  resetWedding: vi.fn(),
 }))
 
 vi.mock('@/services/auth.service', () => ({
@@ -36,6 +38,18 @@ vi.mock('./fitness.store', () => ({
 vi.mock('./learning.store', () => ({
   useLearningStore: {
     getState: () => ({ reset: mocks.resetLearning }),
+  },
+}))
+
+vi.mock('./finance.store', () => ({
+  useFinanceStore: {
+    getState: () => ({ reset: mocks.resetFinance }),
+  },
+}))
+
+vi.mock('./wedding.store', () => ({
+  useWeddingStore: {
+    getState: () => ({ reset: mocks.resetWedding }),
   },
 }))
 
@@ -74,9 +88,15 @@ describe('useAuthStore auth-scoped cleanup', () => {
 
     expect(mocks.resetFitness).toHaveBeenCalledOnce()
     expect(mocks.resetLearning).toHaveBeenCalledOnce()
+    expect(mocks.resetFinance).toHaveBeenCalledOnce()
+    expect(mocks.resetWedding).toHaveBeenCalledOnce()
     expect(mocks.resetFitness.mock.invocationCallOrder[0])
       .toBeLessThan(mocks.saveAuth.mock.invocationCallOrder[0])
     expect(mocks.resetLearning.mock.invocationCallOrder[0])
+      .toBeLessThan(mocks.saveAuth.mock.invocationCallOrder[0])
+    expect(mocks.resetFinance.mock.invocationCallOrder[0])
+      .toBeLessThan(mocks.saveAuth.mock.invocationCallOrder[0])
+    expect(mocks.resetWedding.mock.invocationCallOrder[0])
       .toBeLessThan(mocks.saveAuth.mock.invocationCallOrder[0])
   })
 
@@ -90,6 +110,8 @@ describe('useAuthStore auth-scoped cleanup', () => {
 
     expect(mocks.resetFitness).not.toHaveBeenCalled()
     expect(mocks.resetLearning).not.toHaveBeenCalled()
+    expect(mocks.resetFinance).not.toHaveBeenCalled()
+    expect(mocks.resetWedding).not.toHaveBeenCalled()
   })
 
   it('resets fitness before saving a successful registration identity', async () => {
@@ -108,9 +130,15 @@ describe('useAuthStore auth-scoped cleanup', () => {
 
     expect(mocks.resetFitness).toHaveBeenCalledOnce()
     expect(mocks.resetLearning).toHaveBeenCalledOnce()
+    expect(mocks.resetFinance).toHaveBeenCalledOnce()
+    expect(mocks.resetWedding).toHaveBeenCalledOnce()
     expect(mocks.resetFitness.mock.invocationCallOrder[0])
       .toBeLessThan(mocks.saveAuth.mock.invocationCallOrder[0])
     expect(mocks.resetLearning.mock.invocationCallOrder[0])
+      .toBeLessThan(mocks.saveAuth.mock.invocationCallOrder[0])
+    expect(mocks.resetFinance.mock.invocationCallOrder[0])
+      .toBeLessThan(mocks.saveAuth.mock.invocationCallOrder[0])
+    expect(mocks.resetWedding.mock.invocationCallOrder[0])
       .toBeLessThan(mocks.saveAuth.mock.invocationCallOrder[0])
   })
 
@@ -124,6 +152,8 @@ describe('useAuthStore auth-scoped cleanup', () => {
 
     expect(mocks.resetFitness).not.toHaveBeenCalled()
     expect(mocks.resetLearning).not.toHaveBeenCalled()
+    expect(mocks.resetFinance).not.toHaveBeenCalled()
+    expect(mocks.resetWedding).not.toHaveBeenCalled()
   })
 
   it('resets fitness state after a successful logout', async () => {
@@ -133,6 +163,8 @@ describe('useAuthStore auth-scoped cleanup', () => {
 
     expect(mocks.resetFitness).toHaveBeenCalledOnce()
     expect(mocks.resetLearning).toHaveBeenCalledOnce()
+    expect(mocks.resetFinance).toHaveBeenCalledOnce()
+    expect(mocks.resetWedding).toHaveBeenCalledOnce()
   })
 
   it('resets both module states when checkAuth detects an identity change', () => {
@@ -152,6 +184,8 @@ describe('useAuthStore auth-scoped cleanup', () => {
 
     expect(mocks.resetFitness).toHaveBeenCalledOnce()
     expect(mocks.resetLearning).toHaveBeenCalledOnce()
+    expect(mocks.resetFinance).toHaveBeenCalledOnce()
+    expect(mocks.resetWedding).toHaveBeenCalledOnce()
     expect(useAuthStore.getState().user).toEqual(nextUser)
     expect(useAuthStore.getState().token).toBeNull()
   })
@@ -170,6 +204,8 @@ describe('useAuthStore auth-scoped cleanup', () => {
 
     expect(mocks.resetFitness).not.toHaveBeenCalled()
     expect(mocks.resetLearning).not.toHaveBeenCalled()
+    expect(mocks.resetFinance).not.toHaveBeenCalled()
+    expect(mocks.resetWedding).not.toHaveBeenCalled()
     expect(useAuthStore.getState().user).toEqual(user)
     expect(useAuthStore.getState().token).toBe('saved-token')
   })
