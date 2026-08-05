@@ -93,7 +93,9 @@ Fitness 后端提供按当前用户隔离的运动打卡、体重记录、单一
 
 Finance 模块提供按用户隔离的消费记录、月度预算、支出汇总和存钱计划 API，路由前缀为 `/api/finance`。11 条路由为：消费记录 `GET/POST /expenses`、`PATCH/DELETE /expenses/:id`；汇总 `GET /summary`；预算 `GET /budgets`、`PUT /budgets`；存钱计划 `GET/POST /saving-plans`、`PATCH/DELETE /saving-plans/:id`。预算使用 `(userId, month)` 复合唯一键 upsert；汇总由 Prisma Decimal 聚合后转换为 shared DTO 的 number；存钱计划更新在 Serializable 事务中校验最终金额，`currentAmount > targetAmount` 返回 `409`。对应表为 `expenses`、`monthly_budgets` 和 `saving_plans`，迁移目录为 `prisma/migrations/20260731160000_add_finance_tables`。所有 Finance 资源都通过认证用户 `userId` 过滤，不存在或跨用户资源统一返回 `404`。
 
-学习模块相关 Prisma 表为 `exam_countdowns`、`study_subjects` 和 `study_checkins`，迁移目录为 `prisma/migrations/20260731120000_add_learning_tables`。执行迁移前必须配置可用的 PostgreSQL；`prisma validate` 和 `prisma generate` 只能验证 schema 或生成 client，不代表迁移已经部署。
+Wedding 模块提供按用户隔离的备婚任务、备婚花费和备婚预算 API，路由前缀为 `/api/wedding`。12 条路由为：任务 `GET/POST /tasks`、`PATCH/DELETE /tasks/:id`；花费 `GET/POST /expenses`、`PATCH/DELETE /expenses/:id`；预算 `GET/PUT /budget`；统计 `GET /overview`；时间线 `GET /timeline`。对应表为 `wedding_tasks`、`wedding_expenses` 和 `wedding_budgets`，迁移目录为 `prisma/migrations/20260804120000_add_wedding_tables`。预算以 `userId` 唯一键幂等 upsert，不持久化任何花费、百分比或倒计时派生值；金额聚合全部使用 Prisma Decimal 完成后再转换为 shared DTO 的 number；任务完成日期由服务端状态机维护：首次完成写入 UTC 当天、重复完成保留、离开 completed 清空、再完成重写。删除任务时关联花费通过外键 `ON DELETE SET NULL` 保留并解除关联，删除用户时三个 Wedding 资源级联清理。任务/花费/预算/概览/时间线全部按认证用户 `userId` 过滤，跨用户资源与不存在资源统一返回 `404`，消息不泄露资源归属。
+
+学习模块相关 Prisma 表为 `exam_countdowns`、`study_subjects` 和 `study_checkins`，迁移目录为 `prisma/migrations/20260731120000_add_learning_tables`。执行迁移前必须配置可用的 PostgreSQL；`prisma validate` 和 `prisma generate` 只能验证 schema 或生成 client，不代表迁移已经部署。Wedding 迁移同样需要可连接的 PostgreSQL 才能执行 `prisma migrate deploy`。
 
 数据库迁移包含 `add_fitness_tables` 和 `ensure_single_active_fitness_goal`，后者保证每位用户最多有一个有效目标。测试覆盖路由中间件、请求边界、用户隔离删除、目标替换事务及 UTC 周/月统计。
 
