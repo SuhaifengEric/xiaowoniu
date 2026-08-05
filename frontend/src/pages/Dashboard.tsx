@@ -102,13 +102,24 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card
+            role="button"
+            tabIndex={0}
+            onClick={() => navigate('/wedding')}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar' || event.key === 'Space') {
+                event.preventDefault()
+                navigate('/wedding')
+              }
+            }}
+            className="cursor-pointer transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
             <CardHeader>
               <CardTitle className="text-lg">嫁嫁嫁</CardTitle>
               <CardDescription>备婚任务与花费跟踪</CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground text-sm">即将上线...</p>
+              <p className="text-muted-foreground text-sm">管理备婚任务、预算和里程碑</p>
             </CardContent>
           </Card>
         </div>
