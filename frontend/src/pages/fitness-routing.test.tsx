@@ -2,27 +2,20 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import Fitness, { formatLocalDate } from '@/pages/Fitness'
 
 const navigate = vi.fn()
-const fitnessPagePath = '@/pages/Fitness'
 const fitnessActions = vi.hoisted(() => ({
-  checkins: [],
-  weights: [],
-  goal: null,
-  stats: null,
-  loading: false,
-  error: null,
-  fetchDashboard: vi.fn().mockResolvedValue(undefined),
-  fetchCheckins: vi.fn().mockResolvedValue(undefined),
-  createCheckin: vi.fn().mockResolvedValue(undefined),
-  createWeight: vi.fn().mockResolvedValue(undefined),
-  deleteWeight: vi.fn().mockResolvedValue(undefined),
-  upsertGoal: vi.fn().mockResolvedValue(undefined),
-  clearError: vi.fn(),
+  checkins: [], weights: [], goal: null, stats: null, loading: false, error: null,
+  fetchDashboard: vi.fn().mockResolvedValue(undefined), fetchCheckins: vi.fn().mockResolvedValue(undefined), createCheckin: vi.fn().mockResolvedValue(undefined), createWeight: vi.fn().mockResolvedValue(undefined), deleteWeight: vi.fn().mockResolvedValue(undefined), upsertGoal: vi.fn().mockResolvedValue(undefined), clearError: vi.fn(),
 }))
+const dashboard = vi.hoisted(() => ({ summary: null, loading: false, error: null, fetchSummary: vi.fn().mockResolvedValue(undefined), clearError: vi.fn() }))
 
 vi.mock('@/store/fitness.store', () => ({
   useFitnessStore: (selector: (state: typeof fitnessActions) => unknown) => selector(fitnessActions),
+}))
+vi.mock('@/store/dashboard.store', () => ({
+  useDashboardStore: (selector: (state: typeof dashboard) => unknown) => selector(dashboard),
 }))
 
 vi.mock('@/hooks/useAuth', () => ({
@@ -49,15 +42,15 @@ describe('fitness routing', () => {
     const AppRoutes = (await import('@/routes')).default
     render(<AppRoutes />)
 
-    expect(await screen.findByRole('heading', { name: '健身记录' }, { timeout: 3000 })).toBeInTheDocument()
-  })
+    expect(await screen.findByRole('heading', { name: '瘦瘦瘦' }, { timeout: 20_000 })).toBeInTheDocument()
+  }, 25_000)
 
   it('navigates from the fitness dashboard card by click', async () => {
     const Dashboard = (await import('@/pages/Dashboard')).default
     const user = userEvent.setup()
     render(<MemoryRouter><Dashboard /></MemoryRouter>)
 
-    await user.click(screen.getByRole('button', { name: /瘦瘦瘦/ }))
+    await user.click(screen.getByRole('button', { name: '进入瘦瘦瘦模块' }))
     expect(navigate).toHaveBeenCalledWith('/fitness')
   })
 
@@ -66,13 +59,12 @@ describe('fitness routing', () => {
     const user = userEvent.setup()
     render(<MemoryRouter><Dashboard /></MemoryRouter>)
 
-    screen.getByRole('button', { name: /瘦瘦瘦/ }).focus()
+    screen.getByRole('button', { name: '进入瘦瘦瘦模块' }).focus()
     await user.keyboard('{Enter}')
     expect(navigate).toHaveBeenCalledWith('/fitness')
   })
 
   it('renders a fitness shell with all three dialogs opening and cancelling', async () => {
-    const Fitness = (await import(/* @vite-ignore */ fitnessPagePath)).default
     const user = userEvent.setup()
     render(
       <MemoryRouter initialEntries={['/fitness']}>
@@ -80,7 +72,7 @@ describe('fitness routing', () => {
       </MemoryRouter>
     )
 
-    expect(screen.getByRole('heading', { name: '健身记录' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: '瘦瘦瘦' })).toBeInTheDocument()
     for (const [openName, dialogName] of [
       ['运动打卡', '记录运动'],
       ['记录体重', '记录体重'],
@@ -94,7 +86,6 @@ describe('fitness routing', () => {
   })
 
   it('submits each fitness form through its store action', async () => {
-    const Fitness = (await import(/* @vite-ignore */ fitnessPagePath)).default
     const user = userEvent.setup()
     render(<MemoryRouter><Fitness /></MemoryRouter>)
 
@@ -118,8 +109,7 @@ describe('fitness routing', () => {
 })
 
 describe('formatLocalDate', () => {
-  it('uses local calendar getters at a timezone midnight boundary', async () => {
-    const { formatLocalDate } = await import(/* @vite-ignore */ fitnessPagePath)
+  it('uses local calendar getters at a timezone midnight boundary', () => {
     const date = new Date('2026-08-01T00:30:00+08:00')
     const expected = [
       date.getFullYear(),

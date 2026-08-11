@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { ArrowLeft, CalendarRange, ListTodo, LogOut, Plus, Receipt, Wallet, X } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import type {
   CreateWeddingExpenseRequest,
   CreateWeddingTaskRequest,
@@ -10,6 +10,7 @@ import type {
   WeddingExpenseResponse,
   WeddingTaskResponse,
 } from '@xiaowoniu/shared'
+import MobileTabBar from '@/components/navigation/MobileTabBar'
 import { Button } from '@/components/ui/button'
 import WeddingBudgetDialog from '@/components/wedding/WeddingBudgetDialog'
 import WeddingDeleteDialog from '@/components/wedding/WeddingDeleteDialog'
@@ -24,6 +25,12 @@ import { useWeddingStore } from '@/store/wedding.store'
 
 type TabName = 'board' | 'timeline' | 'expenses'
 type DialogName = 'task' | 'expense' | 'budget' | null
+type DashboardDialogName = Exclude<DialogName, null>
+const dashboardActions: Record<string, DashboardDialogName> = {
+  task: 'task',
+  expense: 'expense',
+  budget: 'budget',
+}
 type DeleteTarget = { resource: 'task' | 'expense'; id: string } | null
 
 const tabs: Array<{ value: TabName; label: string; icon: typeof ListTodo }> = [
@@ -34,6 +41,7 @@ const tabs: Array<{ value: TabName; label: string; icon: typeof ListTodo }> = [
 
 export default function Wedding() {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { logout } = useAuth()
   const tasks = useWeddingStore((state) => state.tasks)
   const expenses = useWeddingStore((state) => state.expenses)
@@ -58,6 +66,7 @@ export default function Wedding() {
 
   const [tab, setTab] = useState<TabName>('board')
   const [dialog, setDialog] = useState<DialogName>(null)
+  const [dashboardReturnFocus, setDashboardReturnFocus] = useState<string | null>(null)
   const [editingTask, setEditingTask] = useState<WeddingTaskResponse | null>(null)
   const [editingExpense, setEditingExpense] = useState<WeddingExpenseResponse | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget>(null)
@@ -68,16 +77,38 @@ export default function Wedding() {
     void fetchDashboard().catch(() => undefined)
   }, [fetchDashboard])
 
-  const openTask = (task: WeddingTaskResponse | null = null) => {
+  const openTask = (task: WeddingTaskResponse | null = null, dashboardAction: string | null = null) => {
+    setDashboardReturnFocus(dashboardAction)
     setEditingTask(task)
     setStatus('')
     setDialog('task')
   }
-  const openExpense = (expense: WeddingExpenseResponse | null = null) => {
+  const openExpense = (expense: WeddingExpenseResponse | null = null, dashboardAction: string | null = null) => {
+    setDashboardReturnFocus(dashboardAction)
     setEditingExpense(expense)
     setStatus('')
     setDialog('expense')
   }
+
+  const openBudget = (dashboardAction: string | null = null) => {
+    setDashboardReturnFocus(dashboardAction)
+    setStatus('')
+    setDialog('budget')
+  }
+
+  useEffect(() => {
+    const action = searchParams.get('action')
+    if (!action) return
+
+    const nextParams = new URLSearchParams(searchParams)
+    nextParams.delete('action')
+    setSearchParams(nextParams, { replace: true })
+
+    const dialogName = dashboardActions[action]
+    if (dialogName === 'task') openTask(null, action)
+    if (dialogName === 'expense') openExpense(null, action)
+    if (dialogName === 'budget') openBudget(action)
+  }, [searchParams, setSearchParams])
 
   const submitTask = async (data: CreateWeddingTaskRequest | UpdateWeddingTaskRequest) => {
     if (editingTask) {
@@ -143,32 +174,32 @@ export default function Wedding() {
   }
 
   return (
-    <main className="wedding-page min-h-screen bg-[#f7f6f2] text-stone-900">
+    <main className="app-page wedding-page has-mobile-tabbar" data-dialog-return-focus={dashboardReturnFocus ?? undefined}>
       <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
-        <nav className="flex min-h-11 items-center justify-between gap-3 border-b border-stone-300 pb-4" aria-label="页面导航">
-          <Button variant="ghost" className="min-h-11 gap-2 px-2 text-stone-700 hover:bg-stone-200/70" onClick={() => navigate('/dashboard')}>
-            <ArrowLeft aria-hidden="true" className="h-4 w-4" />返回 Dashboard
+        <nav className="app-nav flex min-h-11 items-center justify-between gap-3 border-b pb-4" aria-label="页面导航">
+          <Button variant="ghost" className="app-nav-action min-h-11 gap-2 px-2" onClick={() => navigate('/dashboard')}>
+            <ArrowLeft aria-hidden="true" className="h-4 w-4" />返回世界仪表盘
           </Button>
-          <Button variant="ghost" className="min-h-11 gap-2 px-3 text-stone-700 hover:bg-stone-200/70" onClick={handleLogout}>
+          <Button variant="ghost" className="app-nav-action min-h-11 gap-2 px-3" onClick={handleLogout}>
             <LogOut aria-hidden="true" className="h-4 w-4" />登出
           </Button>
         </nav>
 
-        <header className="wedding-toolbar flex flex-col gap-5 py-8 md:flex-row md:items-end md:justify-between">
-          <div><p className="wedding-kicker">Wedding planner</p><h1 className="mt-1 text-3xl font-semibold text-stone-950 sm:text-4xl">备婚工作台</h1><p className="mt-2 max-w-xl text-stone-600">从婚期和预算出发，把每一项备婚任务和花费推进到完成。</p></div>
-          <section aria-label="备婚操作" className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-            <Button className="min-h-11 gap-2" onClick={() => openTask()} disabled={loading}><Plus aria-hidden="true" className="h-4 w-4" />新建任务</Button>
-            <Button variant="outline" className="min-h-11 gap-2" onClick={() => openExpense()} disabled={loading}><Receipt aria-hidden="true" className="h-4 w-4" />新增花费</Button>
-            <Button variant="outline" className="min-h-11 gap-2" onClick={() => { setStatus(''); setDialog('budget') }} disabled={loading}><Wallet aria-hidden="true" className="h-4 w-4" />设置预算与婚期</Button>
+        <header className="app-page-header wedding-toolbar flex flex-col gap-5 py-9 md:flex-row md:items-end md:justify-between">
+          <div><h1 className="app-page-title">嫁嫁嫁</h1><p className="app-page-description mt-3 max-w-xl">从婚期和预算出发，把每一项备婚任务和花费推进到完成。</p></div>
+          <section aria-label="备婚操作" className="app-actions grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <Button className="min-h-11 gap-2" data-dialog-focus="task" onClick={() => openTask()} disabled={loading}><Plus aria-hidden="true" className="h-4 w-4" />新建任务</Button>
+            <Button variant="outline" className="min-h-11 gap-2" data-dialog-focus="expense" onClick={() => openExpense()} disabled={loading}><Receipt aria-hidden="true" className="h-4 w-4" />新增花费</Button>
+            <Button variant="outline" className="min-h-11 gap-2" data-dialog-focus="budget" onClick={() => openBudget()} disabled={loading}><Wallet aria-hidden="true" className="h-4 w-4" />设置预算与婚期</Button>
           </section>
         </header>
 
-        {error && <div role="alert" className="mb-5 flex items-center justify-between gap-4 rounded-sm border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900"><span>{error}</span><Button type="button" variant="ghost" size="icon" className="wedding-icon-button text-red-800 hover:bg-red-100" aria-label="关闭错误提示" onClick={clearError}><X aria-hidden="true" className="h-4 w-4" /></Button></div>}
-        {status && <div role="status" className="mb-5 rounded-sm border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-900">{status}</div>}
+        {error && <div role="alert" className="app-alert mb-5 flex items-center justify-between gap-4 border px-4 py-3 text-sm"><span>{error}</span><Button type="button" variant="ghost" size="icon" className="wedding-icon-button" aria-label="关闭错误提示" onClick={clearError}><X aria-hidden="true" className="h-4 w-4" /></Button></div>}
+        {status && <div role="status" className="app-status mb-5 border px-4 py-3 text-sm font-medium">{status}</div>}
 
-        <WeddingOverview overview={overview} loading={loading} onEditBudget={() => { setStatus(''); setDialog('budget') }} />
+        <WeddingOverview overview={overview} loading={loading} onEditBudget={openBudget} />
 
-        <div role="tablist" aria-label="备婚视图" className="wedding-tabs mt-6 flex min-w-0 gap-1 border-b border-stone-300">
+        <div role="tablist" aria-label="备婚视图" className="wedding-tabs mt-6 flex min-w-0 gap-1 border-b border-border">
           {tabs.map(({ value, label, icon: Icon }, index) => (
             <button
               key={value}
@@ -178,7 +209,7 @@ export default function Wedding() {
               aria-selected={tab === value}
               aria-controls={`wedding-panel-${value}`}
               tabIndex={tab === value ? 0 : -1}
-              className={`inline-flex min-h-11 min-w-0 items-center gap-2 border-b-2 px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${tab === value ? 'border-pink-700 text-pink-800' : 'border-transparent text-stone-600 hover:text-stone-900'}`}
+              className={`inline-flex min-h-11 min-w-0 items-center gap-2 border-b-2 px-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${tab === value ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
               onClick={() => setTab(value)}
               onKeyDown={(event) => selectTab(event, index)}
             >
@@ -198,6 +229,7 @@ export default function Wedding() {
       <WeddingExpenseDialog open={dialog === 'expense'} tasks={tasks} expense={editingExpense} onOpenChange={(open) => !open && setDialog(null)} onSubmit={submitExpense} />
       <WeddingBudgetDialog open={dialog === 'budget'} budget={budget} onOpenChange={(open) => !open && setDialog(null)} onSubmit={submitBudget} />
       <WeddingDeleteDialog open={deleteTarget !== null} resource={deleteTarget?.resource ?? 'task'} submitting={deleteSubmitting} onOpenChange={(open) => !open && setDeleteTarget(null)} onConfirm={confirmDelete} />
+      <MobileTabBar />
     </main>
   )
 }

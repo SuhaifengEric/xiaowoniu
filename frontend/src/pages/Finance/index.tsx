@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { ArrowLeft, ChevronLeft, ChevronRight, LogOut, PiggyBank, Plus, Wallet, X } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import type { CreateExpenseRequest, CreateSavingPlanRequest, ExpenseResponse, SavingPlanResponse, UpdateExpenseRequest, UpdateSavingPlanRequest } from '@xiaowoniu/shared'
+import MobileTabBar from '@/components/navigation/MobileTabBar'
 import { Button } from '@/components/ui/button'
 import BudgetDialog from '@/components/finance/BudgetDialog'
 import ExpenseDialog from '@/components/finance/ExpenseDialog'
@@ -24,10 +25,17 @@ function shiftMonth(month: string, offset: number) {
 }
 
 type DialogName = 'expense' | 'budget' | 'savingPlan' | null
+type DashboardDialogName = Exclude<DialogName, null>
+const dashboardActions: Record<string, DashboardDialogName> = {
+  expense: 'expense',
+  budget: 'budget',
+  'saving-plan': 'savingPlan',
+}
 type DeleteTarget = { resource: 'expense' | 'savingPlan'; id: string } | null
 
 export default function Finance() {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { logout } = useAuth()
   const expenses = useFinanceStore((state) => state.expenses)
   const summary = useFinanceStore((state) => state.summary)
@@ -48,6 +56,7 @@ export default function Finance() {
   const clearError = useFinanceStore((state) => state.clearError)
 
   const [dialog, setDialog] = useState<DialogName>(null)
+  const [dashboardReturnFocus, setDashboardReturnFocus] = useState<string | null>(null)
   const [editingExpense, setEditingExpense] = useState<ExpenseResponse | null>(null)
   const [editingPlan, setEditingPlan] = useState<SavingPlanResponse | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget>(null)
@@ -58,16 +67,39 @@ export default function Finance() {
     void fetchDashboard(selectedMonth).catch(() => undefined)
   }, [fetchDashboard])
 
-  const openExpense = (expense: ExpenseResponse | null = null) => {
+  const openExpense = (expense: ExpenseResponse | null = null, dashboardAction: string | null = null) => {
+    setDashboardReturnFocus(dashboardAction)
     setEditingExpense(expense)
     setStatus('')
     setDialog('expense')
   }
-  const openSavingPlan = (plan: SavingPlanResponse | null = null) => {
+  const openSavingPlan = (plan: SavingPlanResponse | null = null, dashboardAction: string | null = null) => {
+    setDashboardReturnFocus(dashboardAction)
     setEditingPlan(plan)
     setStatus('')
     setDialog('savingPlan')
   }
+
+  const openBudget = (dashboardAction: string | null = null) => {
+    setDashboardReturnFocus(dashboardAction)
+    setStatus('')
+    setDialog('budget')
+  }
+
+  useEffect(() => {
+    const action = searchParams.get('action')
+    if (!action) return
+
+    const nextParams = new URLSearchParams(searchParams)
+    nextParams.delete('action')
+    setSearchParams(nextParams, { replace: true })
+
+    const dialogName = dashboardActions[action]
+    if (dialogName === 'expense') openExpense(null, action)
+    if (dialogName === 'savingPlan') openSavingPlan(null, action)
+    if (dialogName === 'budget') openBudget(action)
+  }, [searchParams, setSearchParams])
+
   const changeMonth = (month: string) => {
     setStatus('')
     setMonth(month)
@@ -126,37 +158,37 @@ export default function Finance() {
   }
 
   return (
-    <main className="finance-page min-h-screen bg-[#f7f6f2] text-stone-900">
+    <main className="app-page finance-page has-mobile-tabbar" data-dialog-return-focus={dashboardReturnFocus ?? undefined}>
       <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
-        <nav className="flex min-h-11 items-center justify-between gap-3 border-b border-stone-300 pb-4" aria-label="页面导航">
-          <Button variant="ghost" className="min-h-11 gap-2 px-2 text-stone-700 hover:bg-stone-200/70" onClick={() => navigate('/dashboard')}>
-            <ArrowLeft aria-hidden="true" className="h-4 w-4" />返回 Dashboard
+        <nav className="app-nav flex min-h-11 items-center justify-between gap-3 border-b pb-4" aria-label="页面导航">
+          <Button variant="ghost" className="app-nav-action min-h-11 gap-2 px-2" onClick={() => navigate('/dashboard')}>
+            <ArrowLeft aria-hidden="true" className="h-4 w-4" />返回世界仪表盘
           </Button>
-          <Button variant="ghost" className="min-h-11 gap-2 px-3 text-stone-700 hover:bg-stone-200/70" onClick={handleLogout}>
+          <Button variant="ghost" className="app-nav-action min-h-11 gap-2 px-3" onClick={handleLogout}>
             <LogOut aria-hidden="true" className="h-4 w-4" />登出
           </Button>
         </nav>
 
-        <header className="finance-toolbar flex flex-col gap-5 py-8 md:flex-row md:items-end md:justify-between">
-          <div><p className="finance-kicker">Finance journal</p><h1 className="mt-1 text-3xl font-semibold text-stone-950 sm:text-4xl">财务记录</h1><p className="mt-2 max-w-xl text-stone-600">记录每一笔消费，看看预算还剩多少，再把余力放进想要的目标。</p></div>
-          <section aria-label="财务操作" className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-            <Button className="min-h-11 gap-2 bg-emerald-800 hover:bg-emerald-900" onClick={() => openExpense()} disabled={loading}><Plus aria-hidden="true" className="h-4 w-4" />记一笔</Button>
-            <Button variant="outline" className="min-h-11 gap-2" onClick={() => { setStatus(''); setDialog('budget') }} disabled={loading}><Wallet aria-hidden="true" className="h-4 w-4" />设置预算</Button>
-            <Button variant="outline" className="min-h-11 gap-2" onClick={() => openSavingPlan()} disabled={loading}><PiggyBank aria-hidden="true" className="h-4 w-4" />新建存钱计划</Button>
+        <header className="app-page-header finance-toolbar flex flex-col gap-5 py-9 md:flex-row md:items-end md:justify-between">
+          <div><h1 className="app-page-title">省省省</h1><p className="app-page-description mt-3 max-w-xl">记录每一笔消费，看看预算还剩多少，再把余力放进想要的目标。</p></div>
+          <section aria-label="财务操作" className="app-actions grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <Button className="min-h-11 gap-2" data-dialog-focus="expense" onClick={() => openExpense()} disabled={loading}><Plus aria-hidden="true" className="h-4 w-4" />记一笔</Button>
+            <Button variant="outline" className="min-h-11 gap-2" data-dialog-focus="budget" onClick={() => openBudget()} disabled={loading}><Wallet aria-hidden="true" className="h-4 w-4" />设置预算</Button>
+            <Button variant="outline" className="min-h-11 gap-2" data-dialog-focus="saving-plan" onClick={() => openSavingPlan()} disabled={loading}><PiggyBank aria-hidden="true" className="h-4 w-4" />新建存钱计划</Button>
           </section>
         </header>
 
-        <section className="finance-month-control mb-5 flex min-h-14 items-center justify-between gap-3 border-y border-stone-300 py-2" aria-label="月份选择">
+        <section className="finance-month-control mb-5 flex min-h-14 items-center justify-between gap-3 border-y border-border py-2" aria-label="月份选择">
           <Button type="button" variant="ghost" size="icon" className="finance-icon-button" aria-label="查看上个月" onClick={() => changeMonth(shiftMonth(selectedMonth, -1))}><ChevronLeft aria-hidden="true" className="h-5 w-5" /></Button>
-          <h2 className="text-lg font-semibold text-stone-950">{monthLabel(selectedMonth)}</h2>
+          <h2 className="text-lg font-semibold">{monthLabel(selectedMonth)}</h2>
           <Button type="button" variant="ghost" size="icon" className="finance-icon-button" aria-label="查看下个月" onClick={() => changeMonth(shiftMonth(selectedMonth, 1))}><ChevronRight aria-hidden="true" className="h-5 w-5" /></Button>
         </section>
 
-        {error && <div role="alert" className="mb-5 flex items-center justify-between gap-4 rounded-sm border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900"><span>{error}</span><Button type="button" variant="ghost" size="icon" className="finance-icon-button text-red-800 hover:bg-red-100" aria-label="关闭错误提示" onClick={clearError}><X aria-hidden="true" className="h-4 w-4" /></Button></div>}
-        {status && <div role="status" className="mb-5 rounded-sm border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-900">{status}</div>}
+        {error && <div role="alert" className="app-alert mb-5 flex items-center justify-between gap-4 border px-4 py-3 text-sm"><span>{error}</span><Button type="button" variant="ghost" size="icon" className="finance-icon-button" aria-label="关闭错误提示" onClick={clearError}><X aria-hidden="true" className="h-4 w-4" /></Button></div>}
+        {status && <div role="status" className="app-status mb-5 border px-4 py-3 text-sm font-medium">{status}</div>}
 
         <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
-          <div className="grid min-w-0 gap-5"><FinanceSummary summary={summary} loading={loading} onEditBudget={() => { setStatus(''); setDialog('budget') }} /><ExpenseList expenses={expenses} loading={loading} onCreate={() => openExpense()} onEdit={openExpense} onDelete={(expense) => setDeleteTarget({ resource: 'expense', id: expense.id })} /></div>
+          <div className="grid min-w-0 gap-5"><FinanceSummary summary={summary} loading={loading} onEditBudget={openBudget} /><ExpenseList expenses={expenses} loading={loading} onCreate={() => openExpense()} onEdit={openExpense} onDelete={(expense) => setDeleteTarget({ resource: 'expense', id: expense.id })} /></div>
           <SavingPlanList plans={savingPlans} loading={loading} onCreate={() => openSavingPlan()} onEdit={openSavingPlan} onDelete={(plan) => setDeleteTarget({ resource: 'savingPlan', id: plan.id })} />
         </div>
       </div>
@@ -165,6 +197,7 @@ export default function Finance() {
       <BudgetDialog open={dialog === 'budget'} month={selectedMonth} budget={budget} onOpenChange={(open) => !open && setDialog(null)} onSubmit={submitBudget} />
       <SavingPlanDialog open={dialog === 'savingPlan'} plan={editingPlan} onOpenChange={(open) => !open && setDialog(null)} onSubmit={submitSavingPlan} />
       <FinanceDeleteDialog open={deleteTarget !== null} resource={deleteTarget?.resource ?? 'expense'} submitting={deleteSubmitting} onOpenChange={(open) => !open && setDeleteTarget(null)} onConfirm={confirmDelete} />
+      <MobileTabBar />
     </main>
   )
 }

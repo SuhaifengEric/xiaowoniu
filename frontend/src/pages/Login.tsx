@@ -25,65 +25,67 @@ export default function Login() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-pink-50 p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">
-            欢迎回来
-          </CardTitle>
-          <CardDescription className="text-center">
-            登录小窝牛个人管理平台
-          </CardDescription>
-        </CardHeader>
-        <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-4">
-            {error && (
-              <div className="p-3 text-sm text-red-500 bg-red-50 border border-red-200 rounded-md">
-                {error}
-              </div>
-            )}
-            <div className="space-y-2">
-              <Label htmlFor="email">邮箱</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="your@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                disabled={isLoading}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">密码</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                disabled={isLoading}
-              />
-            </div>
-          </CardContent>
-          <CardFooter className="flex flex-col space-y-4">
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={isLoading}
-            >
-              {isLoading ? '登录中...' : '登录'}
-            </Button>
-            <p className="text-sm text-center text-muted-foreground">
-              还没有账号？{' '}
-              <Link to="/register" className="text-primary hover:underline">
-                立即注册
-              </Link>
-            </p>
-          </CardFooter>
-        </form>
-      </Card>
-    </div>
+    <main className="auth-page">
+      <div className="auth-layout">
+        <aside className="auth-intro" aria-label="小蜗牛的花花世界介绍">
+          <div className="auth-brand"><span className="auth-brand-mark" aria-hidden="true">✿</span>小蜗牛的花花世界</div>
+          <div className="auth-copy">
+            <h1>让每一个目标，<br />都有自己的节奏。</h1>
+            <p>健身、学习、财务和备婚，不必分散在许多地方。这里为你留下持续推进的空间。</p>
+          </div>
+          <div className="auth-notes" aria-label="平台能力">
+            <p className="auth-note"><span className="auth-note-dot" />从今天开始，记录一件小事</p>
+            <p className="auth-note"><span className="auth-note-dot" />让目标、进度和回顾自然连起来</p>
+          </div>
+        </aside>
+
+        <section className="auth-form-wrap" aria-label="登录表单">
+          <Card className="auth-card">
+            <CardHeader className="space-y-0 px-0 pb-8 pt-0">
+              <CardTitle className="auth-title">欢迎回来</CardTitle>
+              <CardDescription className="auth-description">登录后继续查看你的生活进展。</CardDescription>
+            </CardHeader>
+            <form onSubmit={handleSubmit}>
+              <CardContent className="space-y-5 px-0 pb-0">
+                {error && <div className="auth-error p-3 text-sm">{error}</div>}
+                <div className="auth-field flex flex-col">
+                  <Label htmlFor="email">邮箱</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="your@email.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    disabled={isLoading}
+                  />
+                </div>
+                <div className="auth-field flex flex-col">
+                  <Label htmlFor="password">密码</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    disabled={isLoading}
+                  />
+                </div>
+              </CardContent>
+              <CardFooter className="flex flex-col space-y-4 px-0 pb-0 pt-7">
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? '登录中...' : '登录'}
+                </Button>
+                <p className="auth-switch text-center text-sm">
+                  还没有账号？{' '}
+                  <Link to="/register" className="hover:underline">立即注册</Link>
+                </p>
+              </CardFooter>
+            </form>
+          </Card>
+        </section>
+      </div>
+    </main>
   )
 }

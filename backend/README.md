@@ -65,6 +65,7 @@ pnpm dev
 - `pnpm dev` - 启动开发服务器（热重载）
 - `pnpm build` - 编译 TypeScript
 - `pnpm test` - 运行 Vitest 测试
+- `pnpm lint` - 运行 TypeScript 类型检查
 - `pnpm start` - 启动生产服务器
 - `pnpm prisma:generate` - 生成 Prisma Client
 - `pnpm prisma:migrate` - 运行数据库迁移
@@ -99,9 +100,7 @@ Wedding 模块提供按用户隔离的备婚任务、备婚花费和备婚预算
 
 数据库迁移包含 `add_fitness_tables` 和 `ensure_single_active_fitness_goal`，后者保证每位用户最多有一个有效目标。测试覆盖路由中间件、请求边界、用户隔离删除、目标替换事务及 UTC 周/月统计。
 
-## API 文档
-
-认证和 Fitness 接口契约详见 [API.md](./API.md)。
+Dashboard 提供 `GET /api/dashboard/summary`，按当前 JWT 用户以服务端 UTC 当天、周和月边界聚合 Fitness、Learning、Finance、Wedding 摘要；无资源时返回 `null`，空计数返回 `0`，预算剩余允许为负数。完整接口契约见 [API.md](./API.md)。
 
 ## 环境变量
 

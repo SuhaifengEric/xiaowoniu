@@ -4,6 +4,7 @@ import { useFitnessStore } from '@/store/fitness.store'
 import { useLearningStore } from '@/store/learning.store'
 import { useFinanceStore } from '@/store/finance.store'
 import { useWeddingStore } from '@/store/wedding.store'
+import { useDashboardStore } from '@/store/dashboard.store'
 import type { UserResponse, LoginRequest, RegisterRequest } from '@xiaowoniu/shared'
 
 interface AuthState {
@@ -26,6 +27,7 @@ const resetAllModuleStores = (): void => {
   useLearningStore.getState().reset()
   useFinanceStore.getState().reset()
   useWeddingStore.getState().reset()
+  useDashboardStore.getState().reset()
 }
 
 export const useAuthStore = create<AuthState>((set) => ({

@@ -691,6 +691,33 @@ Authorization: Bearer <token>
 - `401 TOKEN_EXPIRED`：Token 已过期。
 - `404 NOT_FOUND`：任务、花费或预算不存在，或属于其他用户；也用于把花费关联到不存在或跨用户的任务。
 
+## Dashboard 摘要
+
+### 获取跨模块摘要
+
+**GET** `/dashboard/summary`
+
+需要 JWT，且不接受 query、path 或 body 参数。服务端只读取当前 Token 对应用户的数据，按服务端 UTC 的当天、周和月份边界聚合四个模块；前端不应自行重算这些值。
+
+**响应：**
+
+```json
+{
+  "success": true,
+  "data": {
+    "generatedAt": "2026-08-06T08:00:00.000Z",
+    "fitness": { "todayCheckinCount": 1, "weeklyCheckinCount": 3, "weeklyTarget": 4, "latestWeightKg": 61.2 },
+    "learning": { "activeExam": { "id": "exam-id", "examName": "英语考试", "daysRemaining": 12 }, "overallProgressPercentage": 48.5, "todayStudyHours": 2.5 },
+    "finance": { "currentMonthExpense": 1234.5, "currentMonthBudget": 2000, "budgetRemaining": 765.5, "activeSavingPlansCount": 2 },
+    "wedding": { "weddingDate": "2026-12-01", "daysRemaining": 117, "pendingTasksCount": 3, "completedTasksCount": 8, "budgetRemaining": -5000 }
+  }
+}
+```
+
+字段规则：没有有效健身周目标或最近体重时，`weeklyTarget`/`latestWeightKg` 为 `null`；没有未归档考试时，`activeExam` 和 `overallProgressPercentage` 为 `null`，有考试但没有科目时总进度为 `0`；没有本月预算时 Finance 的 `currentMonthBudget` 和 `budgetRemaining` 为 `null`；没有婚礼预算时 Wedding 的日期、倒计时和预算剩余为 `null`。空记录计数和支出返回 `0`，预算剩余保留符号，负数表示超预算。`pendingTasksCount` 包含 `pending + in_progress`。倒计时为有符号天数：未来为正数、今天为 `0`、过去为负数；资源不存在时为 `null`。
+
+常见错误遵循统一错误响应格式：未提供 Token 返回 `401 UNAUTHORIZED`，Token 无效返回 `401 INVALID_TOKEN`，请求参数不应存在时返回 `400 VALIDATION_ERROR`，未预期服务错误返回 `500 INTERNAL_ERROR`。
+
 ---
 
 ## 错误响应格式

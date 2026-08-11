@@ -4,7 +4,7 @@ const prisma = vi.hoisted(() => ({
   fitnessCheckin: { findMany: vi.fn(), create: vi.fn(), deleteMany: vi.fn() },
   weightRecord: { findMany: vi.fn(), create: vi.fn(), deleteMany: vi.fn() },
   fitnessGoal: { findFirst: vi.fn(), updateMany: vi.fn(), create: vi.fn() },
-  $queryRaw: vi.fn(),
+  $executeRaw: vi.fn(),
   $transaction: vi.fn(),
 }))
 
@@ -124,11 +124,11 @@ describe('fitness mutations', () => {
       isActive: true, createdAt: new Date(), updatedAt: new Date(),
     }
     prisma.$transaction.mockImplementation(async (callback) => callback(prisma))
-    prisma.$queryRaw.mockImplementation(async (query: TemplateStringsArray, userId: string) => {
+    prisma.$executeRaw.mockImplementation(async (query: TemplateStringsArray, userId: string) => {
       calls.push('lock')
       expect(query).toEqual(expect.arrayContaining([expect.stringContaining('pg_advisory_xact_lock')]))
       expect(userId).toBe('u1')
-      return [{ pg_advisory_xact_lock: null }]
+      return 1
     })
     prisma.fitnessGoal.updateMany.mockImplementation(async () => { calls.push('deactivate'); return { count: 1 } })
     prisma.fitnessGoal.create.mockImplementation(async () => { calls.push('create'); return goal })

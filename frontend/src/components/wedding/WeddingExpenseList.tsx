@@ -19,7 +19,7 @@ export interface WeddingExpenseListProps {
 export function WeddingExpenseList({ expenses, loading, hasMore, onLoadMore, onEdit, onDelete, onCreate }: WeddingExpenseListProps) {
   return <section className="wedding-panel" aria-labelledby="wedding-expenses-title">
     <div className="flex flex-wrap items-end justify-between gap-3 border-b border-stone-200 pb-4">
-      <div><p className="wedding-kicker">Expense log</p><h2 id="wedding-expenses-title" className="mt-1 text-xl font-semibold text-stone-950">备婚花费明细</h2></div>
+      <div><h2 id="wedding-expenses-title" className="text-xl font-semibold text-stone-950">备婚花费明细</h2></div>
       <Button type="button" className="min-h-11 gap-2" onClick={onCreate}><Plus aria-hidden="true" className="h-4 w-4" />新增花费</Button>
     </div>
     {loading && expenses.length === 0 ? <div className="mt-4 grid gap-3" role="status" aria-label="花费加载中" aria-busy="true"><div className="wedding-skeleton h-16" /><div className="wedding-skeleton h-16" /></div> : expenses.length === 0 ? <div className="py-10 text-center"><Receipt className="mx-auto h-8 w-8 text-stone-400" aria-hidden="true" /><p className="mt-3 text-sm text-stone-600">还没有备婚花费</p><Button type="button" variant="link" className="mt-2 min-h-11" onClick={onCreate}>记下第一笔花费</Button></div> : <>

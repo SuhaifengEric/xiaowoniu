@@ -85,8 +85,8 @@ export default function CheckinCalendar({ records, month, onMonthChange, onSelec
             <button key={dateKey} type="button" aria-label={label} onClick={() => onSelectDate(dateKey)}
               className={`fitness-calendar-day ${isCurrentMonth ? '' : 'fitness-calendar-day--outside'} ${isToday ? 'fitness-calendar-day--today' : ''}`}>
               <span className="font-medium">{date.getDate()}</span>
-              {dayRecords.length > 0 && <span className="mt-1 flex items-center justify-center gap-0.5 text-[10px] font-semibold text-emerald-800"><Check aria-hidden="true" className="h-3 w-3" />{duration}分</span>}
-              {isToday && <span className="mt-0.5 text-[9px] font-semibold text-orange-800">今天</span>}
+              {dayRecords.length > 0 && <span className="mt-1 flex items-center justify-center gap-0.5 text-[10px] font-semibold text-primary"><Check aria-hidden="true" className="h-3 w-3" />{duration}分</span>}
+              {isToday && <span className="mt-0.5 text-[9px] font-semibold text-sky-800">今天</span>}
               {dayRecords.length > 0 && <span className="sr-only">{dayRecords.map(({ activityType }) => activityNames[activityType]).join('、')}</span>}
             </button>
           )

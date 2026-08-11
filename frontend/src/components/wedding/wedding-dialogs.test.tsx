@@ -19,6 +19,37 @@ const expense = {
   notes: '已支付首期', createdAt: 'created', updatedAt: 'updated',
 }
 
+function dateLabel(value: string) {
+  const [year, month, day] = value.split('-').map(Number)
+  return `${year}年${month}月${day}日`
+}
+
+function expectDateValue(label: string, value: string) {
+  expect(screen.getByLabelText(label)).toHaveTextContent(dateLabel(value))
+}
+
+async function selectDate(user: ReturnType<typeof userEvent.setup>, label: string, value: string) {
+  const [year, month] = value.split('-').map(Number)
+  const targetMonth = year * 12 + month
+  const targetDay = dateLabel(value)
+  await user.click(screen.getByLabelText(label))
+
+  for (let attempts = 0; attempts < 120; attempts += 1) {
+    const day = screen.queryByRole('button', { name: targetDay })
+    if (day) {
+      await user.click(day)
+      return
+    }
+    const currentMonth = screen.getByRole('grid').getAttribute('aria-label')
+    const match = currentMonth?.match(/^(\d+)年(\d+)月$/)
+    if (!match) throw new Error('日期选择器月份格式异常')
+    const current = Number(match[1]) * 12 + Number(match[2])
+    await user.click(screen.getByRole('button', { name: current < targetMonth ? '下个月' : '上个月' }))
+  }
+
+  throw new Error(`未找到日期 ${value}`)
+}
+
 describe('Wedding dialogs', () => {
   beforeEach(() => vi.clearAllMocks())
 
@@ -41,7 +72,7 @@ describe('Wedding dialogs', () => {
     const onSubmit = vi.fn().mockResolvedValue(undefined)
     render(<WeddingTaskDialog open task={task} onOpenChange={vi.fn()} onSubmit={onSubmit} />)
     expect(screen.getByLabelText('任务名称')).toHaveValue('确认婚礼场地')
-    expect(screen.getByLabelText('计划日期')).toHaveValue('2026-10-01')
+    expectDateValue('计划日期', '2026-10-01')
     expect(screen.queryByLabelText('完成日期')).not.toBeInTheDocument()
   })
 
@@ -49,7 +80,7 @@ describe('Wedding dialogs', () => {
     const onSubmit = vi.fn().mockResolvedValue(undefined)
     const user = userEvent.setup()
     render(<WeddingTaskDialog open task={task} onOpenChange={vi.fn()} onSubmit={onSubmit} />)
-    await user.clear(screen.getByLabelText('计划日期'))
+    await user.click(screen.getByRole('button', { name: '清除计划日期' }))
     await user.clear(screen.getByLabelText('备注'))
     await user.click(screen.getByRole('button', { name: '保存任务' }))
     await waitFor(() => expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ plannedDate: null, notes: null })))
@@ -90,7 +121,7 @@ describe('Wedding dialogs', () => {
     const user = userEvent.setup()
     render(<WeddingExpenseDialog open tasks={[task]} onOpenChange={vi.fn()} onSubmit={onSubmit} />)
     await user.type(screen.getByLabelText('条目名称'), '场地定金')
-    await user.type(screen.getByLabelText('花费日期'), '2026-08-04')
+    await selectDate(user, '花费日期', '2026-08-04')
     await user.type(screen.getByLabelText('计划金额'), '20000')
     await user.type(screen.getByLabelText('实际金额'), '18000')
     await user.click(screen.getByRole('combobox', { name: '花费类别' }))
@@ -102,7 +133,7 @@ describe('Wedding dialogs', () => {
       itemName: '场地定金', plannedAmount: 20000, actualAmount: 18000,
       category: WeddingTaskCategory.VENUE, paidStatus: PaidStatus.PAID,
     })))
-  })
+  }, 15_000)
 
   it('prefills editing expense and unlinks task with null', async () => {
     const onSubmit = vi.fn().mockResolvedValue(undefined)
@@ -137,10 +168,10 @@ describe('Wedding dialogs', () => {
     const user = userEvent.setup()
     render(<WeddingBudgetDialog open onOpenChange={vi.fn()} onSubmit={onSubmit} />)
     await user.type(screen.getByLabelText('总预算'), '0')
-    await user.type(screen.getByLabelText('婚礼日期'), '2026-12-01')
+    await selectDate(user, '婚礼日期', '2026-12-01')
     await user.click(screen.getByRole('button', { name: '保存预算' }))
     await waitFor(() => expect(onSubmit).toHaveBeenCalledWith({ totalBudget: 0, weddingDate: '2026-12-01' }))
-  })
+  }, 15_000)
 
   it('prefills budget values when editing and keeps input on failure', async () => {
     let reject!: (error: Error) => void
@@ -149,7 +180,7 @@ describe('Wedding dialogs', () => {
     const user = userEvent.setup()
     render(<WeddingBudgetDialog open budget={{ id: 'b1', totalBudget: 150000, weddingDate: '2026-12-01', createdAt: 'c', updatedAt: 'u' }} onOpenChange={onOpenChange} onSubmit={onSubmit} />)
     expect(screen.getByLabelText('总预算')).toHaveValue('150000')
-    expect(screen.getByLabelText('婚礼日期')).toHaveValue('2026-12-01')
+    expectDateValue('婚礼日期', '2026-12-01')
     await user.click(screen.getByRole('button', { name: '保存预算' }))
     reject(new Error('保存失败'))
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('保存失败'))

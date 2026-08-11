@@ -46,6 +46,17 @@ describe('learning resource isolation and DTOs', () => {
     expect(checkins[0]).toMatchObject({ date: '2026-07-30', studyHours: 1.5 })
   })
 
+  it('coerces validated URL pagination values before passing them to Prisma', async () => {
+    prisma.studyCheckin.findMany.mockResolvedValue([])
+
+    await learningService.listCheckins('u1', { limit: '10', offset: '0' } as any)
+
+    expect(prisma.studyCheckin.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      take: 10,
+      skip: 0,
+    }))
+  })
+
   it('filters every exam read by user and explicit fields on create', async () => {
     prisma.examCountdown.findMany.mockResolvedValue([])
     await learningService.listExams('u1')

@@ -20,7 +20,7 @@ export interface ExpenseResponse {
  */
 export interface MonthlyBudgetResponse {
   id: string
-  month: string
+  month: string // YYYY-MM
   amount: number
   createdAt: string
   updatedAt: string

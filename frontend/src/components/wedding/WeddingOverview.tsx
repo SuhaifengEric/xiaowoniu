@@ -30,8 +30,7 @@ export function WeddingOverview({ overview, loading, onEditBudget }: WeddingOver
   return <section className="wedding-panel" aria-labelledby="wedding-overview-title">
     <div className="flex flex-wrap items-end justify-between gap-3 border-b border-stone-200 pb-4">
       <div>
-        <p className="wedding-kicker">Wedding planner</p>
-        <h2 id="wedding-overview-title" className="mt-1 text-xl font-semibold text-stone-950">备婚概览</h2>
+        <h2 id="wedding-overview-title" className="text-xl font-semibold text-stone-950">备婚概览</h2>
       </div>
       <Button type="button" variant="outline" className="min-h-11 gap-2" onClick={onEditBudget}><Wallet aria-hidden="true" className="h-4 w-4" />{budget ? '调整预算与婚期' : '设置预算与婚期'}</Button>
     </div>

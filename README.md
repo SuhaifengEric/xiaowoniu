@@ -61,6 +61,8 @@ pnpm --filter @xiaowoniu/frontend dev
 ```bash
 pnpm build
 pnpm test
+pnpm lint
+pnpm verify
 
 # 也可以分别验证各包
 pnpm --filter @xiaowoniu/shared build
@@ -72,12 +74,13 @@ pnpm --filter @xiaowoniu/frontend build
 
 ## 四大模块
 
+- **Dashboard（已实现）** - 四个模块的服务端聚合摘要、空值/错误/重试状态和快捷操作，入口为受保护路由 `/dashboard`
 - **瘦瘦瘦（已实现）** - 运动打卡与月历、体重记录与趋势图、健身目标和周/月统计
 - **学学学（已实现）** - 考试倒计时、学习科目进度、学习打卡、42 天学习日历和近期记录，入口为受保护路由 `/learning`
 - **省省省（已实现）** - 消费记录、月度预算、支出汇总、每日趋势和存钱计划，入口为受保护路由 `/finance`
 - **嫁嫁嫁（已实现）** - 备婚任务看板、预算与婚期、花费明细、里程碑时间线和倒计时，入口为受保护路由 `/wedding`
 
-学习模块后端接口以 `/api/learning` 为前缀，完整契约见 [API 文档](backend/API.md)。学习数据按当前 JWT 用户隔离；删除考试或科目会级联删除下属数据，打卡增删会在事务中重算进度。
+Dashboard 摘要由后端 `GET /api/dashboard/summary` 按当前用户和服务端 UTC 边界聚合，前端快捷操作使用白名单 `action` 参数进入既有模块 dialog；没有预算、考试或婚期时使用 `null`，预算超支保留负数。所有受保护入口为 `/dashboard`、`/fitness`、`/learning`、`/finance`、`/wedding`。
 
 Finance 后端接口以 `/api/finance` 为前缀，月度汇总由服务端按 `YYYY-MM` 计算，分类和每日趋势包含零值数据。消费、预算和存钱计划均按当前 JWT 用户隔离，金额最多两位小数；执行 Finance 迁移前必须连接 PostgreSQL，`prisma validate` 和 `prisma generate` 不能替代 `prisma migrate deploy`。
 

@@ -4,6 +4,7 @@ import type {
   StudySubjectResponse,
 } from '@xiaowoniu/shared'
 import { Button } from '@/components/ui/button'
+import { DatePicker } from '@/components/ui/date-picker'
 import {
   Dialog,
   DialogContent,
@@ -134,7 +135,7 @@ export default function StudyCheckinDialog({
         <form className="grid gap-5" onSubmit={handleSubmit} noValidate>
           <div className="grid gap-2">
             <Label htmlFor="study-checkin-date">日期</Label>
-            <Input id="study-checkin-date" type="date" value={date} onChange={(event) => setDate(event.target.value)} disabled={submitting} aria-invalid={Boolean(errors.date)} aria-describedby={errors.date ? 'study-checkin-date-error' : undefined} />
+            <DatePicker id="study-checkin-date" value={date} onValueChange={setDate} disabled={submitting} aria-invalid={Boolean(errors.date)} aria-describedby={errors.date ? 'study-checkin-date-error' : undefined} />
             {errors.date && <p id="study-checkin-date-error" className="text-sm text-destructive">{errors.date}</p>}
           </div>
           <div className="grid gap-2">

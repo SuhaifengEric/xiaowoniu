@@ -21,7 +21,7 @@ function chineseDate(date: string) {
 function WeightTooltip({ active, payload }: TooltipProps<number, string>) {
   if (!active || !payload?.length) return null
   const record = payload[0].payload as WeightRecordResponse
-  return <div className="rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm shadow-sm"><p className="font-medium text-stone-900">{chineseDate(record.date)} · {timeNames[record.timeOfDay]}</p><p className="mt-1 text-emerald-800">{record.weightKg} kg</p></div>
+  return <div className="rounded-xl border border-border bg-card px-3 py-2 text-sm shadow-sm"><p className="font-medium text-foreground">{chineseDate(record.date)} · {timeNames[record.timeOfDay]}</p><p className="mt-1 text-primary">{record.weightKg} kg</p></div>
 }
 
 export default function WeightChart({ records, loading = false }: WeightChartProps) {

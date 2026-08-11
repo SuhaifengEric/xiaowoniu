@@ -10,6 +10,11 @@ import FinanceDeleteDialog from './FinanceDeleteDialog'
 const expense = { id: 'expense-1', userId: 'user-1', date: '2026-07-31', amount: 28.5, category: ExpenseCategory.FOOD, paymentMethod: PaymentMethod.ALIPAY, notes: '午餐', createdAt: 'created', updatedAt: 'updated' }
 const plan = { id: 'plan-1', userId: 'user-1', name: '旅行基金', targetAmount: 500, currentAmount: 250, targetDate: '2026-12-31', progressPercentage: 50, remainingAmount: 250, isCompleted: false, createdAt: 'created', updatedAt: 'updated' }
 
+function expectDateValue(label: string, value: string) {
+  const [year, month, day] = value.split('-').map(Number)
+  expect(screen.getByLabelText(label)).toHaveTextContent(`${year}年${month}月${day}日`)
+}
+
 describe('Finance dialogs', () => {
   beforeEach(() => vi.clearAllMocks())
 
@@ -31,7 +36,7 @@ describe('Finance dialogs', () => {
     const onOpenChange = vi.fn()
     const user = userEvent.setup()
     render(<ExpenseDialog open expense={expense} onOpenChange={onOpenChange} onSubmit={onSubmit} />)
-    expect(screen.getByLabelText('日期')).toHaveValue('2026-07-31')
+    expectDateValue('日期', '2026-07-31')
     expect(screen.getByLabelText('金额')).toHaveValue('28.5')
     await user.clear(screen.getByLabelText('备注'))
     await user.click(screen.getByRole('button', { name: '保存消费' }))

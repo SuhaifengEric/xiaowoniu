@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "test": "vitest run",
+    "lint": "tsc --noEmit",
     "build": "tsc",
     "start": "node dist/server.js",
     "prisma:generate": "prisma generate",

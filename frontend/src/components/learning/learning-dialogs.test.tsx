@@ -38,6 +38,37 @@ async function chooseSubject(user: ReturnType<typeof userEvent.setup>) {
   await user.click(await screen.findByRole('option', { name: /数学（共 20 章）/ }))
 }
 
+function dateLabel(value: string) {
+  const [year, month, day] = value.split('-').map(Number)
+  return `${year}年${month}月${day}日`
+}
+
+function expectDateValue(label: string, value: string) {
+  expect(screen.getByLabelText(label)).toHaveTextContent(dateLabel(value))
+}
+
+async function selectDate(user: ReturnType<typeof userEvent.setup>, label: string, value: string) {
+  const [year, month] = value.split('-').map(Number)
+  const targetMonth = year * 12 + month
+  const targetDay = dateLabel(value)
+  await user.click(screen.getByLabelText(label))
+
+  for (let attempts = 0; attempts < 120; attempts += 1) {
+    const day = screen.queryByRole('button', { name: targetDay })
+    if (day) {
+      await user.click(day)
+      return
+    }
+    const currentMonth = screen.getByRole('grid').getAttribute('aria-label')
+    const match = currentMonth?.match(/^(\d+)年(\d+)月$/)
+    if (!match) throw new Error('日期选择器月份格式异常')
+    const current = Number(match[1]) * 12 + Number(match[2])
+    await user.click(screen.getByRole('button', { name: current < targetMonth ? '下个月' : '上个月' }))
+  }
+
+  throw new Error(`未找到日期 ${value}`)
+}
+
 describe('ExamDialog', () => {
   it('rejects blank names and invalid dates with ARIA-linked errors', async () => {
     const user = userEvent.setup()
@@ -61,7 +92,7 @@ describe('ExamDialog', () => {
 
     expect(screen.getByRole('dialog', { name: '编辑考试' })).toBeInTheDocument()
     expect(screen.getByLabelText('考试名称')).toHaveValue('原考试')
-    expect(screen.getByLabelText('考试日期')).toHaveValue('2026-12-01')
+    expectDateValue('考试日期', '2026-12-01')
     expect(screen.getByLabelText('归档考试')).not.toBeChecked()
 
     await user.click(screen.getByRole('button', { name: '保存考试' }))
@@ -79,7 +110,7 @@ describe('ExamDialog', () => {
     render(<ExamDialog open onOpenChange={onOpenChange} onSubmit={onSubmit} />)
 
     await user.type(screen.getByLabelText('考试名称'), '新考试')
-    await user.type(screen.getByLabelText('考试日期'), '2026-12-01')
+    await selectDate(user, '考试日期', '2026-12-01')
     await user.click(screen.getByRole('button', { name: '创建考试' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('考试保存失败')
@@ -97,7 +128,7 @@ describe('SubjectDialog', () => {
     expect(screen.getByText('所属考试：原考试')).toBeInTheDocument()
     expect(screen.getByLabelText('科目名称')).toHaveValue('数学')
     expect(screen.getByLabelText('总章节数')).toHaveValue(20)
-    expect(screen.getByLabelText('目标完成日期（可选）')).toHaveValue('2026-11-01')
+    expectDateValue('目标完成日期（可选）', '2026-11-01')
 
     const chapters = screen.getByLabelText('总章节数')
     await user.clear(chapters)
@@ -113,7 +144,7 @@ describe('SubjectDialog', () => {
     const onSubmit = vi.fn().mockResolvedValue(undefined)
     render(<SubjectDialog open onOpenChange={vi.fn()} onSubmit={onSubmit} exam={exam} subject={subject} />)
 
-    await user.clear(screen.getByLabelText('目标完成日期（可选）'))
+    await user.click(screen.getByRole('button', { name: '清除目标完成日期' }))
     await user.click(screen.getByRole('button', { name: '保存科目' }))
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledWith({

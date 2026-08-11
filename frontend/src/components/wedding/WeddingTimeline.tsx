@@ -14,7 +14,7 @@ export function WeddingTimeline({ timeline, loading }: WeddingTimelineProps) {
   const items = timeline?.items ?? []
   return <section className="wedding-panel" aria-labelledby="wedding-timeline-title">
     <div className="flex flex-wrap items-end justify-between gap-3 border-b border-stone-200 pb-4">
-      <div><p className="wedding-kicker">Milestones</p><h2 id="wedding-timeline-title" className="mt-1 text-xl font-semibold text-stone-950">婚期里程碑时间线</h2></div>
+      <div><h2 id="wedding-timeline-title" className="text-xl font-semibold text-stone-950">婚期里程碑时间线</h2></div>
       <p className="flex items-center gap-2 text-sm text-stone-600"><Flag aria-hidden="true" className="h-4 w-4 text-pink-700" />{timeline?.weddingDate ? `婚礼日期 ${dateLabel(timeline.weddingDate)}` : '未设置婚期'}</p>
     </div>
     {items.length === 0 ? <div className="py-10 text-center"><CalendarX2 className="mx-auto h-8 w-8 text-stone-400" aria-hidden="true" /><p className="mt-3 text-sm text-stone-600">暂无里程碑，为任务设置计划日期后会显示在这里</p></div> : <ol className="wedding-timeline-list mt-4" aria-label="里程碑列表">

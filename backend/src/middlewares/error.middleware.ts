@@ -1,8 +1,17 @@
 import { Request, Response, NextFunction } from 'express'
 import { ZodError } from 'zod'
 import { Prisma } from '@prisma/client'
+import { config } from '../config/app'
+import { runtimeMetrics } from '../observability/runtime-metrics'
 import logger from '../utils/logger'
 import { error as errorResponse } from '../utils/response'
+import { getRequestId, getSafeRequestRoute } from '../utils/request-context'
+
+function isDatabaseError(err: unknown): boolean {
+  return err instanceof Prisma.PrismaClientKnownRequestError
+    || err instanceof Prisma.PrismaClientInitializationError
+    || err instanceof Prisma.PrismaClientRustPanicError
+}
 
 /**
  * 全局错误处理中间件
@@ -13,13 +22,16 @@ export function errorHandler(
   res: Response,
   next: NextFunction
 ) {
-  // 记录错误日志
-  logger.error({
-    message: err.message,
-    stack: err.stack,
-    url: req.url,
+  if (isDatabaseError(err)) {
+    runtimeMetrics.recordDatabaseQueryError()
+  }
+
+  logger.error('http_request_failed', {
+    event: 'http_request_failed',
+    requestId: getRequestId(res),
     method: req.method,
-    userId: req.user?.userId,
+    route: getSafeRequestRoute(req),
+    error: err,
   })
 
   // Zod 验证错误
@@ -51,11 +63,10 @@ export function errorHandler(
     }
   }
 
-  // 默认错误
+  // 只在本地开发与测试环境返回内部错误信息。
+  const canExposeErrorMessage = config.nodeEnv === 'development' || config.nodeEnv === 'test'
   return errorResponse(res, 500, {
     code: 'INTERNAL_ERROR',
-    message: process.env.NODE_ENV === 'production' 
-      ? '服务器内部错误' 
-      : err.message,
+    message: canExposeErrorMessage ? err.message : '服务器内部错误',
   })
 }

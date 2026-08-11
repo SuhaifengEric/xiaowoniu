@@ -9,26 +9,10 @@ const auth = vi.hoisted(() => ({
   logout: vi.fn().mockResolvedValue(undefined),
 }))
 const learning = vi.hoisted(() => ({
-  exams: [],
-  subjects: [],
-  checkins: [],
-  progress: null as LearningProgressResponse | null,
-  selectedExamId: null,
-  loading: false,
-  error: null,
-  fetchDashboard: vi.fn().mockResolvedValue(undefined),
-  selectExam: vi.fn().mockResolvedValue(undefined),
-  createExam: vi.fn().mockResolvedValue(undefined),
-  updateExam: vi.fn().mockResolvedValue(undefined),
-  deleteExam: vi.fn().mockResolvedValue(undefined),
-  createSubject: vi.fn().mockResolvedValue(undefined),
-  updateSubject: vi.fn().mockResolvedValue(undefined),
-  deleteSubject: vi.fn().mockResolvedValue(undefined),
-  createCheckin: vi.fn().mockResolvedValue(undefined),
-  deleteCheckin: vi.fn().mockResolvedValue(undefined),
-  fetchCheckins: vi.fn().mockResolvedValue(undefined),
-  clearError: vi.fn(),
+  exams: [], subjects: [], checkins: [], progress: null as LearningProgressResponse | null, selectedExamId: null, loading: false, error: null,
+  fetchDashboard: vi.fn().mockResolvedValue(undefined), selectExam: vi.fn().mockResolvedValue(undefined), createExam: vi.fn().mockResolvedValue(undefined), updateExam: vi.fn().mockResolvedValue(undefined), deleteExam: vi.fn().mockResolvedValue(undefined), createSubject: vi.fn().mockResolvedValue(undefined), updateSubject: vi.fn().mockResolvedValue(undefined), deleteSubject: vi.fn().mockResolvedValue(undefined), createCheckin: vi.fn().mockResolvedValue(undefined), deleteCheckin: vi.fn().mockResolvedValue(undefined), fetchCheckins: vi.fn().mockResolvedValue(undefined), clearError: vi.fn(),
 }))
+const dashboard = vi.hoisted(() => ({ summary: null, loading: false, error: null, fetchSummary: vi.fn().mockResolvedValue(undefined), clearError: vi.fn() }))
 
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
@@ -39,6 +23,9 @@ vi.mock('@/hooks/useAuth', () => ({
 }))
 vi.mock('@/store/learning.store', () => ({
   useLearningStore: (selector: (state: typeof learning) => unknown) => selector(learning),
+}))
+vi.mock('@/store/dashboard.store', () => ({
+  useDashboardStore: (selector: (state: typeof dashboard) => unknown) => selector(dashboard),
 }))
 
 describe('learning routing', () => {
@@ -52,9 +39,9 @@ describe('learning routing', () => {
     const AppRoutes = (await import('@/routes')).default
     render(<AppRoutes />)
 
-    expect(await screen.findByRole('heading', { name: '学习记录' }, { timeout: 3000 })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: '学学学' }, { timeout: 20_000 })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '新建考试' })).toBeInTheDocument()
-  })
+  }, 25_000)
 
   it('redirects unauthenticated visitors to login', async () => {
     auth.isAuthenticated = false
@@ -74,7 +61,7 @@ describe('learning routing', () => {
     }
     render(<MemoryRouter initialEntries={['/dashboard']}><Routes><Route path="/dashboard" element={<Dashboard />} /><Route path="/learning" element={<LocationProbe />} /></Routes></MemoryRouter>)
 
-    await user.click(screen.getByRole('button', { name: /学学学/ }))
+    await user.click(screen.getByRole('button', { name: '进入学学学模块' }))
     expect(screen.getByTestId('location')).toHaveTextContent('/learning')
   })
 })

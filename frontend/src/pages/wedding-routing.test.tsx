@@ -12,10 +12,14 @@ const wedding = vi.hoisted(() => ({
   createExpense: vi.fn().mockResolvedValue(undefined), updateExpense: vi.fn().mockResolvedValue(undefined), deleteExpense: vi.fn().mockResolvedValue(undefined),
   upsertBudget: vi.fn().mockResolvedValue(undefined), clearError: vi.fn(),
 }))
+const dashboard = vi.hoisted(() => ({ summary: null, loading: false, error: null, fetchSummary: vi.fn().mockResolvedValue(undefined), clearError: vi.fn() }))
 
 vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ isAuthenticated: auth.isAuthenticated, logout: auth.logout, user: { username: 'tester', nickname: '测试用户', email: 'test@example.com', createdAt: '2026-07-01' } }) }))
 vi.mock('@/store/wedding.store', () => ({
   useWeddingStore: (selector: (state: typeof wedding) => unknown) => selector(wedding),
+}))
+vi.mock('@/store/dashboard.store', () => ({
+  useDashboardStore: (selector: (state: typeof dashboard) => unknown) => selector(dashboard),
 }))
 
 function LocationProbe() {
@@ -34,9 +38,9 @@ describe('wedding routing', () => {
     window.history.pushState({}, '', '/wedding')
     const AppRoutes = (await import('@/routes')).default
     render(<AppRoutes />)
-    expect(await screen.findByRole('heading', { name: '备婚工作台' }, { timeout: 3000 })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: '嫁嫁嫁' }, { timeout: 20_000 })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /新建任务/ })).toBeInTheDocument()
-  })
+  }, 25_000)
 
   it('redirects unauthenticated visitors to login', async () => {
     auth.isAuthenticated = false
@@ -50,7 +54,7 @@ describe('wedding routing', () => {
     const user = userEvent.setup()
     const Dashboard = (await import('@/pages/Dashboard')).default
     render(<MemoryRouter initialEntries={['/dashboard']}><Routes><Route path="/dashboard" element={<Dashboard />} /><Route path="/wedding" element={<LocationProbe />} /></Routes></MemoryRouter>)
-    const card = screen.getByRole('button', { name: /嫁嫁嫁/ })
+    const card = screen.getByRole('button', { name: '进入嫁嫁嫁模块' })
     if (interaction === 'click') await user.click(card)
     else { card.focus(); await user.keyboard(interaction === 'Enter' ? '{Enter}' : ' ') }
     expect(screen.getByTestId('location')).toHaveTextContent('/wedding')

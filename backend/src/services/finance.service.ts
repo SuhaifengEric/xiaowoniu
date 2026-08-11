@@ -30,6 +30,7 @@ export class FinanceConflictError extends Error {
 
 export const utcDate = (value: string) => new Date(`${value}T00:00:00.000Z`)
 export const formatDate = (value: Date) => value.toISOString().slice(0, 10)
+const formatMonth = (value: Date) => formatDate(value).slice(0, 7)
 
 const numberValue = (value: Prisma.Decimal | number) => typeof value === 'number' ? value : value.toNumber()
 const decimalValue = (value: Prisma.Decimal | number | string) => new Prisma.Decimal(value)
@@ -96,7 +97,7 @@ function toExpenseResponse(record: any): ExpenseResponse {
 function toBudgetResponse(record: any): MonthlyBudgetResponse {
   return {
     id: record.id,
-    month: formatDate(record.month),
+    month: formatMonth(record.month),
     amount: numberValue(record.amount),
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString(),

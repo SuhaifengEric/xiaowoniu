@@ -6,8 +6,10 @@
   "scripts": {
     "dev": "pnpm --parallel run dev",
     "build": "pnpm -r run build",
-    "test": "pnpm -r run test",
-    "lint": "pnpm -r run lint",
+    "test": "pnpm --filter @xiaowoniu/backend test && pnpm --filter @xiaowoniu/frontend test",
+    "lint": "pnpm --filter @xiaowoniu/shared lint && pnpm --filter @xiaowoniu/backend lint && pnpm --filter @xiaowoniu/frontend lint",
+    "verify": "pnpm --filter @xiaowoniu/shared build && DATABASE_URL=\"${DATABASE_URL:-postgresql://postgres:postgres@localhost:5432/xiaowoniu}\" pnpm --filter @xiaowoniu/backend exec prisma validate && DATABASE_URL=\"${DATABASE_URL:-postgresql://postgres:postgres@localhost:5432/xiaowoniu}\" pnpm --filter @xiaowoniu/backend exec prisma generate && pnpm test && pnpm lint && pnpm build",
+    "ci:verify": "bash scripts/ci-verify.sh",
     "clean": "pnpm -r run clean && rimraf node_modules"
   },
   "devDependencies": {

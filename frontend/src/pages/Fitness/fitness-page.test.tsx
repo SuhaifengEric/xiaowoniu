@@ -34,6 +34,11 @@ vi.mock('recharts', () => ({
 
 const renderPage = () => render(<MemoryRouter><Fitness /></MemoryRouter>)
 
+function expectDateValue(label: string, value: string) {
+  const [year, month, day] = value.split('-').map(Number)
+  expect(screen.getByLabelText(label)).toHaveTextContent(`${year}年${month}月${day}日`)
+}
+
 beforeEach(() => {
   store.checkins = []
   store.weights = []
@@ -111,7 +116,7 @@ describe('Fitness page dashboard', () => {
 
     const expected = `${match?.[1]}-${match?.[2].padStart(2, '0')}-${match?.[3].padStart(2, '0')}`
     expect(screen.getByRole('dialog', { name: '记录运动' })).toBeInTheDocument()
-    expect(screen.getByLabelText('日期')).toHaveValue(expected)
+    expectDateValue('日期', expected)
   })
 })
 

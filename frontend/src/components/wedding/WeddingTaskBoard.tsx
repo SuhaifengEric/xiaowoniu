@@ -66,7 +66,7 @@ export function WeddingTaskBoard({ tasks, loading, hasMore, onLoadMore, onEdit, 
 
   return <section className="wedding-panel" aria-labelledby="wedding-board-title">
     <div className="flex flex-wrap items-end justify-between gap-3 border-b border-stone-200 pb-4">
-      <div><p className="wedding-kicker">Task board</p><h2 id="wedding-board-title" className="mt-1 text-xl font-semibold text-stone-950">备婚任务看板</h2></div>
+      <div><h2 id="wedding-board-title" className="text-xl font-semibold text-stone-950">备婚任务看板</h2></div>
       {hasMore && <Button type="button" variant="outline" className="min-h-11" onClick={onLoadMore}><Loader2 aria-hidden="true" className="mr-2 h-4 w-4" />加载更多任务</Button>}
     </div>
     {loading && tasks.length === 0 ? <div className="mt-4 grid gap-4 md:grid-cols-3" role="status" aria-label="任务加载中" aria-busy="true"><div className="wedding-skeleton h-40" /><div className="wedding-skeleton h-40" /><div className="wedding-skeleton h-40" /></div> : active.length === 0 ? <div className="py-10 text-center"><ListTodo className="mx-auto h-8 w-8 text-stone-400" aria-hidden="true" /><p className="mt-3 text-sm text-stone-600">还没有备婚任务</p></div> : <div className="wedding-board-grid mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">

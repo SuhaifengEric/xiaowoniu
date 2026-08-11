@@ -58,6 +58,11 @@ function renderPage() {
   return render(<MemoryRouter><Learning /></MemoryRouter>)
 }
 
+function expectDateValue(label: string, value: string) {
+  const [year, month, day] = value.split('-').map(Number)
+  expect(screen.getByLabelText(label)).toHaveTextContent(`${year}年${month}月${day}日`)
+}
+
 beforeEach(() => {
   store.exams = [exam]
   store.subjects = [subject]
@@ -88,7 +93,7 @@ describe('Learning page', () => {
 
     await user.click(screen.getByRole('button', { name: /2026年8月3日/ }))
     expect(screen.getByRole('dialog', { name: '学习打卡' })).toBeInTheDocument()
-    expect(screen.getByLabelText('日期')).toHaveValue('2026-08-03')
+    expectDateValue('日期', '2026-08-03')
 
     await user.click(screen.getByRole('combobox', { name: '科目' }))
     await user.click(await screen.findByRole('option', { name: /数学（共 20 章）/ }))

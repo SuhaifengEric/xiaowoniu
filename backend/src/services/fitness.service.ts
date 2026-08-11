@@ -133,7 +133,7 @@ export class FitnessService {
 
   async upsertGoal(userId: string, data: UpsertGoalRequest): Promise<FitnessGoalResponse> {
     const record = await prisma.$transaction(async (tx) => {
-      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${userId}, 0))`
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${userId}, 0))`
       await tx.fitnessGoal.updateMany({
         where: { userId, isActive: true }, data: { isActive: false },
       })

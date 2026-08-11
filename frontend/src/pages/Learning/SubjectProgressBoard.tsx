@@ -60,7 +60,7 @@ export default function SubjectProgressBoard({ subjects, statistics = {}, onEdit
                 <div className="mt-4 grid gap-1 text-sm text-slate-600">
                   <p>目标日期：{subject.targetCompletionDate ?? '未设置'}</p>
                   <p>学习 {stats.totalStudyHours} 小时 · 打卡 {stats.checkinsCount} 次</p>
-                  {completed && <p className="flex items-center gap-1 font-medium text-emerald-700"><Check aria-hidden="true" className="h-4 w-4" />已完成</p>}
+                  {completed && <p className="flex items-center gap-1 font-medium text-primary"><Check aria-hidden="true" className="h-4 w-4" />已完成</p>}
                 </div>
               </article>
             )

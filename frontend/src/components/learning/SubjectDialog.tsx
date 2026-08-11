@@ -6,6 +6,7 @@ import type {
   UpdateStudySubjectRequest,
 } from '@xiaowoniu/shared'
 import { Button } from '@/components/ui/button'
+import { DatePicker } from '@/components/ui/date-picker'
 import {
   Dialog,
   DialogContent,
@@ -158,11 +159,11 @@ export default function SubjectDialog({ open, onOpenChange, onSubmit, exam, subj
           </div>
           <div className="grid gap-2">
             <Label htmlFor="subject-target-date">目标完成日期（可选）</Label>
-            <Input
+            <DatePicker
               id="subject-target-date"
-              type="date"
               value={targetCompletionDate}
-              onChange={(event) => setTargetCompletionDate(event.target.value)}
+              onValueChange={setTargetCompletionDate}
+              clearLabel="清除目标完成日期"
               disabled={submitting}
               aria-invalid={Boolean(errors.targetCompletionDate)}
               aria-describedby={errors.targetCompletionDate ? 'subject-target-date-error' : undefined}

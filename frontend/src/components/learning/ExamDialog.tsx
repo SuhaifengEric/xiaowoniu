@@ -5,6 +5,7 @@ import type {
   UpdateExamRequest,
 } from '@xiaowoniu/shared'
 import { Button } from '@/components/ui/button'
+import { DatePicker } from '@/components/ui/date-picker'
 import {
   Dialog,
   DialogContent,
@@ -113,11 +114,10 @@ export default function ExamDialog({ open, onOpenChange, onSubmit, exam = null }
           </div>
           <div className="grid gap-2">
             <Label htmlFor="exam-date">考试日期</Label>
-            <Input
+            <DatePicker
               id="exam-date"
-              type="date"
               value={examDate}
-              onChange={(event) => setExamDate(event.target.value)}
+              onValueChange={setExamDate}
               disabled={submitting}
               aria-invalid={Boolean(errors.examDate)}
               aria-describedby={errors.examDate ? 'exam-date-error' : undefined}

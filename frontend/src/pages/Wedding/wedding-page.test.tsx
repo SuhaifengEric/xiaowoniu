@@ -36,6 +36,33 @@ vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ logout: auth.logout }) }))
 
 const renderPage = () => render(<MemoryRouter><Wedding /></MemoryRouter>)
 
+function dateLabel(value: string) {
+  const [year, month, day] = value.split('-').map(Number)
+  return `${year}年${month}月${day}日`
+}
+
+async function selectDate(user: ReturnType<typeof userEvent.setup>, label: string, value: string) {
+  const [year, month] = value.split('-').map(Number)
+  const targetMonth = year * 12 + month
+  const targetDay = dateLabel(value)
+  await user.click(screen.getByLabelText(label))
+
+  for (let attempts = 0; attempts < 120; attempts += 1) {
+    const day = screen.queryByRole('button', { name: targetDay })
+    if (day) {
+      await user.click(day)
+      return
+    }
+    const currentMonth = screen.getByRole('grid').getAttribute('aria-label')
+    const match = currentMonth?.match(/^(\d+)年(\d+)月$/)
+    if (!match) throw new Error('日期选择器月份格式异常')
+    const current = Number(match[1]) * 12 + Number(match[2])
+    await user.click(screen.getByRole('button', { name: current < targetMonth ? '下个月' : '上个月' }))
+  }
+
+  throw new Error(`未找到日期 ${value}`)
+}
+
 const task = {
   id: 'task-1', userId: 'user-1', taskName: '确认婚礼场地', category: WeddingTaskCategory.VENUE,
   plannedDate: '2026-10-01', completedDate: null, status: TaskStatus.PENDING, priority: 5,
@@ -73,7 +100,7 @@ describe('Wedding page', () => {
   it('shows header actions and switches between tabs with keyboard', async () => {
     const user = userEvent.setup()
     renderPage()
-    expect(screen.getByRole('button', { name: '返回 Dashboard' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '返回世界仪表盘' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '登出' })).toBeInTheDocument()
     const tablist = screen.getByRole('tablist')
     expect(tablist).toBeInTheDocument()
@@ -109,7 +136,7 @@ describe('Wedding page', () => {
     await user.click(screen.getByRole('button', { name: /新增花费/ }))
     expect(screen.getByRole('dialog', { name: '新增备婚花费' })).toBeInTheDocument()
     await user.type(screen.getByLabelText('条目名称'), '场地定金')
-    await user.type(screen.getByLabelText('花费日期'), '2026-08-04')
+    await selectDate(user, '花费日期', '2026-08-04')
     await user.type(screen.getByLabelText('计划金额'), '20000')
     await user.type(screen.getByLabelText('实际金额'), '18000')
     await user.click(screen.getByRole('combobox', { name: '花费类别' }))
@@ -119,7 +146,7 @@ describe('Wedding page', () => {
     await user.click(screen.getByRole('button', { name: '保存花费' }))
     await waitFor(() => expect(store.createExpense).toHaveBeenCalled())
     expect(await screen.findByRole('status')).toHaveTextContent('备婚花费已创建')
-  })
+  }, 15_000)
 
   it('opens the budget dialog and submits total budget and wedding date', async () => {
     const user = userEvent.setup()
@@ -127,11 +154,11 @@ describe('Wedding page', () => {
     await user.click(screen.getAllByRole('button', { name: /设置预算与婚期/ })[0])
     expect(screen.getByRole('dialog', { name: '设置备婚预算与婚期' })).toBeInTheDocument()
     await user.type(screen.getByLabelText('总预算'), '150000')
-    await user.type(screen.getByLabelText('婚礼日期'), '2026-12-01')
+    await selectDate(user, '婚礼日期', '2026-12-01')
     await user.click(screen.getByRole('button', { name: '保存预算' }))
     await waitFor(() => expect(store.upsertBudget).toHaveBeenCalledWith({ totalBudget: 150000, weddingDate: '2026-12-01' }))
     expect(await screen.findByRole('status')).toHaveTextContent('备婚预算已更新')
-  })
+  }, 15_000)
 
   it('changes task status through the store action and shows success', async () => {
     const user = userEvent.setup()

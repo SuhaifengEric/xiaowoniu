@@ -167,13 +167,17 @@ describe('finance summary and budgets', () => {
 
   it('uses the user/month compound key for budget reads and upserts', async () => {
     prisma.monthlyBudget.findUnique.mockResolvedValue(budget)
-    await financeService.getBudget('u1', '2026-07')
+    await expect(financeService.getBudget('u1', '2026-07')).resolves.toMatchObject({
+      id: 'b1', month: '2026-07', amount: 30,
+    })
     expect(prisma.monthlyBudget.findUnique).toHaveBeenCalledWith({
       where: { userId_month: { userId: 'u1', month: new Date('2026-07-01T00:00:00.000Z') } },
     })
 
     prisma.monthlyBudget.upsert.mockResolvedValue({ ...budget, amount: decimal('0') })
-    await financeService.upsertBudget('u1', { month: '2026-07', amount: 0 })
+    await expect(financeService.upsertBudget('u1', { month: '2026-07', amount: 0 })).resolves.toMatchObject({
+      id: 'b1', month: '2026-07', amount: 0,
+    })
     expect(prisma.monthlyBudget.upsert).toHaveBeenCalledWith({
       where: { userId_month: { userId: 'u1', month: new Date('2026-07-01T00:00:00.000Z') } },
       create: { userId: 'u1', month: new Date('2026-07-01T00:00:00.000Z'), amount: decimal('0') },

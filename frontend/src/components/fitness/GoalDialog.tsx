@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import type { FitnessGoalResponse, UpsertGoalRequest } from '@xiaowoniu/shared'
 import { Button } from '@/components/ui/button'
+import { DatePicker } from '@/components/ui/date-picker'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -84,12 +85,12 @@ export default function GoalDialog({ open, onOpenChange, onSubmit, initialDate =
           </div>
           <div className="grid gap-2">
             <Label htmlFor="goal-start">开始日期</Label>
-            <Input id="goal-start" type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} aria-invalid={Boolean(errors.startDate)} aria-describedby={errors.startDate ? 'goal-start-error' : undefined} disabled={submitting} />
+            <DatePicker id="goal-start" value={startDate} onValueChange={setStartDate} clearLabel="清除开始日期" aria-invalid={Boolean(errors.startDate)} aria-describedby={errors.startDate ? 'goal-start-error' : undefined} disabled={submitting} />
             {errors.startDate && <p id="goal-start-error" className="text-sm text-destructive">{errors.startDate}</p>}
           </div>
           <div className="grid gap-2">
             <Label htmlFor="goal-target">目标日期（可选）</Label>
-            <Input id="goal-target" type="date" value={targetDate} onChange={(event) => setTargetDate(event.target.value)} aria-invalid={Boolean(errors.targetDate)} aria-describedby={errors.targetDate ? 'goal-target-error' : undefined} disabled={submitting} />
+            <DatePicker id="goal-target" value={targetDate} onValueChange={setTargetDate} clearLabel="清除目标日期" aria-invalid={Boolean(errors.targetDate)} aria-describedby={errors.targetDate ? 'goal-target-error' : undefined} disabled={submitting} />
             {errors.targetDate && <p id="goal-target-error" className="text-sm text-destructive">{errors.targetDate}</p>}
           </div>
           {submitError && <p role="alert" className="text-sm text-destructive">{submitError}</p>}

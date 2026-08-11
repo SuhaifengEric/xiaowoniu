@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   resetLearning: vi.fn(),
   resetFinance: vi.fn(),
   resetWedding: vi.fn(),
+  resetDashboard: vi.fn(),
 }))
 
 vi.mock('@/services/auth.service', () => ({
@@ -50,6 +51,12 @@ vi.mock('./finance.store', () => ({
 vi.mock('./wedding.store', () => ({
   useWeddingStore: {
     getState: () => ({ reset: mocks.resetWedding }),
+  },
+}))
+
+vi.mock('./dashboard.store', () => ({
+  useDashboardStore: {
+    getState: () => ({ reset: mocks.resetDashboard }),
   },
 }))
 
@@ -90,6 +97,7 @@ describe('useAuthStore auth-scoped cleanup', () => {
     expect(mocks.resetLearning).toHaveBeenCalledOnce()
     expect(mocks.resetFinance).toHaveBeenCalledOnce()
     expect(mocks.resetWedding).toHaveBeenCalledOnce()
+    expect(mocks.resetDashboard).toHaveBeenCalledOnce()
     expect(mocks.resetFitness.mock.invocationCallOrder[0])
       .toBeLessThan(mocks.saveAuth.mock.invocationCallOrder[0])
     expect(mocks.resetLearning.mock.invocationCallOrder[0])
@@ -112,6 +120,7 @@ describe('useAuthStore auth-scoped cleanup', () => {
     expect(mocks.resetLearning).not.toHaveBeenCalled()
     expect(mocks.resetFinance).not.toHaveBeenCalled()
     expect(mocks.resetWedding).not.toHaveBeenCalled()
+    expect(mocks.resetDashboard).not.toHaveBeenCalled()
   })
 
   it('resets fitness before saving a successful registration identity', async () => {
@@ -132,6 +141,7 @@ describe('useAuthStore auth-scoped cleanup', () => {
     expect(mocks.resetLearning).toHaveBeenCalledOnce()
     expect(mocks.resetFinance).toHaveBeenCalledOnce()
     expect(mocks.resetWedding).toHaveBeenCalledOnce()
+    expect(mocks.resetDashboard).toHaveBeenCalledOnce()
     expect(mocks.resetFitness.mock.invocationCallOrder[0])
       .toBeLessThan(mocks.saveAuth.mock.invocationCallOrder[0])
     expect(mocks.resetLearning.mock.invocationCallOrder[0])
@@ -154,6 +164,7 @@ describe('useAuthStore auth-scoped cleanup', () => {
     expect(mocks.resetLearning).not.toHaveBeenCalled()
     expect(mocks.resetFinance).not.toHaveBeenCalled()
     expect(mocks.resetWedding).not.toHaveBeenCalled()
+    expect(mocks.resetDashboard).not.toHaveBeenCalled()
   })
 
   it('resets fitness state after a successful logout', async () => {
@@ -165,6 +176,7 @@ describe('useAuthStore auth-scoped cleanup', () => {
     expect(mocks.resetLearning).toHaveBeenCalledOnce()
     expect(mocks.resetFinance).toHaveBeenCalledOnce()
     expect(mocks.resetWedding).toHaveBeenCalledOnce()
+    expect(mocks.resetDashboard).toHaveBeenCalledOnce()
   })
 
   it('resets both module states when checkAuth detects an identity change', () => {
@@ -186,6 +198,7 @@ describe('useAuthStore auth-scoped cleanup', () => {
     expect(mocks.resetLearning).toHaveBeenCalledOnce()
     expect(mocks.resetFinance).toHaveBeenCalledOnce()
     expect(mocks.resetWedding).toHaveBeenCalledOnce()
+    expect(mocks.resetDashboard).toHaveBeenCalledOnce()
     expect(useAuthStore.getState().user).toEqual(nextUser)
     expect(useAuthStore.getState().token).toBeNull()
   })
@@ -206,6 +219,7 @@ describe('useAuthStore auth-scoped cleanup', () => {
     expect(mocks.resetLearning).not.toHaveBeenCalled()
     expect(mocks.resetFinance).not.toHaveBeenCalled()
     expect(mocks.resetWedding).not.toHaveBeenCalled()
+    expect(mocks.resetDashboard).not.toHaveBeenCalled()
     expect(useAuthStore.getState().user).toEqual(user)
     expect(useAuthStore.getState().token).toBe('saved-token')
   })

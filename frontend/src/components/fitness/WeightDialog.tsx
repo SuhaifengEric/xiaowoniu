@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import type { CreateWeightRecordRequest } from '@xiaowoniu/shared'
 import { Button } from '@/components/ui/button'
+import { DatePicker } from '@/components/ui/date-picker'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -78,7 +79,7 @@ export default function WeightDialog({ open, onOpenChange, onSubmit, initialDate
         <form className="grid gap-5" onSubmit={handleSubmit} noValidate>
           <div className="grid gap-2">
             <Label htmlFor="weight-date">日期</Label>
-            <Input id="weight-date" type="date" value={date} onChange={(event) => setDate(event.target.value)} aria-invalid={Boolean(errors.date)} aria-describedby={errors.date ? 'weight-date-error' : undefined} disabled={submitting} />
+            <DatePicker id="weight-date" value={date} onValueChange={setDate} aria-invalid={Boolean(errors.date)} aria-describedby={errors.date ? 'weight-date-error' : undefined} disabled={submitting} />
             {errors.date && <p id="weight-date-error" className="text-sm text-destructive">{errors.date}</p>}
           </div>
           <div className="grid gap-2">

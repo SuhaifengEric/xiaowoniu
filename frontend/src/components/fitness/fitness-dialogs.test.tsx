@@ -1,24 +1,52 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
-
-const checkinDialogPath = './CheckinDialog'
-const weightDialogPath = './WeightDialog'
-const goalDialogPath = './GoalDialog'
+import CheckinDialog from './CheckinDialog'
+import GoalDialog from './GoalDialog'
+import WeightDialog from './WeightDialog'
 
 async function selectFirstOption(user: ReturnType<typeof userEvent.setup>, label: string) {
   await user.click(screen.getByLabelText(label))
   await user.keyboard('{ArrowDown}{Enter}')
 }
 
+function dateLabel(value: string) {
+  const [year, month, day] = value.split('-').map(Number)
+  return `${year}年${month}月${day}日`
+}
+
+function expectDateValue(label: string, value: string) {
+  expect(screen.getByLabelText(label)).toHaveTextContent(dateLabel(value))
+}
+
+async function selectDate(user: ReturnType<typeof userEvent.setup>, label: string, value: string) {
+  const [year, month] = value.split('-').map(Number)
+  const targetMonth = year * 12 + month
+  const targetDay = dateLabel(value)
+  await user.click(screen.getByLabelText(label))
+
+  for (let attempts = 0; attempts < 120; attempts += 1) {
+    const day = screen.queryByRole('button', { name: targetDay })
+    if (day) {
+      await user.click(day)
+      return
+    }
+    const currentMonth = screen.getByRole('grid').getAttribute('aria-label')
+    if (!currentMonth) throw new Error('日期选择器未显示月份')
+    const match = currentMonth.match(/^(\d+)年(\d+)月$/)
+    if (!match) throw new Error('日期选择器月份格式异常')
+    const current = Number(match[1]) * 12 + Number(match[2])
+    await user.click(screen.getByRole('button', { name: current < targetMonth ? '下个月' : '上个月' }))
+  }
+
+  throw new Error(`未找到日期 ${value}`)
+}
+
 describe('CheckinDialog', () => {
   it('rejects missing and invalid check-in values', async () => {
-    const CheckinDialog = (await import(/* @vite-ignore */ checkinDialogPath)).default
     const user = userEvent.setup()
     const onSubmit = vi.fn()
-    render(<CheckinDialog open onOpenChange={vi.fn()} onSubmit={onSubmit} initialDate="2026-07-30" />)
-
-    await user.clear(screen.getByLabelText('日期'))
+    render(<CheckinDialog open onOpenChange={vi.fn()} onSubmit={onSubmit} initialDate="2026-02-30" />)
     await user.type(screen.getByLabelText('运动时长（分钟）'), '0')
     await user.click(screen.getByRole('button', { name: '保存打卡' }))
 
@@ -29,7 +57,6 @@ describe('CheckinDialog', () => {
   })
 
   it('rejects durations above one day', async () => {
-    const CheckinDialog = (await import(/* @vite-ignore */ checkinDialogPath)).default
     const user = userEvent.setup()
     const onSubmit = vi.fn()
     render(<CheckinDialog open onOpenChange={vi.fn()} onSubmit={onSubmit} initialDate="2026-07-30" />)
@@ -43,7 +70,6 @@ describe('CheckinDialog', () => {
   })
 
   it('waits for a valid submit and closes only after success', async () => {
-    const CheckinDialog = (await import(/* @vite-ignore */ checkinDialogPath)).default
     const user = userEvent.setup()
     let resolveSubmit!: () => void
     const onSubmit = vi.fn(() => new Promise<void>((resolve) => { resolveSubmit = resolve }))
@@ -62,7 +88,6 @@ describe('CheckinDialog', () => {
   })
 
   it('keeps the dialog open and exposes submit errors', async () => {
-    const CheckinDialog = (await import(/* @vite-ignore */ checkinDialogPath)).default
     const user = userEvent.setup()
     const onOpenChange = vi.fn()
     const onSubmit = vi.fn().mockRejectedValue(new Error('打卡保存失败'))
@@ -81,7 +106,6 @@ describe('CheckinDialog', () => {
     ['allows 2000 trimmed note characters', `${'a'.repeat(2000)}  `, true],
     ['rejects 2001 trimmed note characters', 'a'.repeat(2001), false],
   ])('%s', async (_name, notes, allowed) => {
-    const CheckinDialog = (await import(/* @vite-ignore */ checkinDialogPath)).default
     const user = userEvent.setup()
     const onSubmit = vi.fn().mockResolvedValue(undefined)
     render(<CheckinDialog open onOpenChange={vi.fn()} onSubmit={onSubmit} initialDate="2026-07-30" />)
@@ -105,7 +129,6 @@ describe('CheckinDialog', () => {
 
 describe('WeightDialog', () => {
   it('rejects weight boundaries and invalid dates', async () => {
-    const WeightDialog = (await import(/* @vite-ignore */ weightDialogPath)).default
     const user = userEvent.setup()
     const onSubmit = vi.fn()
     render(<WeightDialog open onOpenChange={vi.fn()} onSubmit={onSubmit} initialDate="2026-02-30" />)
@@ -119,7 +142,6 @@ describe('WeightDialog', () => {
   })
 
   it('waits for a valid submit and closes only after success', async () => {
-    const WeightDialog = (await import(/* @vite-ignore */ weightDialogPath)).default
     const user = userEvent.setup()
     let resolveSubmit!: () => void
     const onSubmit = vi.fn(() => new Promise<void>((resolve) => { resolveSubmit = resolve }))
@@ -137,7 +159,6 @@ describe('WeightDialog', () => {
   })
 
   it('keeps the dialog open and exposes submit errors', async () => {
-    const WeightDialog = (await import(/* @vite-ignore */ weightDialogPath)).default
     const user = userEvent.setup()
     const onOpenChange = vi.fn()
     const onSubmit = vi.fn().mockRejectedValue(new Error('网络连接失败'))
@@ -155,7 +176,6 @@ describe('WeightDialog', () => {
     ['allows 2000 trimmed note characters', `${'a'.repeat(2000)}  `, true],
     ['rejects 2001 trimmed note characters', 'a'.repeat(2001), false],
   ])('%s', async (_name, notes, allowed) => {
-    const WeightDialog = (await import(/* @vite-ignore */ weightDialogPath)).default
     const user = userEvent.setup()
     const onSubmit = vi.fn().mockResolvedValue(undefined)
     render(<WeightDialog open onOpenChange={vi.fn()} onSubmit={onSubmit} initialDate="2026-07-30" />)
@@ -178,13 +198,12 @@ describe('WeightDialog', () => {
 
 describe('GoalDialog', () => {
   it('rejects non-integer targets and target dates before the start date', async () => {
-    const GoalDialog = (await import(/* @vite-ignore */ goalDialogPath)).default
     const user = userEvent.setup()
     const onSubmit = vi.fn()
     render(<GoalDialog open onOpenChange={vi.fn()} onSubmit={onSubmit} initialDate="2026-07-30" />)
 
     await user.type(screen.getByLabelText('每周运动目标（次）'), '-1.5')
-    await user.type(screen.getByLabelText('目标日期（可选）'), '2026-07-29')
+    await selectDate(user, '目标日期（可选）', '2026-07-29')
     await user.click(screen.getByRole('button', { name: '保存目标' }))
 
     expect(await screen.findByText('每周目标必须为 0 到 100 之间的整数')).toBeInTheDocument()
@@ -193,7 +212,6 @@ describe('GoalDialog', () => {
   })
 
   it('submits numeric optional weight and closes after success', async () => {
-    const GoalDialog = (await import(/* @vite-ignore */ goalDialogPath)).default
     const user = userEvent.setup()
     const onOpenChange = vi.fn()
     const onSubmit = vi.fn().mockResolvedValue(undefined)
@@ -208,7 +226,6 @@ describe('GoalDialog', () => {
   })
 
   it('prefills an existing goal and preserves unchanged fields', async () => {
-    const GoalDialog = (await import(/* @vite-ignore */ goalDialogPath)).default
     const user = userEvent.setup()
     const onSubmit = vi.fn().mockResolvedValue(undefined)
     render(<GoalDialog
@@ -231,8 +248,8 @@ describe('GoalDialog', () => {
 
     expect(screen.getByLabelText('每周运动目标（次）')).toHaveValue(3)
     expect(screen.getByLabelText('目标体重（kg，可选）')).toHaveValue(52.5)
-    expect(screen.getByLabelText('开始日期')).toHaveValue('2026-07-01')
-    expect(screen.getByLabelText('目标日期（可选）')).toHaveValue('2026-12-31')
+    expectDateValue('开始日期', '2026-07-01')
+    expectDateValue('目标日期（可选）', '2026-12-31')
 
     await user.click(screen.getByRole('button', { name: '保存目标' }))
     await waitFor(() => expect(onSubmit).toHaveBeenCalledWith({
@@ -244,7 +261,6 @@ describe('GoalDialog', () => {
   })
 
   it('rejects values above the fitness business limits', async () => {
-    const GoalDialog = (await import(/* @vite-ignore */ goalDialogPath)).default
     const user = userEvent.setup()
     const onSubmit = vi.fn()
     render(<GoalDialog open onOpenChange={vi.fn()} onSubmit={onSubmit} initialDate="2026-07-30" />)
@@ -257,7 +273,6 @@ describe('GoalDialog', () => {
   })
 
   it('keeps the goal dialog open and exposes submit errors', async () => {
-    const GoalDialog = (await import(/* @vite-ignore */ goalDialogPath)).default
     const user = userEvent.setup()
     const onOpenChange = vi.fn()
     const onSubmit = vi.fn().mockRejectedValue(new Error('目标保存失败'))

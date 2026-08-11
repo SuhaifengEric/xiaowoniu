@@ -40,10 +40,18 @@ function dateFilter(query: Pick<LearningQueryParams, 'startDate' | 'endDate'>) {
   return Object.keys(date).length ? date : undefined
 }
 
+function safePagination(value: unknown, minimum: number) {
+  if (value === undefined || value === null || value === '') return undefined
+  const number = Number(value)
+  return Number.isSafeInteger(number) && number >= minimum ? number : undefined
+}
+
 function pagination(query: Pick<LearningQueryParams, 'limit' | 'offset'>) {
+  const limit = safePagination(query.limit, 1)
+  const offset = safePagination(query.offset, 0)
   return {
-    ...(query.limit === undefined ? {} : { take: query.limit }),
-    ...(query.offset === undefined ? {} : { skip: query.offset }),
+    ...(limit === undefined ? {} : { take: limit }),
+    ...(offset === undefined ? {} : { skip: offset }),
   }
 }
 
