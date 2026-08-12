@@ -9,6 +9,7 @@ const Fitness = lazy(() => import('@/pages/Fitness'))
 const Learning = lazy(() => import('@/pages/Learning'))
 const Finance = lazy(() => import('@/pages/Finance'))
 const Wedding = lazy(() => import('@/pages/Wedding'))
+const Profile = lazy(() => import('@/pages/Profile'))
 
 export default function AppRoutes() {
   return (
@@ -60,6 +61,16 @@ export default function AppRoutes() {
             <ProtectedRoute>
               <Suspense fallback={<main className="flex min-h-screen items-center justify-center" role="status">备婚页面加载中…</main>}>
                 <Wedding />
+              </Suspense>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <Suspense fallback={<main className="flex min-h-screen items-center justify-center" role="status">个人中心加载中…</main>}>
+                <Profile />
               </Suspense>
             </ProtectedRoute>
           }

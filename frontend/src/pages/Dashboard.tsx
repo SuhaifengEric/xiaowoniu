@@ -4,7 +4,6 @@ import {
   BookOpen,
   Dumbbell,
   ListTodo,
-  LogOut,
   PiggyBank,
   RefreshCw,
   X,
@@ -43,8 +42,8 @@ function ProgressRing({ pct, tone, label }: ProgressRingProps) {
 }
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
+import AccountMenu from '@/components/navigation/AccountMenu'
 import MobileTabBar from '@/components/navigation/MobileTabBar'
-import { useAuth } from '@/hooks/useAuth'
 import { useDashboardStore } from '@/store/dashboard.store'
 
 const currency = new Intl.NumberFormat('zh-CN', {
@@ -89,7 +88,6 @@ function progressPercentage(value: number) {
 
 export default function Dashboard() {
   const navigate = useNavigate()
-  const { logout } = useAuth()
   const summary = useDashboardStore((state) => state.summary)
   const loading = useDashboardStore((state) => state.loading)
   const error = useDashboardStore((state) => state.error)
@@ -117,15 +115,6 @@ export default function Dashboard() {
     void fetchSummary().catch(() => undefined)
   }, [fetchSummary])
 
-  const handleLogout = async () => {
-    try {
-      await logout()
-      navigate('/login')
-    } catch {
-      // Auth state owns logout failures on its destination.
-    }
-  }
-
   const goTo = (path: string, action?: string) => {
     navigate(action ? `${path}?action=${action}` : path)
   }
@@ -147,9 +136,7 @@ export default function Dashboard() {
             >
               <RefreshCw aria-hidden="true" className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             </Button>
-            <Button variant="ghost" className="app-nav-action min-h-11 gap-2 px-3" onClick={handleLogout}>
-              <LogOut aria-hidden="true" className="h-4 w-4" />登出
-            </Button>
+            <AccountMenu />
           </div>
         </nav>
 

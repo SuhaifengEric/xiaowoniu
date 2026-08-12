@@ -3,10 +3,13 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({
   login: vi.fn(),
   register: vi.fn(),
+  updateMe: vi.fn(),
+  changePassword: vi.fn(),
   logout: vi.fn(),
   getSavedUser: vi.fn(),
   isAuthenticated: vi.fn(() => false),
   saveAuth: vi.fn(),
+  saveUser: vi.fn(),
   clearAuth: vi.fn(() => {
     localStorage.removeItem('token')
     localStorage.removeItem('user')
@@ -25,7 +28,10 @@ vi.mock('@/services/auth.service', () => ({
     logout: mocks.logout,
     login: mocks.login,
     register: mocks.register,
+    updateMe: mocks.updateMe,
+    changePassword: mocks.changePassword,
     saveAuth: mocks.saveAuth,
+    saveUser: mocks.saveUser,
     clearAuth: mocks.clearAuth,
   },
 }))
@@ -160,6 +166,68 @@ describe('useAuthStore auth-scoped cleanup', () => {
       username: 'new-user', email: 'new@example.com', password: 'password123',
     })).rejects.toBe(failure)
 
+    expect(mocks.resetFitness).not.toHaveBeenCalled()
+    expect(mocks.resetLearning).not.toHaveBeenCalled()
+    expect(mocks.resetFinance).not.toHaveBeenCalled()
+    expect(mocks.resetWedding).not.toHaveBeenCalled()
+    expect(mocks.resetDashboard).not.toHaveBeenCalled()
+  })
+
+  it('updates the current user and localStorage without resetting module stores', async () => {
+    const previousUser = {
+      id: 'user-1', username: 'tester', email: 'test@example.com', nickname: null,
+      avatarUrl: null, createdAt: 'created', updatedAt: 'old',
+    }
+    const nextUser = { ...previousUser, nickname: '花花', updatedAt: 'new' }
+    useAuthStore.setState({ user: previousUser, token: 'saved-token', isAuthenticated: true })
+    mocks.updateMe.mockResolvedValue(nextUser)
+
+    await expect(useAuthStore.getState().updateProfile({ nickname: '花花' })).resolves.toEqual(nextUser)
+
+    expect(mocks.saveUser).toHaveBeenCalledWith(nextUser)
+    expect(useAuthStore.getState().user).toEqual(nextUser)
+    expect(useAuthStore.getState().token).toBe('saved-token')
+    expect(mocks.resetFitness).not.toHaveBeenCalled()
+    expect(mocks.resetLearning).not.toHaveBeenCalled()
+    expect(mocks.resetFinance).not.toHaveBeenCalled()
+    expect(mocks.resetWedding).not.toHaveBeenCalled()
+    expect(mocks.resetDashboard).not.toHaveBeenCalled()
+  })
+
+  it('keeps the original user and token when profile update fails', async () => {
+    const previousUser = {
+      id: 'user-1', username: 'tester', email: 'test@example.com', nickname: null,
+      avatarUrl: null, createdAt: 'created', updatedAt: 'old',
+    }
+    const failure = new Error('profile update failed')
+    useAuthStore.setState({ user: previousUser, token: 'saved-token', isAuthenticated: true })
+    mocks.updateMe.mockRejectedValue(failure)
+
+    await expect(useAuthStore.getState().updateProfile({ nickname: '花花' })).rejects.toBe(failure)
+
+    expect(useAuthStore.getState().user).toEqual(previousUser)
+    expect(useAuthStore.getState().token).toBe('saved-token')
+    expect(mocks.saveUser).not.toHaveBeenCalled()
+  })
+
+  it('changes the password without changing user, token, or business stores', async () => {
+    const user = {
+      id: 'user-1', username: 'tester', email: 'test@example.com', nickname: '花花',
+      avatarUrl: null, createdAt: 'created', updatedAt: 'old',
+    }
+    useAuthStore.setState({ user, token: 'saved-token', isAuthenticated: true })
+    mocks.changePassword.mockResolvedValue(null)
+
+    await expect(useAuthStore.getState().changePassword({
+      currentPassword: 'old-password', newPassword: 'new-password',
+    })).resolves.toBeUndefined()
+
+    expect(mocks.changePassword).toHaveBeenCalledWith({
+      currentPassword: 'old-password', newPassword: 'new-password',
+    })
+    expect(useAuthStore.getState().user).toEqual(user)
+    expect(useAuthStore.getState().token).toBe('saved-token')
+    expect(mocks.saveUser).not.toHaveBeenCalled()
     expect(mocks.resetFitness).not.toHaveBeenCalled()
     expect(mocks.resetLearning).not.toHaveBeenCalled()
     expect(mocks.resetFinance).not.toHaveBeenCalled()

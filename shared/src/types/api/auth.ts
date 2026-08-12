@@ -19,6 +19,21 @@ export interface LoginRequest {
 }
 
 /**
+ * 更新当前用户资料请求
+ */
+export interface UpdateProfileRequest {
+  nickname: string | null
+}
+
+/**
+ * 修改当前用户密码请求
+ */
+export interface ChangePasswordRequest {
+  currentPassword: string
+  newPassword: string
+}
+
+/**
  * 登录响应
  */
 export interface LoginResponse {

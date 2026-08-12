@@ -105,7 +105,74 @@ Authorization: Bearer <token>
 }
 ```
 
-### 4. 用户登出
+### 4. 更新当前用户资料
+
+**PATCH** `/auth/me`
+
+**请求头：**
+```
+Authorization: Bearer <token>
+```
+
+**请求体：**
+```json
+{
+  "nickname": "花花"
+}
+```
+
+昵称会先 trim；传入空字符串会规范化为 `null`，表示清空昵称。昵称最多 50 个字符。请求体只允许包含 `nickname`，用户身份始终从 JWT 读取，不接受 body 中的 `userId`。
+
+**响应：**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "username": "testuser",
+    "email": "test@example.com",
+    "nickname": "花花",
+    "avatarUrl": null,
+    "createdAt": "2026-07-29T12:00:00.000Z",
+    "updatedAt": "2026-07-29T12:10:00.000Z"
+  },
+  "message": "个人资料更新成功"
+}
+```
+
+可能的错误：`400 VALIDATION_ERROR`（字段缺失、昵称过长或未知字段）、`401 UNAUTHORIZED`（未登录或 Token 无效）、`404 NOT_FOUND`（当前用户不存在）。响应不会包含 password 或密码哈希。
+
+### 5. 修改当前用户密码
+
+**PATCH** `/auth/password`
+
+**请求头：**
+```
+Authorization: Bearer <token>
+```
+
+**请求体：**
+```json
+{
+  "currentPassword": "old-password",
+  "newPassword": "new-password"
+}
+```
+
+当前密码不能为空，新密码至少 6 位；请求体只允许包含这两个字段，确认密码只在前端表单内校验，不发送到后端。服务端会先验证当前密码，再 hash 新密码并只更新当前 JWT 对应用户的 password 字段。
+
+**成功响应：**
+```json
+{
+  "success": true,
+  "data": null,
+  "message": "密码修改成功"
+}
+```
+
+可能的错误：`400 VALIDATION_ERROR`（字段缺失、密码过短或未知字段）、`400 INVALID_CURRENT_PASSWORD`（当前密码不正确）、`400 PASSWORD_UNCHANGED`（新密码与当前密码相同）、`401 UNAUTHORIZED`（未登录或 Token 无效）、`404 NOT_FOUND`（当前用户不存在）。本期修改密码后当前 JWT 仍保持有效，所有设备退出属于后续会话管理需求。
+
+### 6. 用户登出
 
 **POST** `/auth/logout`
 

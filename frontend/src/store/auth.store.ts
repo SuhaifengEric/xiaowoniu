@@ -5,7 +5,13 @@ import { useLearningStore } from '@/store/learning.store'
 import { useFinanceStore } from '@/store/finance.store'
 import { useWeddingStore } from '@/store/wedding.store'
 import { useDashboardStore } from '@/store/dashboard.store'
-import type { UserResponse, LoginRequest, RegisterRequest } from '@xiaowoniu/shared'
+import type {
+  ChangePasswordRequest,
+  LoginRequest,
+  RegisterRequest,
+  UpdateProfileRequest,
+  UserResponse,
+} from '@xiaowoniu/shared'
 
 interface AuthState {
   user: UserResponse | null
@@ -17,6 +23,8 @@ interface AuthState {
   // Actions
   login: (data: LoginRequest) => Promise<void>
   register: (data: RegisterRequest) => Promise<void>
+  updateProfile: (data: UpdateProfileRequest) => Promise<UserResponse>
+  changePassword: (data: ChangePasswordRequest) => Promise<void>
   logout: () => Promise<void>
   checkAuth: () => void
   clearError: () => void
@@ -72,6 +80,17 @@ export const useAuthStore = create<AuthState>((set) => ({
       set({ error: message, isLoading: false })
       throw error
     }
+  },
+
+  updateProfile: async (data: UpdateProfileRequest) => {
+    const user = await authService.updateMe(data)
+    authService.saveUser(user)
+    set({ user })
+    return user
+  },
+
+  changePassword: async (data: ChangePasswordRequest) => {
+    await authService.changePassword(data)
   },
 
   logout: async () => {

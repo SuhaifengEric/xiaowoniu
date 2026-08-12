@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, BookOpen, CalendarPlus, LogOut, Pencil, Plus, Trash2, X } from 'lucide-react'
+import { ArrowLeft, BookOpen, CalendarPlus, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import type {
   CreateExamRequest,
@@ -14,10 +14,10 @@ import ExamDialog from '@/components/learning/ExamDialog'
 import StudyCheckinDialog from '@/components/learning/StudyCheckinDialog'
 import SubjectDialog from '@/components/learning/SubjectDialog'
 import DeleteConfirmationDialog from '@/components/learning/DeleteConfirmationDialog'
+import AccountMenu from '@/components/navigation/AccountMenu'
 import MobileTabBar from '@/components/navigation/MobileTabBar'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { useAuth } from '@/hooks/useAuth'
 import { formatLocalDate, getCalendarRange } from '@/pages/Fitness/CheckinCalendar'
 import { useLearningStore } from '@/store/learning.store'
 import ExamCountdown from './ExamCountdown'
@@ -44,7 +44,6 @@ function monthStart(date: Date) {
 export default function Learning() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
-  const { logout } = useAuth()
   const exams = useLearningStore((state) => state.exams)
   const subjects = useLearningStore((state) => state.subjects)
   const checkins = useLearningStore((state) => state.checkins)
@@ -185,17 +184,12 @@ export default function Learning() {
     void fetchCheckins({ examId: selectedExamId, ...calendarRange, limit: 10, offset: checkins.length }).catch(() => undefined)
   }
 
-  const handleLogout = async () => {
-    await logout()
-    navigate('/login')
-  }
-
   return (
     <main className="app-page learning-page has-mobile-tabbar" data-dialog-return-focus={dashboardReturnFocus ?? undefined}>
       <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
         <nav className="app-nav flex min-h-11 items-center justify-between gap-3 border-b pb-4" aria-label="页面导航">
           <Button variant="ghost" className="app-nav-action min-h-11 gap-2 px-2" onClick={() => navigate('/dashboard')}><ArrowLeft aria-hidden="true" className="h-4 w-4" />返回世界仪表盘</Button>
-          <Button variant="ghost" className="app-nav-action min-h-11 gap-2 px-3" onClick={handleLogout}><LogOut aria-hidden="true" className="h-4 w-4" />登出</Button>
+          <AccountMenu />
         </nav>
 
         <header className="app-page-header flex flex-col gap-5 py-9 lg:flex-row lg:items-end lg:justify-between">

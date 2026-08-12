@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ArrowLeft, CalendarRange, ListTodo, LogOut, Plus, Receipt, Wallet, X } from 'lucide-react'
+import { ArrowLeft, CalendarRange, ListTodo, Plus, Receipt, Wallet, X } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import type {
   CreateWeddingExpenseRequest,
@@ -10,6 +10,7 @@ import type {
   WeddingExpenseResponse,
   WeddingTaskResponse,
 } from '@xiaowoniu/shared'
+import AccountMenu from '@/components/navigation/AccountMenu'
 import MobileTabBar from '@/components/navigation/MobileTabBar'
 import { Button } from '@/components/ui/button'
 import WeddingBudgetDialog from '@/components/wedding/WeddingBudgetDialog'
@@ -20,7 +21,6 @@ import { WeddingOverview } from '@/components/wedding/WeddingOverview'
 import WeddingTaskDialog from '@/components/wedding/WeddingTaskDialog'
 import { WeddingTaskBoard } from '@/components/wedding/WeddingTaskBoard'
 import { WeddingTimeline } from '@/components/wedding/WeddingTimeline'
-import { useAuth } from '@/hooks/useAuth'
 import { useWeddingStore } from '@/store/wedding.store'
 
 type TabName = 'board' | 'timeline' | 'expenses'
@@ -42,7 +42,6 @@ const tabs: Array<{ value: TabName; label: string; icon: typeof ListTodo }> = [
 export default function Wedding() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
-  const { logout } = useAuth()
   const tasks = useWeddingStore((state) => state.tasks)
   const expenses = useWeddingStore((state) => state.expenses)
   const budget = useWeddingStore((state) => state.budget)
@@ -156,15 +155,6 @@ export default function Wedding() {
     }
   }
 
-  const handleLogout = async () => {
-    try {
-      await logout()
-      navigate('/login')
-    } catch {
-      // Auth state owns logout failures.
-    }
-  }
-
   const selectTab = (event: React.KeyboardEvent, index: number) => {
     if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return
     event.preventDefault()
@@ -180,9 +170,7 @@ export default function Wedding() {
           <Button variant="ghost" className="app-nav-action min-h-11 gap-2 px-2" onClick={() => navigate('/dashboard')}>
             <ArrowLeft aria-hidden="true" className="h-4 w-4" />返回世界仪表盘
           </Button>
-          <Button variant="ghost" className="app-nav-action min-h-11 gap-2 px-3" onClick={handleLogout}>
-            <LogOut aria-hidden="true" className="h-4 w-4" />登出
-          </Button>
+          <AccountMenu />
         </nav>
 
         <header className="app-page-header wedding-toolbar flex flex-col gap-5 py-9 md:flex-row md:items-end md:justify-between">

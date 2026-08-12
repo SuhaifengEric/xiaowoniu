@@ -1,8 +1,11 @@
 import api from './api'
 import type {
+  ApiSuccessResponse,
+  ChangePasswordRequest,
   RegisterRequest,
   LoginRequest,
   LoginResponse,
+  UpdateProfileRequest,
   UserResponse,
 } from '@xiaowoniu/shared'
 
@@ -33,8 +36,30 @@ export const authService = {
    * 获取当前用户信息
    */
   async getMe(): Promise<UserResponse> {
-    const response = await api.get<{ success: boolean; data: UserResponse }>(
+    const response = await api.get<ApiSuccessResponse<UserResponse>>(
       '/api/auth/me'
+    )
+    return response.data.data
+  },
+
+  /**
+   * 更新当前用户资料
+   */
+  async updateMe(data: UpdateProfileRequest): Promise<UserResponse> {
+    const response = await api.patch<ApiSuccessResponse<UserResponse>>(
+      '/api/auth/me',
+      data,
+    )
+    return response.data.data
+  },
+
+  /**
+   * 修改当前用户密码
+   */
+  async changePassword(data: ChangePasswordRequest): Promise<null> {
+    const response = await api.patch<ApiSuccessResponse<null>>(
+      '/api/auth/password',
+      data,
     )
     return response.data.data
   },
@@ -56,6 +81,13 @@ export const authService = {
    */
   saveAuth(token: string, user: UserResponse): void {
     localStorage.setItem('token', token)
+    this.saveUser(user)
+  },
+
+  /**
+   * 保存当前用户信息，不改变登录 Token
+   */
+  saveUser(user: UserResponse): void {
     localStorage.setItem('user', JSON.stringify(user))
   },
 

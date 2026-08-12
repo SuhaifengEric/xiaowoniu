@@ -101,7 +101,10 @@ describe('Wedding page', () => {
     const user = userEvent.setup()
     renderPage()
     expect(screen.getByRole('button', { name: '返回世界仪表盘' })).toBeInTheDocument()
+    const accountMenu = screen.getByRole('button', { name: /打开用户菜单/ })
+    await user.click(accountMenu)
     expect(screen.getByRole('button', { name: '登出' })).toBeInTheDocument()
+    await user.keyboard('{Escape}')
     const tablist = screen.getByRole('tablist')
     expect(tablist).toBeInTheDocument()
     const boardTab = screen.getByRole('tab', { name: /任务看板/ })
@@ -204,6 +207,7 @@ describe('Wedding page', () => {
   it('logs out and navigates to login', async () => {
     const user = userEvent.setup()
     renderPage()
+    await user.click(screen.getByRole('button', { name: /打开用户菜单/ }))
     await user.click(screen.getByRole('button', { name: '登出' }))
     expect(auth.logout).toHaveBeenCalledOnce()
   })

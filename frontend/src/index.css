@@ -120,6 +120,80 @@
     color: hsl(var(--brand-blue-deep));
   }
 
+  .account-menu__trigger.account-menu__trigger {
+    min-width: 0;
+    min-height: 2.75rem;
+    max-width: min(14rem, 42vw);
+    gap: 0.5rem;
+    border: 1px solid transparent;
+    padding: 0.25rem 0.5rem 0.25rem 0.375rem;
+    color: hsl(var(--ink-soft));
+  }
+
+  .account-menu__trigger.account-menu__trigger:hover,
+  .account-menu__trigger.account-menu__trigger[data-state='open'] {
+    border-color: hsl(var(--brand-blue) / 0.2);
+    background: hsl(var(--brand-blue-soft));
+    color: hsl(var(--brand-blue-deep));
+  }
+
+  .account-menu__avatar {
+    display: inline-flex;
+    width: 2rem;
+    height: 2rem;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border: 1px solid hsl(var(--brand-pink) / 0.22);
+    border-radius: 999px;
+    object-fit: cover;
+  }
+
+  .account-menu__avatar--fallback {
+    background: linear-gradient(135deg, hsl(var(--brand-pink)), hsl(var(--brand-blue)));
+    color: hsl(var(--primary-foreground));
+    font-size: 0.8125rem;
+    font-weight: 800;
+  }
+
+  .account-menu__name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.8125rem;
+    font-weight: 700;
+  }
+
+  .account-menu__content {
+    overflow: hidden;
+    border-color: hsl(var(--border));
+    background: hsl(var(--card));
+    box-shadow: 0 18px 38px -20px hsl(var(--paper-shadow) / 0.34);
+  }
+
+  .account-menu__summary {
+    border-radius: 0.75rem;
+    background: linear-gradient(135deg, hsl(var(--brand-pink-soft) / 0.72), hsl(var(--brand-blue-soft) / 0.72));
+  }
+
+  .account-menu__item.account-menu__item {
+    min-height: 2.75rem;
+    border-radius: 0.75rem;
+    color: hsl(var(--ink-soft));
+  }
+
+  .account-menu__item.account-menu__item:hover {
+    background: hsl(var(--brand-blue-soft));
+    color: hsl(var(--brand-blue-deep));
+  }
+
+  .account-menu__item--danger.account-menu__item--danger:hover {
+    background: hsl(1 72% 97%);
+    color: hsl(1 55% 37%);
+  }
+
   .app-page-header {
     position: relative;
   }
@@ -169,6 +243,145 @@
     background: hsl(var(--brand-blue-soft) / 0.9);
     color: hsl(var(--brand-blue-deep));
     box-shadow: 0 12px 24px -22px hsl(var(--brand-blue-deep) / 0.68);
+  }
+
+  .profile-page {
+    letter-spacing: 0;
+  }
+
+  .profile-page__header {
+    padding-bottom: clamp(1.5rem, 3vw, 2.5rem);
+  }
+
+  .profile-grid {
+    display: grid;
+    align-items: start;
+    gap: 1.25rem;
+    padding-bottom: clamp(2rem, 5vw, 4rem);
+  }
+
+  .profile-card {
+    min-width: 0;
+    border-color: hsl(var(--border));
+    background: hsl(var(--card) / 0.94);
+    box-shadow: 0 20px 42px -38px hsl(var(--paper-shadow) / 0.7);
+  }
+
+  .profile-card__header {
+    padding-bottom: 1.125rem;
+  }
+
+  .profile-card__heading {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .profile-card__icon {
+    display: inline-flex;
+    width: 2.25rem;
+    height: 2.25rem;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid;
+    border-radius: 0.75rem;
+  }
+
+  .profile-card__icon--pink {
+    border-color: hsl(var(--brand-pink) / 0.18);
+    background: hsl(var(--brand-pink-soft));
+    color: hsl(var(--brand-pink-deep));
+  }
+
+  .profile-card__icon--blue {
+    border-color: hsl(var(--brand-blue) / 0.18);
+    background: hsl(var(--brand-blue-soft));
+    color: hsl(var(--brand-blue-deep));
+  }
+
+  .profile-card__title {
+    font-size: 1.25rem;
+    letter-spacing: -0.035em;
+  }
+
+  .profile-identity {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid hsl(var(--border));
+    padding-bottom: 1.25rem;
+  }
+
+  .profile-identity__avatar {
+    display: inline-flex;
+    width: 3.25rem;
+    height: 3.25rem;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid hsl(var(--brand-pink) / 0.2);
+    border-radius: 999px;
+    background: linear-gradient(135deg, hsl(var(--brand-pink-soft)), hsl(var(--brand-blue-soft)));
+    color: hsl(var(--brand-pink-deep));
+    font-size: 1.125rem;
+    font-weight: 800;
+  }
+
+  .profile-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .profile-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+  }
+
+  .profile-field-hint {
+    color: hsl(var(--muted-foreground));
+    font-size: 0.75rem;
+    line-height: 1.5;
+  }
+
+  .profile-field-error {
+    color: hsl(1 55% 37%);
+    font-size: 0.8125rem;
+    line-height: 1.45;
+  }
+
+  .profile-readonly-grid {
+    display: grid;
+    gap: 0.75rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .profile-readonly-field {
+    min-width: 0;
+    border-radius: 0.875rem;
+    background: hsl(var(--muted) / 0.68);
+    padding: 0.875rem;
+  }
+
+  .profile-readonly-field span {
+    display: block;
+    color: hsl(var(--muted-foreground));
+    font-size: 0.6875rem;
+    font-weight: 750;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .profile-readonly-field strong {
+    display: block;
+    margin-top: 0.4rem;
+    overflow-wrap: anywhere;
+    color: hsl(var(--foreground));
+    font-size: 0.875rem;
+    font-weight: 650;
   }
 
   .app-stat-grid {
@@ -1393,6 +1606,10 @@
   }
 
   @media (min-width: 768px) {
+    .profile-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
     .wedding-overview-grid {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
@@ -1405,6 +1622,24 @@
   }
 
   @media (max-width: 767px) {
+    .account-menu__trigger.account-menu__trigger {
+      max-width: 11rem;
+      padding-right: 0.25rem;
+    }
+
+    .account-menu__name {
+      max-width: 7rem;
+    }
+
+    .profile-page__header {
+      gap: 1rem;
+      padding-top: 2rem;
+    }
+
+    .profile-readonly-grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
     .auth-page {
       align-items: stretch;
       padding: 1rem;

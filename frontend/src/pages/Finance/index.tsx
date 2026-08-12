@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { ArrowLeft, ChevronLeft, ChevronRight, LogOut, PiggyBank, Plus, Wallet, X } from 'lucide-react'
+import { ArrowLeft, ChevronLeft, ChevronRight, PiggyBank, Plus, Wallet, X } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import type { CreateExpenseRequest, CreateSavingPlanRequest, ExpenseResponse, SavingPlanResponse, UpdateExpenseRequest, UpdateSavingPlanRequest } from '@xiaowoniu/shared'
+import AccountMenu from '@/components/navigation/AccountMenu'
 import MobileTabBar from '@/components/navigation/MobileTabBar'
 import { Button } from '@/components/ui/button'
 import BudgetDialog from '@/components/finance/BudgetDialog'
@@ -11,7 +12,6 @@ import { ExpenseList } from '@/components/finance/ExpenseList'
 import { FinanceSummary } from '@/components/finance/FinanceSummary'
 import SavingPlanDialog from '@/components/finance/SavingPlanDialog'
 import { SavingPlanList } from '@/components/finance/SavingPlanList'
-import { useAuth } from '@/hooks/useAuth'
 import { formatMonth, useFinanceStore } from '@/store/finance.store'
 
 function monthLabel(month: string) {
@@ -36,7 +36,6 @@ type DeleteTarget = { resource: 'expense' | 'savingPlan'; id: string } | null
 export default function Finance() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
-  const { logout } = useAuth()
   const expenses = useFinanceStore((state) => state.expenses)
   const summary = useFinanceStore((state) => state.summary)
   const budget = useFinanceStore((state) => state.budget)
@@ -148,15 +147,6 @@ export default function Finance() {
     }
   }
 
-  const handleLogout = async () => {
-    try {
-      await logout()
-      navigate('/login')
-    } catch {
-      // Auth state owns logout failures.
-    }
-  }
-
   return (
     <main className="app-page finance-page has-mobile-tabbar" data-dialog-return-focus={dashboardReturnFocus ?? undefined}>
       <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
@@ -164,9 +154,7 @@ export default function Finance() {
           <Button variant="ghost" className="app-nav-action min-h-11 gap-2 px-2" onClick={() => navigate('/dashboard')}>
             <ArrowLeft aria-hidden="true" className="h-4 w-4" />返回世界仪表盘
           </Button>
-          <Button variant="ghost" className="app-nav-action min-h-11 gap-2 px-3" onClick={handleLogout}>
-            <LogOut aria-hidden="true" className="h-4 w-4" />登出
-          </Button>
+          <AccountMenu />
         </nav>
 
         <header className="app-page-header finance-toolbar flex flex-col gap-5 py-9 md:flex-row md:items-end md:justify-between">

@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import { ArrowLeft, Dumbbell, LogOut, Plus, Scale, Target, Trash2, X } from 'lucide-react'
+import { ArrowLeft, Dumbbell, Plus, Scale, Target, Trash2, X } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import CheckinDialog from '@/components/fitness/CheckinDialog'
 import GoalDialog from '@/components/fitness/GoalDialog'
 import WeightDialog from '@/components/fitness/WeightDialog'
+import AccountMenu from '@/components/navigation/AccountMenu'
 import MobileTabBar from '@/components/navigation/MobileTabBar'
 import { Button } from '@/components/ui/button'
 import {
@@ -15,7 +16,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { useAuth } from '@/hooks/useAuth'
 import { useFitnessStore } from '@/store/fitness.store'
 import CheckinCalendar, { formatLocalDate, getCalendarRange } from './CheckinCalendar'
 import GoalProgress from './GoalProgress'
@@ -39,7 +39,6 @@ function chineseDate(date: string) {
 export default function Fitness() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
-  const { logout } = useAuth()
   const checkins = useFitnessStore((state) => state.checkins)
   const weights = useFitnessStore((state) => state.weights)
   const goal = useFitnessStore((state) => state.goal)
@@ -118,15 +117,6 @@ export default function Fitness() {
     }
   }
 
-  const handleLogout = async () => {
-    try {
-      await logout()
-      navigate('/login')
-    } catch {
-      // Auth state owns and displays logout errors on its destination.
-    }
-  }
-
   const recentWeights = sortWeightRecords(weights).slice(-5).reverse()
 
   return (
@@ -136,9 +126,7 @@ export default function Fitness() {
           <Button variant="ghost" className="app-nav-action min-h-11 gap-2 px-2" onClick={() => navigate('/dashboard')}>
             <ArrowLeft aria-hidden="true" className="h-4 w-4" />返回世界仪表盘
           </Button>
-          <Button variant="ghost" className="app-nav-action min-h-11 gap-2 px-3" onClick={handleLogout}>
-            <LogOut aria-hidden="true" className="h-4 w-4" />登出
-          </Button>
+          <AccountMenu />
         </nav>
 
         <header className="app-page-header flex flex-col gap-5 py-9 md:flex-row md:items-end md:justify-between">
