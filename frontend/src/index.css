@@ -1262,12 +1262,12 @@
   }
 
   .auth-intro::after {
-    bottom: -4.5rem;
-    left: -4.5rem;
-    width: 13rem;
-    height: 17rem;
-    background: hsl(var(--brand-blue) / 0.22);
-    border-radius: 3rem 7rem 7rem 3rem;
+    bottom: -7rem;
+    left: -6rem;
+    width: 19rem;
+    height: 19rem;
+    border: 1px solid hsl(0 0% 100% / 0.16);
+    background: hsl(0 0% 100% / 0.04);
   }
 
   .auth-brand {
@@ -1336,8 +1336,8 @@
     height: 0.5rem;
     flex: 0 0 auto;
     border-radius: 999px;
-    background: hsl(var(--brand-blue) / 0.9);
-    box-shadow: 0 0 0 4px hsl(0 0% 100% / 0.1);
+    background: hsl(0 0% 100% / 0.92);
+    box-shadow: 0 0 0 4px hsl(0 0% 100% / 0.14);
   }
 
   .auth-form-wrap {
@@ -1423,6 +1423,10 @@
     .auth-layout {
       grid-template-columns: minmax(0, 1fr);
       border-radius: 1.25rem;
+      background:
+        radial-gradient(ellipse 130% 40% at 50% -6%, hsl(var(--brand-pink) / 0.1), transparent),
+        radial-gradient(ellipse 100% 38% at 105% 104%, hsl(var(--brand-blue) / 0.09), transparent),
+        hsl(var(--card));
     }
 
     .auth-intro {
