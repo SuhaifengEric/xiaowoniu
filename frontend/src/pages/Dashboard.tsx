@@ -9,6 +9,38 @@ import {
   RefreshCw,
   X,
 } from 'lucide-react'
+
+interface ProgressRingProps {
+  pct: number | null
+  tone: 'pink' | 'blue'
+  label: string
+}
+
+function ProgressRing({ pct, tone, label }: ProgressRingProps) {
+  const r = 26
+  const circ = 2 * Math.PI * r
+  const fill = pct === null ? 0 : (pct / 100) * circ
+  const color = tone === 'pink' ? 'hsl(336 67% 42%)' : 'hsl(202 72% 43%)'
+  const trackColor = tone === 'pink' ? 'hsl(336 72% 94%)' : 'hsl(204 78% 94%)'
+  return (
+    <div className="dov-ring" role="img" aria-label={`进度 ${label}`}>
+      <svg width="72" height="72" viewBox="0 0 72 72" fill="none" aria-hidden="true">
+        <circle cx="36" cy="36" r={r} stroke={trackColor} strokeWidth="6" />
+        <circle
+          cx="36" cy="36" r={r}
+          stroke={color}
+          strokeWidth="6"
+          strokeLinecap="round"
+          strokeDasharray={circ}
+          strokeDashoffset={circ - fill}
+          transform="rotate(-90 36 36)"
+          style={{ transition: 'stroke-dashoffset 500ms cubic-bezier(0.16,1,0.3,1)' }}
+        />
+      </svg>
+      <span className="dov-ring__label" style={{ color }}>{label}</span>
+    </div>
+  )
+}
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import MobileTabBar from '@/components/navigation/MobileTabBar'
@@ -20,6 +52,23 @@ const currency = new Intl.NumberFormat('zh-CN', {
   currency: 'CNY',
   maximumFractionDigits: 2,
 })
+
+function getGreeting() {
+  const h = new Date().getHours()
+  if (h < 5) return '夜深了'
+  if (h < 10) return '早上好'
+  if (h < 13) return '中午好'
+  if (h < 18) return '下午好'
+  return '晚上好'
+}
+
+function getTodayLabel() {
+  return new Intl.DateTimeFormat('zh-CN', {
+    month: 'long',
+    day: 'numeric',
+    weekday: 'long',
+  }).format(new Date())
+}
 
 function countdown(days: number | null) {
   if (days === null) return '未设置日期'
@@ -64,41 +113,6 @@ export default function Dashboard() {
   const weddingProgress = totalWeddingTasks > 0
     ? progressPercentage((completedWeddingTasks / totalWeddingTasks) * 100)
     : null
-  const progressCards = [
-    {
-      title: '瘦瘦瘦',
-      value: fitnessProgress === null ? '待设置' : `${fitnessProgress}%`,
-      note: weeklyTarget === null ? '设置本周目标后显示进度' : `本周 ${summary?.fitness.weeklyCheckinCount ?? 0} / ${weeklyTarget} 次打卡`,
-      percentage: fitnessProgress,
-      icon: Dumbbell,
-      tone: 'blue',
-    },
-    {
-      title: '学学学',
-      value: learningProgress === null ? '待开始' : `${learningProgress}%`,
-      note: learningProgress === null ? '设置考试和科目后显示进度' : `今天已学习 ${summary?.learning.todayStudyHours ?? 0} 小时`,
-      percentage: learningProgress,
-      icon: BookOpen,
-      tone: 'blue',
-    },
-    {
-      title: '省省省',
-      value: financeProgress === null ? '待设置' : `${financeProgress}%`,
-      note: monthlyBudget === null ? '设置月度预算后显示进度' : `预算余量 ${currency.format(summary?.finance.budgetRemaining ?? 0)}`,
-      percentage: financeProgress,
-      icon: PiggyBank,
-      tone: 'pink',
-    },
-    {
-      title: '嫁嫁嫁',
-      value: weddingProgress === null ? '待开始' : `${weddingProgress}%`,
-      note: totalWeddingTasks === 0 ? '新增任务后显示进度' : `已完成 ${completedWeddingTasks} 项，待处理 ${pendingWeddingTasks} 项`,
-      percentage: weddingProgress,
-      icon: ListTodo,
-      tone: 'pink',
-    },
-  ] as const
-
   useEffect(() => {
     void fetchSummary().catch(() => undefined)
   }, [fetchSummary])
@@ -141,6 +155,7 @@ export default function Dashboard() {
 
         <header className="dashboard-hero flex flex-col gap-5 py-9 md:flex-row md:items-end md:justify-between">
           <div>
+            <p className="dashboard-greeting">{getGreeting()}，今天是 {getTodayLabel()}</p>
             <h1 className="app-page-title">世界仪表盘</h1>
             <p className="app-page-description mt-3">从此刻最重要的一件事开始，把生活慢慢推向你想去的方向。</p>
           </div>
@@ -164,66 +179,139 @@ export default function Dashboard() {
 
         {loading && !summary && <div role="status" aria-busy="true" className="mb-5 border-y border-border py-3 text-sm text-muted-foreground">正在汇总四个模块的数据…</div>}
 
-        <div className="dashboard-snapshot">
-          <section className="dashboard-overview" aria-labelledby="dashboard-overview-title">
-            <div className="dashboard-overview__heading">
-              <div>
-                <h2 id="dashboard-overview-title" className="text-2xl font-semibold">今日概览</h2>
+        <section className="dov-grid" aria-labelledby="dov-title">
+          <h2 id="dov-title" className="sr-only">今日概览</h2>
+
+          {/* 瘦瘦瘦 */}
+          <article
+            className="dov-card dov-card--pink"
+            role="button"
+            tabIndex={0}
+            aria-label="进入瘦瘦瘦"
+            onClick={() => goTo('/fitness')}
+            onKeyDown={(e) => e.key === 'Enter' && goTo('/fitness')}
+          >
+            <div className="dov-card__stripe" aria-hidden="true" />
+            <div className="dov-card__body">
+              <div className="dov-card__left">
+                <span className="dov-card__label">
+                  <Dumbbell aria-hidden="true" className="h-3.5 w-3.5" />瘦瘦瘦
+                </span>
+                <p className="dov-card__num">{summary?.fitness.todayCheckinCount ?? 0}<span className="dov-card__unit">次</span></p>
+                <p className="dov-card__sub">今日运动</p>
+                <p className="dov-card__note">
+                  {weeklyTarget === null
+                    ? '本周目标未设置'
+                    : `本周 ${summary?.fitness.weeklyCheckinCount ?? 0} / ${weeklyTarget} 次`}
+                </p>
               </div>
-              <p>先看全局状态，再决定从哪个模块继续。</p>
+              <ProgressRing
+                pct={fitnessProgress}
+                tone="pink"
+                label={fitnessProgress === null ? '—' : `${fitnessProgress}%`}
+              />
             </div>
+          </article>
 
-            <div className="dashboard-overview-grid">
-              <article className="dashboard-overview-card dashboard-overview-card--blue">
-                <span className="dashboard-overview-card__icon"><Dumbbell aria-hidden="true" className="h-4 w-4" /></span>
-                <p>今日运动</p><strong>{summary?.fitness.todayCheckinCount ?? 0} 次</strong><span>本周 {summary?.fitness.weeklyCheckinCount ?? 0}{summary?.fitness.weeklyTarget === null || summary?.fitness.weeklyTarget === undefined ? ' 次打卡' : ` / ${summary.fitness.weeklyTarget} 次`}</span>
-              </article>
-              <article className="dashboard-overview-card dashboard-overview-card--blue">
-                <span className="dashboard-overview-card__icon"><BookOpen aria-hidden="true" className="h-4 w-4" /></span>
-                <p>今日学习</p><strong>{summary?.learning.todayStudyHours ?? 0} h</strong><span>{summary?.learning.activeExam ? `${summary.learning.activeExam.examName} · ${countdown(summary.learning.activeExam.daysRemaining)}` : '还没有设置考试'}</span>
-              </article>
-              <article className="dashboard-overview-card dashboard-overview-card--pink">
-                <span className="dashboard-overview-card__icon"><PiggyBank aria-hidden="true" className="h-4 w-4" /></span>
-                <p>本月支出</p><strong>{currency.format(summary?.finance.currentMonthExpense ?? 0)}</strong><span>{summary?.finance.currentMonthBudget === null || summary?.finance.currentMonthBudget === undefined ? '暂未设置月度预算' : `预算 ${currency.format(summary.finance.currentMonthBudget)}`}</span>
-              </article>
-              <article className="dashboard-overview-card dashboard-overview-card--pink">
-                <span className="dashboard-overview-card__icon"><ListTodo aria-hidden="true" className="h-4 w-4" /></span>
-                <p>待处理备婚任务</p><strong>{summary?.wedding.pendingTasksCount ?? 0} 项</strong><span>{summary?.wedding.weddingDate ? `${countdown(summary.wedding.daysRemaining)} · 已完成 ${summary.wedding.completedTasksCount ?? 0} 项` : '还没有设置婚期'}</span>
-              </article>
+          {/* 学学学 */}
+          <article
+            className="dov-card dov-card--blue"
+            role="button"
+            tabIndex={0}
+            aria-label="进入学学学"
+            onClick={() => goTo('/learning')}
+            onKeyDown={(e) => e.key === 'Enter' && goTo('/learning')}
+          >
+            <div className="dov-card__stripe" aria-hidden="true" />
+            <div className="dov-card__body">
+              <div className="dov-card__left">
+                <span className="dov-card__label">
+                  <BookOpen aria-hidden="true" className="h-3.5 w-3.5" />学学学
+                </span>
+                <p className="dov-card__num">
+                  {summary?.learning.todayStudyHours ?? 0}<span className="dov-card__unit">h</span>
+                </p>
+                <p className="dov-card__sub">今日学习</p>
+                <p className="dov-card__note">
+                  {summary?.learning.activeExam
+                    ? `${summary.learning.activeExam.examName} · ${countdown(summary.learning.activeExam.daysRemaining)}`
+                    : '还没有设置考试'}
+                </p>
+              </div>
+              <ProgressRing
+                pct={learningProgress}
+                tone="blue"
+                label={learningProgress === null ? '—' : `${learningProgress}%`}
+              />
             </div>
-          </section>
+          </article>
 
-          <section className="dashboard-progress" aria-labelledby="dashboard-progress-title">
-            <div className="dashboard-progress__heading">
-              <h2 id="dashboard-progress-title" className="text-2xl font-semibold">目标进度</h2>
-              <p>用已有目标和记录，看看这一周正往哪里走。</p>
+          {/* 省省省 */}
+          <article
+            className="dov-card dov-card--blue"
+            role="button"
+            tabIndex={0}
+            aria-label="进入省省省"
+            onClick={() => goTo('/finance')}
+            onKeyDown={(e) => e.key === 'Enter' && goTo('/finance')}
+          >
+            <div className="dov-card__stripe" aria-hidden="true" />
+            <div className="dov-card__body">
+              <div className="dov-card__left">
+                <span className="dov-card__label">
+                  <PiggyBank aria-hidden="true" className="h-3.5 w-3.5" />省省省
+                </span>
+                <p className="dov-card__num dov-card__num--money">
+                  {currency.format(summary?.finance.currentMonthExpense ?? 0)}
+                </p>
+                <p className="dov-card__sub">本月支出</p>
+                <p className="dov-card__note">
+                  {monthlyBudget === null
+                    ? '未设置月度预算'
+                    : `余量 ${currency.format(summary?.finance.budgetRemaining ?? 0)}`}
+                </p>
+              </div>
+              <ProgressRing
+                pct={financeProgress}
+                tone="blue"
+                label={financeProgress === null ? '—' : `${financeProgress}%`}
+              />
             </div>
+          </article>
 
-            <div className="dashboard-progress-grid">
-              {progressCards.map(({ title, value, note, percentage, icon: Icon, tone }) => (
-                <article key={title} className={`dashboard-progress-card dashboard-progress-card--${tone}`}>
-                  <div className="dashboard-progress-card__top">
-                    <span className="dashboard-progress-card__icon"><Icon aria-hidden="true" className="h-4 w-4" /></span>
-                    <p>{title}</p>
-                  </div>
-                  <strong>{value}</strong>
-                  <p>{note}</p>
-                  <div
-                    className="dashboard-progress-card__track"
-                    role="progressbar"
-                    aria-label={`${title}进度`}
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-valuenow={percentage ?? 0}
-                    aria-valuetext={percentage === null ? value : `${value}，${note}`}
-                  >
-                    <span style={{ width: `${percentage ?? 0}%` }} />
-                  </div>
-                </article>
-              ))}
+          {/* 嫁嫁嫁 */}
+          <article
+            className="dov-card dov-card--pink"
+            role="button"
+            tabIndex={0}
+            aria-label="进入嫁嫁嫁"
+            onClick={() => goTo('/wedding')}
+            onKeyDown={(e) => e.key === 'Enter' && goTo('/wedding')}
+          >
+            <div className="dov-card__stripe" aria-hidden="true" />
+            <div className="dov-card__body">
+              <div className="dov-card__left">
+                <span className="dov-card__label">
+                  <ListTodo aria-hidden="true" className="h-3.5 w-3.5" />嫁嫁嫁
+                </span>
+                <p className="dov-card__num">
+                  {pendingWeddingTasks}<span className="dov-card__unit">项</span>
+                </p>
+                <p className="dov-card__sub">待处理任务</p>
+                <p className="dov-card__note">
+                  {summary?.wedding.weddingDate
+                    ? `${countdown(summary.wedding.daysRemaining)} · 完成 ${completedWeddingTasks} 项`
+                    : '还没有设置婚期'}
+                </p>
+              </div>
+              <ProgressRing
+                pct={weddingProgress}
+                tone="pink"
+                label={weddingProgress === null ? '—' : `${weddingProgress}%`}
+              />
             </div>
-          </section>
-        </div>
+          </article>
+        </section>
 
         <section className="dashboard-entry-section" aria-labelledby="dashboard-modules-title">
           <div className="dashboard-entry-section__heading">

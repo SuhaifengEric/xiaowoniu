@@ -212,6 +212,14 @@
     position: relative;
   }
 
+  .dashboard-greeting {
+    margin-bottom: 0.625rem;
+    color: hsl(var(--brand-pink));
+    font-size: 0.8125rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+
   .dashboard-refresh {
     display: flex;
     flex-wrap: wrap;
@@ -296,6 +304,14 @@
     border-radius: 0.625rem;
     background: hsl(var(--brand-blue-soft));
     color: hsl(var(--brand-blue-deep));
+  }
+
+  .dashboard-overview-card--blue {
+    background: linear-gradient(155deg, hsl(var(--card)), hsl(var(--brand-blue-soft) / 0.5));
+  }
+
+  .dashboard-overview-card--pink {
+    background: linear-gradient(155deg, hsl(var(--card)), hsl(var(--brand-pink-soft) / 0.5));
   }
 
   .dashboard-overview-card--pink .dashboard-overview-card__icon {
@@ -468,7 +484,7 @@
   .dashboard-progress-card__track {
     grid-column: 1 / -1;
     grid-row: 3;
-    height: 0.375rem;
+    height: 0.5rem;
     margin-top: 0.5rem;
     overflow: hidden;
     border-radius: 999px;
@@ -479,8 +495,8 @@
     display: block;
     height: 100%;
     border-radius: inherit;
-    background: hsl(var(--brand-blue));
-    transition: width 240ms cubic-bezier(0.16, 1, 0.3, 1);
+    background: linear-gradient(90deg, hsl(var(--brand-blue) / 0.7), hsl(var(--brand-blue)));
+    transition: width 300ms cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   .dashboard-progress-card--pink .dashboard-progress-card__track {
@@ -488,7 +504,7 @@
   }
 
   .dashboard-progress-card--pink .dashboard-progress-card__track > span {
-    background: hsl(var(--brand-pink));
+    background: linear-gradient(90deg, hsl(var(--brand-pink) / 0.7), hsl(var(--brand-pink)));
   }
 
   .dashboard-entry-grid {
@@ -538,6 +554,7 @@
     pointer-events: none;
   }
 
+  .dashboard-module--fitness::after,
   .dashboard-module--finance::after,
   .dashboard-module--wedding::after {
     border-color: hsl(var(--brand-pink) / 0.17);
@@ -545,6 +562,8 @@
     box-shadow: inset 0 0 0 1.35rem hsl(var(--brand-pink) / 0.05);
   }
 
+  .dashboard-module--fitness:hover,
+  .dashboard-module--fitness:focus-within,
   .dashboard-module--finance:hover,
   .dashboard-module--finance:focus-within,
   .dashboard-module--wedding:hover,
@@ -600,11 +619,13 @@
     color: hsl(var(--brand-blue));
   }
 
+  .dashboard-module--fitness .dashboard-entry__action,
   .dashboard-module--finance .dashboard-entry__action,
   .dashboard-module--wedding .dashboard-entry__action {
     color: hsl(var(--brand-pink-deep));
   }
 
+  .dashboard-module--fitness .dashboard-entry__action:hover,
   .dashboard-module--finance .dashboard-entry__action:hover,
   .dashboard-module--wedding .dashboard-entry__action:hover {
     background: hsl(var(--brand-pink-soft));
@@ -626,6 +647,12 @@
 
   .dashboard-symbol--amber,
   .dashboard-symbol--rose {
+    border-color: hsl(var(--brand-pink) / 0.17);
+    background: hsl(var(--brand-pink-soft));
+    color: hsl(var(--brand-pink-deep));
+  }
+
+  .dashboard-symbol--green {
     border-color: hsl(var(--brand-pink) / 0.17);
     background: hsl(var(--brand-pink-soft));
     color: hsl(var(--brand-pink-deep));
@@ -1028,6 +1055,14 @@
     display: block;
     border-radius: 0.75rem;
     background: hsl(var(--brand-blue) / 0.12);
+    animation: xw-skeleton-pulse 1.6s ease-in-out infinite;
+  }
+
+  .fitness-skeleton {
+    display: block;
+    border-radius: 0.75rem;
+    background: hsl(var(--brand-blue) / 0.12);
+    animation: xw-skeleton-pulse 1.6s ease-in-out infinite;
   }
 
   .finance-trend {
@@ -1394,6 +1429,181 @@
       padding: 1.5rem;
     }
   }
+
+  /* ── 今日概览 new design ─────────────────────────────────── */
+
+  .dov-grid {
+    display: grid;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+  }
+
+  .dov-card {
+    position: relative;
+    display: flex;
+    min-width: 0;
+    overflow: hidden;
+    flex-direction: column;
+    border: 1px solid hsl(var(--border));
+    border-radius: calc(var(--radius) + 0.5rem);
+    background: hsl(var(--card));
+    box-shadow:
+      inset 0 1px 0 hsl(0 0% 100% / 0.72),
+      0 8px 24px -16px hsl(var(--paper-shadow) / 0.45);
+    cursor: pointer;
+    transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+  }
+
+  .dov-card:hover,
+  .dov-card:focus-visible {
+    outline: none;
+    transform: translateY(-2px);
+    box-shadow:
+      inset 0 1px 0 hsl(0 0% 100% / 0.82),
+      0 14px 32px -18px hsl(var(--paper-shadow) / 0.6);
+  }
+
+  .dov-card--pink:hover,
+  .dov-card--pink:focus-visible {
+    border-color: hsl(var(--brand-pink) / 0.36);
+  }
+
+  .dov-card--blue:hover,
+  .dov-card--blue:focus-visible {
+    border-color: hsl(var(--brand-blue) / 0.36);
+  }
+
+  /* Left colour stripe — removed */
+  .dov-card__stripe {
+    display: none;
+  }
+
+  /* Body: left text + right ring */
+  .dov-card__body {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 1.25rem;
+  }
+
+  .dov-card__left {
+    display: flex;
+    min-width: 0;
+    flex: 1 1 0;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+
+  /* Module name badge */
+  .dov-card__label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    margin-bottom: 0.375rem;
+    font-size: 0.6875rem;
+    font-weight: 750;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .dov-card--pink .dov-card__label {
+    color: hsl(var(--brand-pink-deep));
+  }
+
+  .dov-card--blue .dov-card__label {
+    color: hsl(var(--brand-blue-deep));
+  }
+
+  /* Big headline number */
+  .dov-card__num {
+    overflow-wrap: anywhere;
+    color: hsl(var(--foreground));
+    font-size: clamp(1.75rem, 3.5vw, 2.5rem);
+    font-weight: 760;
+    letter-spacing: -0.06em;
+    line-height: 1;
+  }
+
+  .dov-card__num--money {
+    font-size: clamp(1.75rem, 3.5vw, 2.5rem);
+    letter-spacing: -0.055em;
+  }
+
+  .dov-card__unit {
+    margin-left: 0.2em;
+    font-size: 0.55em;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    opacity: 0.72;
+  }
+
+  /* Sub-label under the number */
+  .dov-card__sub {
+    margin-top: 0.3rem;
+    color: hsl(var(--ink-soft));
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+
+  /* Small note line at the bottom */
+  .dov-card__note {
+    margin-top: 0.5rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: hsl(var(--muted-foreground));
+    font-size: 0.75rem;
+    line-height: 1.4;
+  }
+
+  /* Ring container */
+  .dov-ring {
+    position: relative;
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .dov-ring__label {
+    position: absolute;
+    font-size: 0.6875rem;
+    font-weight: 760;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+
+  /* Responsive grid */
+  @media (min-width: 480px) {
+    .dov-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .dov-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+
+  /* Mobile compact tweaks */
+  @media (max-width: 479px) {
+    .dov-card__body {
+      padding: 1rem;
+    }
+
+    .dov-card__note {
+      display: none;
+    }
+  }
+}
+
+@keyframes xw-skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
 }
 
 @media (prefers-reduced-motion: reduce) {

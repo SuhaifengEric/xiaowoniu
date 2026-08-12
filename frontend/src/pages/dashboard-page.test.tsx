@@ -56,15 +56,18 @@ describe('Dashboard', () => {
     expect(screen.getByText('¥1,234.50')).toBeInTheDocument()
     expect(screen.getByText(/还有 117 天/)).toBeInTheDocument()
 
-    const overview = screen.getByRole('region', { name: '今日概览' })
-    const progress = screen.getByRole('region', { name: '目标进度' })
+    // 新版今日概览：四张合一的模块卡片
+    const overviewSection = screen.getByRole('region', { name: '今日概览' })
+    expect(within(overviewSection).getByText('今日运动')).toBeInTheDocument()
+    // 进度环显示各模块百分比
+    expect(within(overviewSection).getByText('80%')).toBeInTheDocument()
+    expect(within(overviewSection).getByText('49%')).toBeInTheDocument()
+    expect(within(overviewSection).getByText('62%')).toBeInTheDocument()
+    expect(within(overviewSection).getByText('73%')).toBeInTheDocument()
+    // 模块卡片本身可点击跳转
+    expect(within(overviewSection).getByRole('button', { name: '进入瘦瘦瘦' })).toBeInTheDocument()
+    // 进入模块区域仍然存在（大卡片入口）
     const moduleEntries = screen.getByRole('region', { name: '进入模块' })
-    expect(within(overview).getByText('今日运动')).toBeInTheDocument()
-    expect(within(progress).getByText('80%')).toBeInTheDocument()
-    expect(within(progress).getByText('49%')).toBeInTheDocument()
-    expect(within(progress).getByText('62%')).toBeInTheDocument()
-    expect(within(progress).getByText('73%')).toBeInTheDocument()
-    expect(within(overview).queryByRole('button', { name: '进入瘦瘦瘦模块' })).not.toBeInTheDocument()
     expect(within(moduleEntries).getByRole('heading', { name: '瘦瘦瘦' })).toBeInTheDocument()
     expect(within(moduleEntries).getByRole('heading', { name: '学学学' })).toBeInTheDocument()
     expect(within(moduleEntries).getByRole('heading', { name: '省省省' })).toBeInTheDocument()
