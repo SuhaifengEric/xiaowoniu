@@ -97,7 +97,7 @@
     align-items: center;
     gap: 0.625rem;
     color: hsl(var(--foreground));
-    font-size: 0.875rem;
+    font-size: clamp(1.0625rem, 1.6vw, 1.1875rem);
     font-weight: 750;
     letter-spacing: -0.02em;
   }
@@ -241,9 +241,11 @@
     color: hsl(var(--ink-soft));
   }
 
-  .dashboard-mobile-refresh.dashboard-mobile-refresh:hover {
-    background: hsl(var(--brand-blue-soft));
-    color: hsl(var(--brand-blue-deep));
+  @media (hover: hover) and (pointer: fine) {
+    .dashboard-mobile-refresh.dashboard-mobile-refresh:hover {
+      background: hsl(var(--brand-blue-soft));
+      color: hsl(var(--brand-blue-deep));
+    }
   }
 
   .dashboard-snapshot {
@@ -555,7 +557,6 @@
   }
 
   .dashboard-module--fitness::after,
-  .dashboard-module--finance::after,
   .dashboard-module--wedding::after {
     border-color: hsl(var(--brand-pink) / 0.17);
     background: hsl(var(--brand-pink) / 0.08);
@@ -564,8 +565,6 @@
 
   .dashboard-module--fitness:hover,
   .dashboard-module--fitness:focus-within,
-  .dashboard-module--finance:hover,
-  .dashboard-module--finance:focus-within,
   .dashboard-module--wedding:hover,
   .dashboard-module--wedding:focus-within {
     border-color: hsl(var(--brand-pink) / 0.3);
@@ -620,13 +619,11 @@
   }
 
   .dashboard-module--fitness .dashboard-entry__action,
-  .dashboard-module--finance .dashboard-entry__action,
   .dashboard-module--wedding .dashboard-entry__action {
     color: hsl(var(--brand-pink-deep));
   }
 
   .dashboard-module--fitness .dashboard-entry__action:hover,
-  .dashboard-module--finance .dashboard-entry__action:hover,
   .dashboard-module--wedding .dashboard-entry__action:hover {
     background: hsl(var(--brand-pink-soft));
     color: hsl(var(--brand-pink));
@@ -645,14 +642,7 @@
     color: hsl(var(--brand-blue-deep));
   }
 
-  .dashboard-symbol--amber,
-  .dashboard-symbol--rose {
-    border-color: hsl(var(--brand-pink) / 0.17);
-    background: hsl(var(--brand-pink-soft));
-    color: hsl(var(--brand-pink-deep));
-  }
-
-  .dashboard-symbol--green {
+  .dashboard-symbol--pink {
     border-color: hsl(var(--brand-pink) / 0.17);
     background: hsl(var(--brand-pink-soft));
     color: hsl(var(--brand-pink-deep));

@@ -316,35 +316,35 @@ export default function Dashboard() {
         <section className="dashboard-entry-section" aria-labelledby="dashboard-modules-title">
           <div className="dashboard-entry-section__heading">
             <div>
-              <h2 id="dashboard-modules-title" className="text-2xl font-semibold">进入模块</h2>
+              <h2 id="dashboard-modules-title" className="text-2xl font-semibold">四个小世界</h2>
             </div>
-            <p>选择一个模块，继续推进今天的计划。</p>
+            <p>挑一个世界走进去，继续推进今天的计划。</p>
           </div>
 
           <div className="dashboard-entry-grid">
             <article className="dashboard-module dashboard-module--fitness" aria-labelledby="dashboard-fitness-title">
-              <div className="dashboard-entry__top"><span className="dashboard-symbol dashboard-symbol--green"><Dumbbell aria-hidden="true" className="h-5 w-5" /></span></div>
+              <div className="dashboard-entry__top"><span className="dashboard-symbol dashboard-symbol--pink"><Dumbbell aria-hidden="true" className="h-5 w-5" /></span></div>
               <h3 id="dashboard-fitness-title" className="dashboard-entry__title">瘦瘦瘦</h3>
               <p className="dashboard-entry__description">记录运动、体重和本周目标。</p>
               <Button type="button" variant="ghost" className="dashboard-entry__action" aria-label="进入瘦瘦瘦模块" onClick={() => goTo('/fitness')}>进入瘦瘦瘦<ArrowRight aria-hidden="true" className="h-4 w-4" /></Button>
             </article>
 
             <article className="dashboard-module dashboard-module--learning" aria-labelledby="dashboard-learning-title">
-              <div className="dashboard-entry__top"><span className="dashboard-symbol dashboard-symbol--blue"><BookOpen aria-hidden="true" className="h-5 w-5" /></span></div>
+              <div className="dashboard-entry__top"><span className="dashboard-symbol"><BookOpen aria-hidden="true" className="h-5 w-5" /></span></div>
               <h3 id="dashboard-learning-title" className="dashboard-entry__title">学学学</h3>
               <p className="dashboard-entry__description">把考试、科目和每日学习放在一起。</p>
               <Button type="button" variant="ghost" className="dashboard-entry__action" aria-label="进入学学学模块" onClick={() => goTo('/learning')}>进入学学学<ArrowRight aria-hidden="true" className="h-4 w-4" /></Button>
             </article>
 
             <article className="dashboard-module dashboard-module--finance" aria-labelledby="dashboard-finance-title">
-              <div className="dashboard-entry__top"><span className="dashboard-symbol dashboard-symbol--amber"><PiggyBank aria-hidden="true" className="h-5 w-5" /></span></div>
+              <div className="dashboard-entry__top"><span className="dashboard-symbol"><PiggyBank aria-hidden="true" className="h-5 w-5" /></span></div>
               <h3 id="dashboard-finance-title" className="dashboard-entry__title">省省省</h3>
               <p className="dashboard-entry__description">看见每一笔消费，也看见想存下的目标。</p>
               <Button type="button" variant="ghost" className="dashboard-entry__action" aria-label="进入省省省模块" onClick={() => goTo('/finance')}>进入省省省<ArrowRight aria-hidden="true" className="h-4 w-4" /></Button>
             </article>
 
             <article className="dashboard-module dashboard-module--wedding" aria-labelledby="dashboard-wedding-title">
-              <div className="dashboard-entry__top"><span className="dashboard-symbol dashboard-symbol--rose"><ListTodo aria-hidden="true" className="h-5 w-5" /></span></div>
+              <div className="dashboard-entry__top"><span className="dashboard-symbol dashboard-symbol--pink"><ListTodo aria-hidden="true" className="h-5 w-5" /></span></div>
               <h3 id="dashboard-wedding-title" className="dashboard-entry__title">嫁嫁嫁</h3>
               <p className="dashboard-entry__description">把婚期、任务和花费有序地推进下去。</p>
               <Button type="button" variant="ghost" className="dashboard-entry__action" aria-label="进入嫁嫁嫁模块" onClick={() => goTo('/wedding')}>进入嫁嫁嫁<ArrowRight aria-hidden="true" className="h-4 w-4" /></Button>

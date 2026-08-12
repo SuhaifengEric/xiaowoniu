@@ -66,8 +66,8 @@ describe('Dashboard', () => {
     expect(within(overviewSection).getByText('73%')).toBeInTheDocument()
     // 模块卡片本身可点击跳转
     expect(within(overviewSection).getByRole('button', { name: '进入瘦瘦瘦' })).toBeInTheDocument()
-    // 进入模块区域仍然存在（大卡片入口）
-    const moduleEntries = screen.getByRole('region', { name: '进入模块' })
+    // 模块入口区域仍然存在（大卡片入口）
+    const moduleEntries = screen.getByRole('region', { name: '四个小世界' })
     expect(within(moduleEntries).getByRole('heading', { name: '瘦瘦瘦' })).toBeInTheDocument()
     expect(within(moduleEntries).getByRole('heading', { name: '学学学' })).toBeInTheDocument()
     expect(within(moduleEntries).getByRole('heading', { name: '省省省' })).toBeInTheDocument()
