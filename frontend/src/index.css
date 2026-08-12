@@ -1217,8 +1217,8 @@
     padding: clamp(1rem, 4vw, 3rem);
     background-color: hsl(var(--background));
     background-image:
-      radial-gradient(circle at 7% 9%, hsl(var(--brand-blue) / 0.13), transparent 24rem),
-      radial-gradient(circle at 92% 91%, hsl(var(--brand-pink) / 0.14), transparent 29rem);
+      radial-gradient(ellipse 55% 40% at 8% 12%, hsl(var(--brand-blue) / 0.11), transparent),
+      radial-gradient(ellipse 50% 45% at 88% 88%, hsl(var(--brand-pink) / 0.12), transparent);
   }
 
   .auth-layout {
@@ -1240,7 +1240,7 @@
     justify-content: space-between;
     overflow: hidden;
     padding: clamp(2rem, 5vw, 4.5rem);
-    background: hsl(var(--brand-pink));
+    background: linear-gradient(155deg, hsl(336 82% 62%) 0%, hsl(336 72% 50%) 55%, hsl(330 67% 43%) 100%);
     color: hsl(var(--primary-foreground));
   }
 
@@ -1253,20 +1253,21 @@
   }
 
   .auth-intro::before {
-    top: -7rem;
-    right: -6rem;
-    width: 23rem;
-    height: 23rem;
-    border: 1px solid hsl(0 0% 100% / 0.25);
-    box-shadow: 0 0 0 2.75rem hsl(0 0% 100% / 0.08), 0 0 0 5.5rem hsl(0 0% 100% / 0.045);
+    top: -6rem;
+    right: -5rem;
+    width: 18rem;
+    height: 24rem;
+    border: 1px solid hsl(0 0% 100% / 0.18);
+    background: hsl(0 0% 100% / 0.05);
   }
 
   .auth-intro::after {
-    bottom: -5.75rem;
-    left: -5.75rem;
-    width: 15rem;
-    height: 15rem;
-    background: hsl(var(--brand-blue) / 0.27);
+    bottom: -4.5rem;
+    left: -4.5rem;
+    width: 13rem;
+    height: 17rem;
+    background: hsl(var(--brand-blue) / 0.22);
+    border-radius: 3rem 7rem 7rem 3rem;
   }
 
   .auth-brand {
@@ -1276,7 +1277,7 @@
     align-items: center;
     gap: 0.75rem;
     font-size: 1rem;
-    font-weight: 760;
+    font-weight: 700;
     letter-spacing: -0.03em;
   }
 
@@ -1300,10 +1301,10 @@
 
   .auth-copy h1 {
     margin-top: 0;
-    font-size: clamp(2.4rem, 5vw, 4.75rem);
-    font-weight: 760;
-    letter-spacing: -0.07em;
-    line-height: 0.98;
+    font-size: clamp(2.4rem, 4.2vw, 3.75rem);
+    font-weight: 700;
+    letter-spacing: -0.06em;
+    line-height: 1.07;
   }
 
   .auth-copy p:last-child {
@@ -1359,7 +1360,7 @@
   .auth-card .auth-title {
     color: hsl(var(--foreground));
     font-size: 2rem;
-    font-weight: 760;
+    font-weight: 700;
     letter-spacing: -0.055em;
     line-height: 1.1;
   }
@@ -1389,6 +1390,10 @@
   .auth-switch a {
     color: hsl(var(--brand-pink));
     font-weight: 700;
+  }
+
+  .auth-mobile-header {
+    display: none;
   }
 
   @media (min-width: 640px) {
@@ -1425,8 +1430,28 @@
     }
 
     .auth-form-wrap {
+      flex-direction: column;
+      align-items: stretch;
+      justify-content: center;
+      gap: 1.5rem;
       min-height: calc(100vh - 2rem);
       padding: 1.5rem;
+    }
+
+    .auth-mobile-header {
+      display: flex;
+      align-items: center;
+      gap: 0.625rem;
+      color: hsl(var(--brand-pink));
+      font-size: 0.9375rem;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+    }
+
+    .auth-mobile-header .auth-brand-mark {
+      border-color: hsl(var(--brand-pink) / 0.28);
+      background: hsl(var(--brand-pink) / 0.09);
+      color: hsl(var(--brand-pink));
     }
   }
 

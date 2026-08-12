@@ -42,6 +42,10 @@ export default function Register() {
         </aside>
 
         <section className="auth-form-wrap" aria-label="注册表单">
+          <div className="auth-mobile-header" aria-hidden="true">
+            <span className="auth-brand-mark">✿</span>
+            小蜗牛的花花世界
+          </div>
           <Card className="auth-card">
             <CardHeader className="space-y-0 px-0 pb-7 pt-0">
               <CardTitle className="auth-title">创建账号</CardTitle>
@@ -62,6 +66,8 @@ export default function Register() {
                     minLength={3}
                     maxLength={20}
                     disabled={isLoading}
+                    autoFocus
+                    autoComplete="username"
                   />
                 </div>
                 <div className="auth-field flex flex-col">
@@ -74,6 +80,7 @@ export default function Register() {
                     onChange={(e) => setEmail(e.target.value)}
                     required
                     disabled={isLoading}
+                    autoComplete="email"
                   />
                 </div>
                 <div className="auth-field flex flex-col">
@@ -87,6 +94,7 @@ export default function Register() {
                     required
                     minLength={6}
                     disabled={isLoading}
+                    autoComplete="new-password"
                   />
                 </div>
                 <div className="auth-field flex flex-col">
@@ -103,7 +111,7 @@ export default function Register() {
                 </div>
               </CardContent>
               <CardFooter className="flex flex-col space-y-4 px-0 pb-0 pt-7">
-                <Button type="submit" className="w-full" disabled={isLoading}>
+                <Button type="submit" size="lg" className="w-full" disabled={isLoading}>
                   {isLoading ? '注册中...' : '注册'}
                 </Button>
                 <p className="auth-switch text-center text-sm">

@@ -40,6 +40,10 @@ export default function Login() {
         </aside>
 
         <section className="auth-form-wrap" aria-label="登录表单">
+          <div className="auth-mobile-header" aria-hidden="true">
+            <span className="auth-brand-mark">✿</span>
+            小蜗牛的花花世界
+          </div>
           <Card className="auth-card">
             <CardHeader className="space-y-0 px-0 pb-8 pt-0">
               <CardTitle className="auth-title">欢迎回来</CardTitle>
@@ -58,6 +62,8 @@ export default function Login() {
                     onChange={(e) => setEmail(e.target.value)}
                     required
                     disabled={isLoading}
+                    autoFocus
+                    autoComplete="email"
                   />
                 </div>
                 <div className="auth-field flex flex-col">
@@ -70,11 +76,12 @@ export default function Login() {
                     onChange={(e) => setPassword(e.target.value)}
                     required
                     disabled={isLoading}
+                    autoComplete="current-password"
                   />
                 </div>
               </CardContent>
               <CardFooter className="flex flex-col space-y-4 px-0 pb-0 pt-7">
-                <Button type="submit" className="w-full" disabled={isLoading}>
+                <Button type="submit" size="lg" className="w-full" disabled={isLoading}>
                   {isLoading ? '登录中...' : '登录'}
                 </Button>
                 <p className="auth-switch text-center text-sm">
