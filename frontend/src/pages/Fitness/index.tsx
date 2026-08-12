@@ -7,6 +7,7 @@ import WeightDialog from '@/components/fitness/WeightDialog'
 import AccountMenu from '@/components/navigation/AccountMenu'
 import MobileTabBar from '@/components/navigation/MobileTabBar'
 import { Button } from '@/components/ui/button'
+import Toast from '@/components/ui/toast'
 import {
   Dialog,
   DialogClose,
@@ -139,7 +140,7 @@ export default function Fitness() {
         </header>
 
         {error && <div role="alert" className="app-alert mb-5 flex items-center justify-between gap-4 border px-4 py-3 text-sm"><span>{error}</span><Button type="button" variant="ghost" size="icon" aria-label="关闭错误提示" onClick={clearError}><X aria-hidden="true" className="h-4 w-4" /></Button></div>}
-        {status && <div role="status" className="app-status mb-5 border px-4 py-3 text-sm font-medium">{status}</div>}
+        <Toast message={status} onDismiss={() => setStatus('')} />
         {loading && <div aria-label="健身数据加载中" className="mb-5 grid grid-cols-3 gap-3" aria-busy="true"><span className="fitness-skeleton h-2" /><span className="fitness-skeleton h-2" /><span className="fitness-skeleton h-2" /></div>}
 
         <section aria-label="健身统计" className="app-stat-grid mb-5 grid gap-px sm:grid-cols-3">

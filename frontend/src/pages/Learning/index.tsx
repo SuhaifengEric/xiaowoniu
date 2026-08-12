@@ -18,6 +18,7 @@ import AccountMenu from '@/components/navigation/AccountMenu'
 import MobileTabBar from '@/components/navigation/MobileTabBar'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import Toast from '@/components/ui/toast'
 import { formatLocalDate, getCalendarRange } from '@/pages/Fitness/CheckinCalendar'
 import { useLearningStore } from '@/store/learning.store'
 import ExamCountdown from './ExamCountdown'
@@ -202,7 +203,7 @@ export default function Learning() {
         </header>
 
         {error && <div role="alert" className="app-alert mb-5 flex items-center justify-between gap-4 border px-4 py-3 text-sm"><span>{error}</span><Button type="button" variant="ghost" size="icon" aria-label="关闭错误提示" onClick={clearError}><X aria-hidden="true" className="h-4 w-4" /></Button></div>}
-        {status && <div role="status" className="app-status mb-5 border px-4 py-3 text-sm font-medium">{status}</div>}
+        <Toast message={status} onDismiss={() => setStatus('')} />
         {loading && <div aria-label="学习数据加载中" aria-busy="true" className="mb-5 grid grid-cols-3 gap-3"><span className="learning-skeleton h-2" /><span className="learning-skeleton h-2" /><span className="learning-skeleton h-2" /></div>}
 
         <section className="learning-toolbar mb-5" aria-label="考试选择">

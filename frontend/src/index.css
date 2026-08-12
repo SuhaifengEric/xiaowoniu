@@ -237,12 +237,69 @@
     box-shadow: 0 12px 24px -22px hsl(1 46% 27% / 0.65);
   }
 
-  .app-status {
-    border-color: hsl(var(--brand-blue) / 0.26);
-    border-radius: calc(var(--radius) + 0.125rem);
-    background: hsl(var(--brand-blue-soft) / 0.9);
+  .app-toast {
+    position: fixed;
+    right: max(1rem, env(safe-area-inset-right));
+    bottom: 1.25rem;
+    z-index: 70;
+    display: flex;
+    max-width: min(28rem, calc(100vw - 2rem));
+    min-height: 3rem;
+    align-items: center;
+    gap: 0.75rem;
+    border: 1px solid hsl(var(--brand-blue) / 0.24);
+    border-radius: calc(var(--radius) + 0.25rem);
+    background: hsl(var(--card) / 0.98);
+    padding: 0.625rem 0.625rem 0.625rem 0.875rem;
+    color: hsl(var(--foreground));
+    box-shadow: 0 18px 38px -22px hsl(var(--paper-shadow) / 0.54);
+    animation: app-toast-in 220ms ease-out both;
+  }
+
+  .app-toast__icon {
+    display: inline-flex;
+    width: 1.75rem;
+    height: 1.75rem;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: hsl(var(--brand-blue-soft));
     color: hsl(var(--brand-blue-deep));
-    box-shadow: 0 12px 24px -22px hsl(var(--brand-blue-deep) / 0.68);
+  }
+
+  .app-toast__message {
+    min-width: 0;
+    flex: 1;
+    overflow-wrap: anywhere;
+    color: hsl(var(--foreground));
+    font-size: 0.875rem;
+    font-weight: 650;
+    line-height: 1.45;
+  }
+
+  .app-toast__close.app-toast__close {
+    width: 2.5rem;
+    height: 2.5rem;
+    flex: 0 0 auto;
+    color: hsl(var(--ink-soft));
+  }
+
+  .app-toast__close.app-toast__close:hover {
+    background: hsl(var(--brand-blue-soft));
+    color: hsl(var(--brand-blue-deep));
+  }
+
+  @keyframes app-toast-in {
+    from {
+      opacity: 0;
+      transform: translateY(0.5rem) scale(0.98);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
   }
 
   .profile-page {
@@ -1012,6 +1069,13 @@
       padding: 0.5rem 0.5rem calc(0.5rem + env(safe-area-inset-bottom));
     }
 
+    .app-toast {
+      right: 1rem;
+      bottom: calc(5.5rem + env(safe-area-inset-bottom));
+      left: 1rem;
+      max-width: none;
+    }
+
     .mobile-tabbar__inner {
       display: flex;
       max-width: 34rem;
@@ -1113,6 +1177,12 @@
 
     .dashboard-progress-card__track {
       margin-top: auto;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .app-toast {
+      animation: none;
     }
   }
 

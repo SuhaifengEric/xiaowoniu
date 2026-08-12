@@ -1,7 +1,7 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import Profile from './Profile'
 
 const auth = vi.hoisted(() => ({
@@ -42,6 +42,10 @@ beforeEach(() => {
   auth.logout.mockResolvedValue(undefined)
 })
 
+afterEach(() => {
+  vi.useRealTimers()
+})
+
 describe('Profile page', () => {
   it('shows profile data, password autocomplete, and keeps five mobile tabs', () => {
     renderPage()
@@ -73,6 +77,37 @@ describe('Profile page', () => {
     await user.clear(nickname)
     await user.click(screen.getByRole('button', { name: '保存昵称' }))
     await waitFor(() => expect(auth.updateProfile).toHaveBeenNthCalledWith(2, { nickname: null }))
+  })
+
+  it('dismisses the profile success status after a short delay', async () => {
+    vi.useFakeTimers()
+    auth.updateProfile.mockResolvedValue({ ...auth.user, nickname: '花花' })
+    renderPage()
+
+    const nickname = screen.getByLabelText('昵称')
+    const form = screen.getByRole('button', { name: '保存昵称' }).closest('form')
+    if (!form) throw new Error('profile form not found')
+
+    await act(async () => {
+      fireEvent.change(nickname, { target: { value: '花花' } })
+      fireEvent.submit(form)
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(screen.getByRole('status')).toHaveTextContent('个人资料已更新')
+
+    act(() => {
+      vi.advanceTimersByTime(3000)
+    })
+
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('does not render the removed account settings kicker', () => {
+    renderPage()
+
+    expect(screen.queryByText('账号设置')).not.toBeInTheDocument()
   })
 
   it('rejects an overlong nickname before sending a request', async () => {

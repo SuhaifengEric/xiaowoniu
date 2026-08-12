@@ -12,6 +12,7 @@ import { ExpenseList } from '@/components/finance/ExpenseList'
 import { FinanceSummary } from '@/components/finance/FinanceSummary'
 import SavingPlanDialog from '@/components/finance/SavingPlanDialog'
 import { SavingPlanList } from '@/components/finance/SavingPlanList'
+import Toast from '@/components/ui/toast'
 import { formatMonth, useFinanceStore } from '@/store/finance.store'
 
 function monthLabel(month: string) {
@@ -173,7 +174,7 @@ export default function Finance() {
         </section>
 
         {error && <div role="alert" className="app-alert mb-5 flex items-center justify-between gap-4 border px-4 py-3 text-sm"><span>{error}</span><Button type="button" variant="ghost" size="icon" className="finance-icon-button" aria-label="关闭错误提示" onClick={clearError}><X aria-hidden="true" className="h-4 w-4" /></Button></div>}
-        {status && <div role="status" className="app-status mb-5 border px-4 py-3 text-sm font-medium">{status}</div>}
+        <Toast message={status} onDismiss={() => setStatus('')} />
 
         <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
           <div className="grid min-w-0 gap-5"><FinanceSummary summary={summary} loading={loading} onEditBudget={openBudget} /><ExpenseList expenses={expenses} loading={loading} onCreate={() => openExpense()} onEdit={openExpense} onDelete={(expense) => setDeleteTarget({ resource: 'expense', id: expense.id })} /></div>

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import Toast from '@/components/ui/toast'
 import { useAuth } from '@/hooks/useAuth'
 
 interface FieldErrors {
@@ -47,7 +48,6 @@ export default function Profile() {
   const [nicknameDirty, setNicknameDirty] = useState(false)
   const [profileLoading, setProfileLoading] = useState(false)
   const [profileError, setProfileError] = useState('')
-  const [profileStatus, setProfileStatus] = useState('')
   const [profileFieldErrors, setProfileFieldErrors] = useState<FieldErrors>({})
 
   const [currentPassword, setCurrentPassword] = useState('')
@@ -55,8 +55,8 @@ export default function Profile() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [passwordLoading, setPasswordLoading] = useState(false)
   const [passwordError, setPasswordError] = useState('')
-  const [passwordStatus, setPasswordStatus] = useState('')
   const [passwordFieldErrors, setPasswordFieldErrors] = useState<FieldErrors>({})
+  const [status, setStatus] = useState('')
 
   useEffect(() => {
     if (!nicknameDirty) setNickname(user?.nickname ?? '')
@@ -64,13 +64,13 @@ export default function Profile() {
 
   const clearProfileFeedback = () => {
     setProfileError('')
-    setProfileStatus('')
+    setStatus('')
     setProfileFieldErrors({})
   }
 
   const clearPasswordFeedback = () => {
     setPasswordError('')
-    setPasswordStatus('')
+    setStatus('')
     setPasswordFieldErrors({})
   }
 
@@ -88,7 +88,7 @@ export default function Profile() {
       const updatedUser = await updateProfile({ nickname: normalizedNickname || null })
       setNickname(updatedUser.nickname ?? '')
       setNicknameDirty(false)
-      setProfileStatus('个人资料已更新')
+      setStatus('个人资料已更新')
     } catch (error) {
       const apiError = getApiError(error)
       if (apiError.code === 'VALIDATION_ERROR') {
@@ -125,7 +125,7 @@ export default function Profile() {
       setCurrentPassword('')
       setNewPassword('')
       setConfirmPassword('')
-      setPasswordStatus('密码修改成功，当前登录仍然有效')
+      setStatus('密码修改成功，当前登录仍然有效')
     } catch (error) {
       const apiError = getApiError(error)
       if (apiError.code === 'INVALID_CURRENT_PASSWORD') {
@@ -149,6 +149,7 @@ export default function Profile() {
 
   return (
     <main className="app-page profile-page has-mobile-tabbar">
+      <Toast message={status} onDismiss={() => setStatus('')} />
       <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
         <nav className="app-nav flex min-h-11 items-center justify-between gap-3 border-b pb-4" aria-label="页面导航">
           <p className="app-brand">小蜗牛的花花世界</p>
@@ -165,8 +166,7 @@ export default function Profile() {
             <ArrowLeft aria-hidden="true" className="h-4 w-4" />返回世界仪表盘
           </Button>
           <div>
-            <p className="app-kicker">账号设置</p>
-            <h1 className="app-page-title mt-2">个人中心</h1>
+            <h1 className="app-page-title">个人中心</h1>
             <p className="app-page-description mt-3 max-w-xl">管理你的资料和账号安全。</p>
           </div>
         </header>
@@ -193,7 +193,6 @@ export default function Profile() {
 
               <form className="profile-form" onSubmit={handleProfileSubmit} noValidate>
                 {profileError && <div className="app-alert" role="alert">{profileError}</div>}
-                {profileStatus && <div className="app-status" role="status">{profileStatus}</div>}
                 <div className="profile-field">
                   <Label htmlFor="profile-nickname">昵称</Label>
                   <Input
@@ -244,7 +243,6 @@ export default function Profile() {
             <CardContent>
               <form className="profile-form" onSubmit={handlePasswordSubmit} noValidate>
                 {passwordError && <div className="app-alert" role="alert">{passwordError}</div>}
-                {passwordStatus && <div className="app-status" role="status">{passwordStatus}</div>}
                 <div className="profile-field">
                   <Label htmlFor="current-password">当前密码</Label>
                   <Input
