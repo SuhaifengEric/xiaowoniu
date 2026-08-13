@@ -27,16 +27,13 @@ export default function Login() {
 
   return (
     <main className="auth-page">
-      <div className="auth-layout">
-        <aside className="auth-intro" aria-label="小蜗牛的花花世界介绍">
+      <div className="auth-layout auth-login-layout">
+        <aside className="auth-intro auth-login-intro" aria-label="小蜗牛的花花世界介绍">
           <BrandLogo className="auth-brand" />
-          <div className="auth-copy">
-            <h1>让每一个目标，<br />都有自己的节奏。</h1>
-            <p>健身、学习、财务和备婚，不必分散在许多地方。这里为你留下持续推进的空间。</p>
-          </div>
-          <div className="auth-notes" aria-label="平台能力">
-            <p className="auth-note"><span className="auth-note-dot" />从今天开始，记录一件小事</p>
-            <p className="auth-note"><span className="auth-note-dot" />让目标、进度和回顾自然连起来</p>
+          <div className="auth-login-art" aria-hidden="true" />
+          <div className="auth-login-message">
+            <p>把日子放在一个地方</p>
+            <p>持续记录，也记得享受每一步。</p>
           </div>
         </aside>
 
@@ -52,6 +49,11 @@ export default function Login() {
               />
             </div>
             <h1>小蜗牛的花花世界</h1>
+          </div>
+          <div className="auth-login-heading">
+            <p>继续经营你的花花世界</p>
+            <h1>欢迎回来</h1>
+            <p>登录后，接着记录今天的进展。</p>
           </div>
           <Card className="auth-card">
             <form onSubmit={handleSubmit}>

@@ -1641,6 +1641,10 @@
     display: none;
   }
 
+  .auth-login-heading {
+    display: none;
+  }
+
   .auth-card .auth-description {
     margin-top: 0.55rem;
     color: hsl(var(--ink-soft));
@@ -1686,11 +1690,141 @@
     .wedding-overview-grid {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
+
+    .auth-login-layout {
+      width: min(100%, 74rem);
+      grid-template-columns: minmax(0, 1.35fr) minmax(24rem, 0.8fr);
+    }
+
+    .auth-login-intro {
+      min-height: 41rem;
+      padding: clamp(1.5rem, 2.8vw, 2.5rem);
+      background:
+        radial-gradient(circle at 82% 16%, hsl(104 48% 74% / 0.34), transparent 25rem),
+        radial-gradient(circle at 13% 75%, hsl(336 86% 78% / 0.32), transparent 25rem),
+        linear-gradient(145deg, hsl(39 100% 97%), hsl(337 74% 94%));
+      color: hsl(333 50% 23%);
+    }
+
+    .auth-login-intro::before {
+      top: -9rem;
+      right: -7rem;
+      width: 22rem;
+      height: 22rem;
+      border-color: hsl(104 45% 45% / 0.1);
+      background: hsl(103 65% 91% / 0.3);
+    }
+
+    .auth-login-intro::after {
+      bottom: -8rem;
+      left: -6rem;
+      width: 21rem;
+      height: 21rem;
+      border-color: hsl(var(--brand-pink) / 0.1);
+      background: hsl(var(--brand-pink-soft) / 0.44);
+    }
+
+    .auth-login-intro .auth-brand {
+      color: hsl(333 50% 23%);
+    }
+
+    .auth-login-intro .auth-brand .brand-logo {
+      border-color: hsl(var(--brand-pink) / 0.18);
+      box-shadow: 0 10px 24px -16px hsl(var(--brand-pink-deep) / 0.55);
+    }
+
+    .auth-login-art {
+      position: relative;
+      z-index: 1;
+      width: min(100%, 38rem);
+      aspect-ratio: 1120 / 747;
+      align-self: center;
+      margin: -0.5rem 0 -0.75rem;
+      background: url('/brand/xiaowoniu-login-hero.webp') center / contain no-repeat;
+      filter: drop-shadow(0 1.4rem 1.4rem hsl(333 46% 28% / 0.13));
+    }
+
+    .auth-login-message {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 1.5rem;
+      padding-top: 1rem;
+      border-top: 1px solid hsl(333 38% 35% / 0.14);
+      color: hsl(333 31% 35%);
+    }
+
+    .auth-login-message p:first-child {
+      color: hsl(333 50% 23%);
+      font-size: 0.8125rem;
+      font-weight: 750;
+      letter-spacing: 0.09em;
+    }
+
+    .auth-login-message p:last-child {
+      font-size: 0.8125rem;
+      line-height: 1.55;
+      text-align: right;
+    }
+
+    .auth-login-form-wrap {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 2.25rem;
+    }
+
+    .auth-login-form-wrap .auth-card {
+      align-self: center;
+    }
+
+    .auth-login-heading {
+      display: block;
+      width: 100%;
+      max-width: 27rem;
+      align-self: center;
+    }
+
+    .auth-login-heading > p:first-child {
+      color: hsl(var(--brand-pink-deep));
+      font-size: 0.6875rem;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+    }
+
+    .auth-login-heading h1 {
+      max-width: 21rem;
+      margin-top: 0.625rem;
+      color: hsl(var(--foreground));
+      font-size: clamp(2rem, 3.2vw, 2.75rem);
+      font-weight: 750;
+      letter-spacing: -0.055em;
+      line-height: 1.12;
+    }
+
+    .auth-login-heading > p:last-child {
+      margin-top: 0.875rem;
+      color: hsl(var(--ink-soft));
+      font-size: 0.9375rem;
+      line-height: 1.65;
+    }
   }
 
   @media (min-width: 1024px) {
     .wedding-overview-grid {
       grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+
+  @media (min-width: 768px) and (max-width: 899px) {
+    .auth-login-message {
+      display: block;
+    }
+
+    .auth-login-message p:last-child {
+      margin-top: 0.5rem;
+      text-align: left;
     }
   }
 
