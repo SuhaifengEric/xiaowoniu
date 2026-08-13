@@ -29,6 +29,7 @@ describe('DatePicker', () => {
 
     expect(screen.getByTestId('date-value')).toHaveTextContent('2026-07-31')
     expect(screen.queryByRole('grid')).not.toBeInTheDocument()
+    expect(document.body.style.pointerEvents).not.toBe('none')
 
     await user.click(screen.getByRole('button', { name: '清除日期' }))
     expect(screen.getByTestId('date-value')).toBeEmptyDOMElement()

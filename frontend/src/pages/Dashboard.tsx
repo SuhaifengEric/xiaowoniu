@@ -43,6 +43,7 @@ function ProgressRing({ pct, tone, label }: ProgressRingProps) {
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import AccountMenu from '@/components/navigation/AccountMenu'
+import BrandLogo from '@/components/navigation/BrandLogo'
 import MobileTabBar from '@/components/navigation/MobileTabBar'
 import { useDashboardStore } from '@/store/dashboard.store'
 
@@ -123,7 +124,7 @@ export default function Dashboard() {
     <main className="app-page dashboard-page has-mobile-tabbar">
       <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
         <nav className="app-nav flex min-h-11 items-center justify-between gap-3 border-b pb-4" aria-label="页面导航">
-          <p className="app-brand">小蜗牛的花花世界</p>
+          <BrandLogo className="app-brand" />
           <div className="dashboard-nav-actions">
             <Button
               type="button"

@@ -1,6 +1,7 @@
 import { useState, FormEvent } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
+import BrandLogo from '@/components/navigation/BrandLogo'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -28,7 +29,7 @@ export default function Login() {
     <main className="auth-page">
       <div className="auth-layout">
         <aside className="auth-intro" aria-label="小蜗牛的花花世界介绍">
-          <div className="auth-brand"><span className="auth-brand-mark" aria-hidden="true">✿</span>小蜗牛的花花世界</div>
+          <BrandLogo className="auth-brand" />
           <div className="auth-copy">
             <h1>让每一个目标，<br />都有自己的节奏。</h1>
             <p>健身、学习、财务和备婚，不必分散在许多地方。这里为你留下持续推进的空间。</p>
@@ -40,18 +41,26 @@ export default function Login() {
         </aside>
 
         <section className="auth-form-wrap" aria-label="登录表单">
-          <div className="auth-mobile-header" aria-hidden="true">
-            <span className="auth-brand-mark">✿</span>
-            小蜗牛的花花世界
-          </div>
+          <BrandLogo className="auth-mobile-header" aria-hidden="true" />
           <Card className="auth-card">
-            <CardHeader className="space-y-0 px-0 pb-8 pt-0">
-              <CardTitle className="auth-title">欢迎回来</CardTitle>
-              <CardDescription className="auth-description">登录后继续查看你的生活进展。</CardDescription>
+            <CardHeader className="auth-card-header space-y-0 px-0 pb-8 pt-0">
+              <div className="auth-mobile-mascot" aria-hidden="true">
+                <span className="auth-mobile-mascot__glow" />
+                <img
+                  src="/brand/xiaowoniu-mascot.webp"
+                  width="256"
+                  height="256"
+                  alt=""
+                />
+              </div>
+              <div className="auth-heading-copy">
+                <CardTitle className="auth-title">欢迎回来</CardTitle>
+                <CardDescription className="auth-description">登录后继续查看你的生活进展。</CardDescription>
+              </div>
             </CardHeader>
             <form onSubmit={handleSubmit}>
               <CardContent className="space-y-5 px-0 pb-0">
-                {error && <div className="auth-error p-3 text-sm">{error}</div>}
+                {error && <div role="alert" className="auth-error p-3 text-sm">{error}</div>}
                 <div className="auth-field flex flex-col">
                   <Label htmlFor="email">邮箱</Label>
                   <Input

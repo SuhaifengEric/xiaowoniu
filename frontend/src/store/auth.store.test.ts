@@ -129,6 +129,18 @@ describe('useAuthStore auth-scoped cleanup', () => {
     expect(mocks.resetDashboard).not.toHaveBeenCalled()
   })
 
+  it('keeps a server login error in the store for the login page to display', async () => {
+    const failure = { response: { data: { error: { message: '邮箱或密码错误' } } } }
+    mocks.login.mockRejectedValue(failure)
+
+    await expect(useAuthStore.getState().login({
+      email: 'wrong@example.com', password: 'wrong-password',
+    })).rejects.toBe(failure)
+
+    expect(useAuthStore.getState().error).toBe('邮箱或密码错误')
+    expect(useAuthStore.getState().isLoading).toBe(false)
+  })
+
   it('resets fitness before saving a successful registration identity', async () => {
     const response = {
       token: 'register-token',

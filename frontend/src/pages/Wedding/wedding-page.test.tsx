@@ -195,6 +195,18 @@ describe('Wedding page', () => {
     expect(screen.getByRole('dialog', { name: '确认删除备婚任务' })).toBeInTheDocument()
   })
 
+  it('closes the delete confirmation after a successful deletion', async () => {
+    const user = userEvent.setup()
+    store.tasks = [task]
+    renderPage()
+    await user.click(screen.getByRole('button', { name: `删除任务${task.taskName}` }))
+    await user.click(screen.getByRole('button', { name: '确认删除' }))
+
+    await waitFor(() => expect(store.deleteTask).toHaveBeenCalledWith('task-1'))
+    expect(screen.queryByRole('dialog', { name: '确认删除备婚任务' })).not.toBeInTheDocument()
+    expect(await screen.findByRole('status')).toHaveTextContent('备婚任务已删除')
+  })
+
   it('shows store errors and clears them', async () => {
     const user = userEvent.setup()
     store.error = '数据加载失败'

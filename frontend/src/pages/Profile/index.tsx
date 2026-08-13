@@ -3,6 +3,7 @@ import { ArrowLeft, KeyRound, UserRound } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import type { UserResponse } from '@xiaowoniu/shared'
 import AccountMenu, { getDisplayName, getInitial } from '@/components/navigation/AccountMenu'
+import BrandLogo from '@/components/navigation/BrandLogo'
 import MobileTabBar from '@/components/navigation/MobileTabBar'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -152,7 +153,7 @@ export default function Profile() {
       <Toast message={status} onDismiss={() => setStatus('')} />
       <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
         <nav className="app-nav flex min-h-11 items-center justify-between gap-3 border-b pb-4" aria-label="页面导航">
-          <p className="app-brand">小蜗牛的花花世界</p>
+          <BrandLogo className="app-brand" />
           <AccountMenu />
         </nav>
 

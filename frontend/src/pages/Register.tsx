@@ -1,6 +1,7 @@
 import { useState, FormEvent } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
+import BrandLogo from '@/components/navigation/BrandLogo'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -30,7 +31,7 @@ export default function Register() {
     <main className="auth-page">
       <div className="auth-layout">
         <aside className="auth-intro" aria-label="小蜗牛的花花世界介绍">
-          <div className="auth-brand"><span className="auth-brand-mark" aria-hidden="true">✿</span>小蜗牛的花花世界</div>
+          <BrandLogo className="auth-brand" />
           <div className="auth-copy">
             <h1>给每一个计划，<br />一个温柔的起点。</h1>
             <p>不追求填满日程，只把真正重要的目标、记录与回顾放到同一处。</p>
@@ -42,10 +43,7 @@ export default function Register() {
         </aside>
 
         <section className="auth-form-wrap" aria-label="注册表单">
-          <div className="auth-mobile-header" aria-hidden="true">
-            <span className="auth-brand-mark">✿</span>
-            小蜗牛的花花世界
-          </div>
+          <BrandLogo className="auth-mobile-header" aria-hidden="true" />
           <Card className="auth-card">
             <CardHeader className="space-y-0 px-0 pb-7 pt-0">
               <CardTitle className="auth-title">创建账号</CardTitle>
@@ -53,7 +51,7 @@ export default function Register() {
             </CardHeader>
             <form onSubmit={handleSubmit}>
               <CardContent className="space-y-4 px-0 pb-0">
-                {error && <div className="auth-error p-3 text-sm">{error}</div>}
+                {error && <div role="alert" className="auth-error p-3 text-sm">{error}</div>}
                 <div className="auth-field flex flex-col">
                   <Label htmlFor="username">用户名</Label>
                   <Input

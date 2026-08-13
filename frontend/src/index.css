@@ -102,13 +102,13 @@
     letter-spacing: -0.02em;
   }
 
-  .app-brand::before {
-    width: 0.625rem;
-    height: 0.625rem;
-    border-radius: 999px;
-    background: hsl(var(--brand-pink));
-    box-shadow: 0 0 0 4px hsl(var(--brand-pink) / 0.12);
-    content: "";
+  .brand-logo {
+    display: block;
+    width: 2rem;
+    height: 2rem;
+    flex: none;
+    border-radius: 0.7rem;
+    object-fit: cover;
   }
 
   .app-nav-action.app-nav-action {
@@ -1554,16 +1554,11 @@
     letter-spacing: -0.03em;
   }
 
-  .auth-brand-mark {
-    display: inline-flex;
+  .auth-brand .brand-logo {
     width: 2.25rem;
     height: 2.25rem;
-    align-items: center;
-    justify-content: center;
     border: 1px solid hsl(0 0% 100% / 0.36);
     border-radius: 0.8rem;
-    background: hsl(0 0% 100% / 0.15);
-    font-size: 0.875rem;
   }
 
   .auth-copy {
@@ -1636,6 +1631,10 @@
     font-weight: 700;
     letter-spacing: -0.055em;
     line-height: 1.1;
+  }
+
+  .auth-mobile-mascot {
+    display: none;
   }
 
   .auth-card .auth-description {
@@ -1737,6 +1736,52 @@
       padding: 1.5rem;
     }
 
+    .auth-card-header {
+      position: relative;
+      display: grid;
+      min-height: clamp(7.5rem, 35vw, 9.25rem);
+      grid-template-columns: minmax(0, 1fr) clamp(8rem, 39vw, 10rem);
+      align-items: center;
+      column-gap: 0.25rem;
+    }
+
+    .auth-heading-copy {
+      position: relative;
+      z-index: 1;
+      min-width: 0;
+    }
+
+    .auth-mobile-mascot {
+      position: relative;
+      display: grid;
+      width: clamp(8rem, 39vw, 10rem);
+      aspect-ratio: 1;
+      place-items: center;
+      justify-self: end;
+      pointer-events: none;
+    }
+
+    .auth-mobile-mascot__glow {
+      position: absolute;
+      inset: 17% 7% 10% 12%;
+      border-radius: 48% 52% 48% 52%;
+      background:
+        radial-gradient(circle at 43% 44%, hsl(42 92% 91% / 0.9), hsl(103 41% 88% / 0.58) 58%, transparent 72%);
+      filter: blur(0.35rem);
+      transform: rotate(-5deg);
+    }
+
+    .auth-mobile-mascot img {
+      position: relative;
+      z-index: 1;
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      filter: drop-shadow(0 0.75rem 0.9rem hsl(var(--brand-pink) / 0.12));
+      transform: rotate(1.5deg);
+    }
+
     .auth-mobile-header {
       display: flex;
       align-items: center;
@@ -1747,10 +1792,48 @@
       letter-spacing: -0.025em;
     }
 
-    .auth-mobile-header .auth-brand-mark {
+    .auth-mobile-header .brand-logo {
       border-color: hsl(var(--brand-pink) / 0.28);
-      background: hsl(var(--brand-pink) / 0.09);
-      color: hsl(var(--brand-pink));
+    }
+  }
+
+  @media (max-width: 374px) {
+    .auth-page {
+      padding: 0.75rem;
+    }
+
+    .auth-form-wrap {
+      min-height: calc(100vh - 1.5rem);
+      gap: 1.125rem;
+      padding: 1.125rem;
+    }
+
+    .auth-card-header {
+      min-height: 6.75rem;
+      grid-template-columns: minmax(0, 1fr) 7rem;
+    }
+
+    .auth-mobile-mascot {
+      width: 7rem;
+    }
+
+    .auth-card .auth-title {
+      font-size: 1.75rem;
+    }
+  }
+
+  @media (max-width: 767px) and (max-height: 700px) {
+    .auth-form-wrap {
+      justify-content: flex-start;
+    }
+
+    .auth-card-header {
+      min-height: 6.5rem;
+      grid-template-columns: minmax(0, 1fr) 6.75rem;
+    }
+
+    .auth-mobile-mascot {
+      width: 6.75rem;
     }
   }
 
