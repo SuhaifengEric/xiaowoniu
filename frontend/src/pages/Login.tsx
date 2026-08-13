@@ -5,7 +5,7 @@ import BrandLogo from '@/components/navigation/BrandLogo'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardFooter } from '@/components/ui/card'
 
 export default function Login() {
   const navigate = useNavigate()
@@ -40,24 +40,20 @@ export default function Login() {
           </div>
         </aside>
 
-        <section className="auth-form-wrap" aria-label="登录表单">
-          <BrandLogo className="auth-mobile-header" aria-hidden="true" />
+        <section className="auth-form-wrap auth-login-form-wrap" aria-label="登录表单">
+          <div className="auth-mobile-welcome">
+            <div className="auth-mobile-mascot" aria-hidden="true">
+              <span className="auth-mobile-mascot__glow" />
+              <img
+                src="/brand/xiaowoniu-mascot.webp"
+                width="256"
+                height="256"
+                alt=""
+              />
+            </div>
+            <h1>小蜗牛的花花世界</h1>
+          </div>
           <Card className="auth-card">
-            <CardHeader className="auth-card-header space-y-0 px-0 pb-8 pt-0">
-              <div className="auth-mobile-mascot" aria-hidden="true">
-                <span className="auth-mobile-mascot__glow" />
-                <img
-                  src="/brand/xiaowoniu-mascot.webp"
-                  width="256"
-                  height="256"
-                  alt=""
-                />
-              </div>
-              <div className="auth-heading-copy">
-                <CardTitle className="auth-title">欢迎回来</CardTitle>
-                <CardDescription className="auth-description">登录后继续查看你的生活进展。</CardDescription>
-              </div>
-            </CardHeader>
             <form onSubmit={handleSubmit}>
               <CardContent className="space-y-5 px-0 pb-0">
                 {error && <div role="alert" className="auth-error p-3 text-sm">{error}</div>}
