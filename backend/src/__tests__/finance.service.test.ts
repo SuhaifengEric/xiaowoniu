@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Prisma } from '@prisma/client'
 import { ExpenseCategory, PaymentMethod } from '@xiaowoniu/shared'
 
@@ -7,15 +7,17 @@ const prisma = vi.hoisted(() => ({
   expense: { findMany: vi.fn(), create: vi.fn(), findFirst: vi.fn(), update: vi.fn(), deleteMany: vi.fn() },
   monthlyBudget: { findUnique: vi.fn(), upsert: vi.fn() },
   savingPlan: { findMany: vi.fn(), create: vi.fn(), findFirst: vi.fn(), update: vi.fn(), deleteMany: vi.fn() },
+  savingDeposit: { findMany: vi.fn(), groupBy: vi.fn(), aggregate: vi.fn(), create: vi.fn(), findFirst: vi.fn(), update: vi.fn(), deleteMany: vi.fn() },
 }))
 
 const transactionClient = vi.hoisted(() => ({
   savingPlan: { findFirst: vi.fn(), update: vi.fn() },
+  savingDeposit: { aggregate: vi.fn(), create: vi.fn(), findFirst: vi.fn(), update: vi.fn(), deleteMany: vi.fn() },
 }))
 
 vi.mock('../config/database', () => ({ default: prisma }))
 
-import financeService, { FinanceConflictError, FinanceNotFoundError } from '../services/finance.service'
+import financeService, { FinanceConflictError, FinanceNotFoundError, FinanceValidationError } from '../services/finance.service'
 
 const decimal = (value: string | number) => new Prisma.Decimal(value)
 const createdAt = new Date('2026-07-30T08:00:00.000Z')
@@ -31,13 +33,24 @@ const budget = {
 }
 
 const savingPlan = {
-  id: 'p1', userId: 'u1', name: '旅行', targetAmount: decimal('100'), currentAmount: decimal('33.33'),
+  id: 'p1', userId: 'u1', name: '旅行', targetAmount: decimal('100'), currentAmount: decimal('0'),
   targetDate: new Date('2026-12-31T00:00:00.000Z'), createdAt, updatedAt,
+}
+
+const savingDeposit = {
+  id: 'd1', savingPlanId: 'p1', amount: decimal('33.33'), date: new Date('2026-08-14T00:00:00.000Z'),
+  notes: '本周固定存入', source: 'manual', createdAt, updatedAt,
 }
 
 beforeEach(() => {
   vi.clearAllMocks()
   prisma.$transaction.mockImplementation(async (callback: (tx: typeof transactionClient) => unknown) => callback(transactionClient))
+  prisma.savingDeposit.aggregate.mockResolvedValue({ _sum: { amount: null }, _count: { _all: 0 } })
+  transactionClient.savingDeposit.aggregate.mockResolvedValue({ _sum: { amount: decimal('33.33') }, _count: { _all: 1 } })
+})
+
+afterEach(() => {
+  vi.useRealTimers()
 })
 
 describe('finance expenses', () => {
@@ -191,24 +204,37 @@ describe('finance summary and budgets', () => {
   })
 })
 
-describe('saving plans', () => {
-
-  it('derives Decimal values, remaining amount, floored clamped progress, and completion', async () => {
+describe('saving plans and deposits', () => {
+  it('derives plan progress and count from one grouped deposit query', async () => {
     prisma.savingPlan.findMany.mockResolvedValue([savingPlan, {
-      ...savingPlan, id: 'p2', name: '完成', targetAmount: decimal('10'), currentAmount: decimal('12'),
+      ...savingPlan, id: 'p2', name: '完成', targetAmount: decimal('10'),
     }])
+    prisma.savingDeposit.groupBy.mockResolvedValue([
+      { savingPlanId: 'p1', _sum: { amount: decimal('33.33') }, _count: { _all: 1 } },
+      { savingPlanId: 'p2', _sum: { amount: decimal('10') }, _count: { _all: 1 } },
+    ])
+
     const result = await financeService.getSavingPlans('u1')
+
     expect(prisma.savingPlan.findMany).toHaveBeenCalledWith({
-      where: { userId: 'u1' }, orderBy: [{ targetDate: 'desc' }, { createdAt: 'desc' }],
+      where: { userId: 'u1' },
+      orderBy: [{ targetDate: 'desc' }, { createdAt: 'desc' }],
+      select: { id: true, userId: true, name: true, targetAmount: true, targetDate: true, createdAt: true, updatedAt: true },
     })
-    expect(result[0]).toMatchObject({ targetAmount: 100, currentAmount: 33.33, remainingAmount: 66.67, progressPercentage: 33, isCompleted: false })
-    expect(result[1]).toMatchObject({ remainingAmount: -2, progressPercentage: 100, isCompleted: true })
+    expect(prisma.savingDeposit.groupBy).toHaveBeenCalledWith({
+      by: ['savingPlanId'],
+      where: { savingPlanId: { in: ['p1', 'p2'] } },
+      _sum: { amount: true },
+      _count: { _all: true },
+    })
+    expect(result[0]).toMatchObject({ targetAmount: 100, currentAmount: 33.33, depositCount: 1, remainingAmount: 66.67, progressPercentage: 33, isCompleted: false })
+    expect(result[1]).toMatchObject({ currentAmount: 10, depositCount: 1, remainingAmount: 0, progressPercentage: 100, isCompleted: true })
   })
 
-  it('creates plans with Decimal amounts and rejects current amounts above target', async () => {
+  it('creates a zero-progress plan without accepting a current amount', async () => {
     prisma.savingPlan.create.mockResolvedValue(savingPlan)
-    await financeService.createSavingPlan('u1', {
-      name: '  旅行  ', targetAmount: 100, currentAmount: 33.33, targetDate: '2026-12-31',
+    const result = await financeService.createSavingPlan('u1', {
+      name: '  旅行  ', targetAmount: 100, targetDate: '2026-12-31',
     })
     const createData = prisma.savingPlan.create.mock.calls[0][0].data
     expect(createData).toMatchObject({
@@ -217,112 +243,115 @@ describe('saving plans', () => {
     expect(createData.targetAmount).toBeInstanceOf(Prisma.Decimal)
     expect(createData.targetAmount.toString()).toBe('100')
     expect(createData.currentAmount).toBeInstanceOf(Prisma.Decimal)
-    expect(createData.currentAmount.toString()).toBe('33.33')
-
-    await expect(financeService.createSavingPlan('u1', {
-      name: '非法计划', targetAmount: 20, currentAmount: 21, targetDate: '2026-12-31',
-    })).rejects.toBeInstanceOf(FinanceConflictError)
-    expect(prisma.savingPlan.create).toHaveBeenCalledTimes(1)
+    expect(createData.currentAmount.toString()).toBe('0')
+    expect(result).toMatchObject({ currentAmount: 0, depositCount: 0, remainingAmount: 100 })
   })
 
-  it('rejects updates when current amount exceeds the final target amount', async () => {
+  it('validates target changes against the grouped deposit total in a Serializable transaction', async () => {
     transactionClient.savingPlan.findFirst.mockResolvedValue(savingPlan)
-    await expect(financeService.updateSavingPlan('u1', 'p1', { currentAmount: 101 }))
-      .rejects.toBeInstanceOf(FinanceConflictError)
-    expect(transactionClient.savingPlan.update).not.toHaveBeenCalled()
-    expect(prisma.savingPlan.update).not.toHaveBeenCalled()
+    transactionClient.savingDeposit.aggregate.mockResolvedValue({ _sum: { amount: decimal('33.33') }, _count: { _all: 1 } })
+    transactionClient.savingPlan.update.mockResolvedValue({ ...savingPlan, name: '新名字' })
 
-    await expect(financeService.updateSavingPlan('u1', 'p1', { targetAmount: 20 }))
-      .rejects.toBeInstanceOf(FinanceConflictError)
-    expect(transactionClient.savingPlan.update).not.toHaveBeenCalled()
-    expect(prisma.savingPlan.update).not.toHaveBeenCalled()
-  })
-
-  it('uses a Serializable transaction for plan validation and updates', async () => {
-    transactionClient.savingPlan.findFirst.mockResolvedValue(savingPlan)
-    transactionClient.savingPlan.update.mockResolvedValue({ ...savingPlan, currentAmount: decimal('40') })
-
-    await financeService.updateSavingPlan('u1', 'p1', { currentAmount: 40 })
-
+    await financeService.updateSavingPlan('u1', 'p1', { name: ' 新名字 ' })
     expect(prisma.$transaction).toHaveBeenCalledWith(expect.any(Function), {
       isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
     })
-    expect(transactionClient.savingPlan.findFirst).toHaveBeenCalledWith({ where: { id: 'p1', userId: 'u1' } })
-    expect(transactionClient.savingPlan.update).toHaveBeenCalledWith({
-      where: { id: 'p1' }, data: { currentAmount: decimal('40') },
+    expect(transactionClient.savingDeposit.aggregate).toHaveBeenCalledWith({
+      where: { savingPlanId: 'p1' }, _sum: { amount: true }, _count: { _all: true },
     })
-    expect(prisma.savingPlan.findFirst).not.toHaveBeenCalled()
-    expect(prisma.savingPlan.update).not.toHaveBeenCalled()
-  })
-
-  it('maps serializable and saving-plan CHECK conflicts to FinanceConflictError', async () => {
-    const serializationConflict = new Prisma.PrismaClientKnownRequestError('write conflict', {
-      code: 'P2034', clientVersion: '5.9.0',
-    })
-    let activeTransactions = 0
-    prisma.$transaction.mockImplementation(async (callback: (tx: typeof transactionClient) => unknown) => {
-      activeTransactions += 1
-      if (activeTransactions > 1) {
-        activeTransactions -= 1
-        throw serializationConflict
-      }
-      try {
-        return await callback(transactionClient)
-      } finally {
-        activeTransactions -= 1
-      }
-    })
-    transactionClient.savingPlan.findFirst.mockResolvedValue(savingPlan)
-    transactionClient.savingPlan.update.mockResolvedValue({ ...savingPlan, currentAmount: decimal('40') })
-
-    const concurrentResults = await Promise.allSettled([
-      financeService.updateSavingPlan('u1', 'p1', { currentAmount: 40 }),
-      financeService.updateSavingPlan('u1', 'p1', { currentAmount: 40 }),
-    ])
-    expect(concurrentResults.filter((result) => result.status === 'fulfilled')).toHaveLength(1)
-    const rejectedResult = concurrentResults.find((result) => result.status === 'rejected')
-    expect(rejectedResult?.status === 'rejected' && rejectedResult.reason).toBeInstanceOf(FinanceConflictError)
-    expect(prisma.$transaction).toHaveBeenCalledTimes(2)
-    expect(prisma.savingPlan.findFirst).not.toHaveBeenCalled()
-    expect(prisma.savingPlan.update).not.toHaveBeenCalled()
-
-    const checkConflict = new Prisma.PrismaClientKnownRequestError('constraint failed', {
-      code: 'P2004', clientVersion: '5.9.0', meta: { constraint: 'saving_plans_current_amount_limit_check' },
-    })
-    prisma.$transaction.mockRejectedValueOnce(checkConflict)
-    await expect(financeService.updateSavingPlan('u1', 'p1', { currentAmount: 40 }))
-      .rejects.toBeInstanceOf(FinanceConflictError)
-  })
-
-  it('returns not found for cross-user saving plan updates', async () => {
-    transactionClient.savingPlan.findFirst.mockResolvedValue(null)
-    await expect(financeService.updateSavingPlan('u1', 'p-other', { name: 'new name' }))
-      .rejects.toBeInstanceOf(FinanceNotFoundError)
-    expect(transactionClient.savingPlan.findFirst).toHaveBeenCalledWith({ where: { id: 'p-other', userId: 'u1' } })
-    expect(transactionClient.savingPlan.update).not.toHaveBeenCalled()
-    expect(prisma.savingPlan.findFirst).not.toHaveBeenCalled()
-    expect(prisma.savingPlan.update).not.toHaveBeenCalled()
-  })
-
-  it('uses user-scoped lookups and updates for partial plan changes', async () => {
-    transactionClient.savingPlan.findFirst.mockResolvedValue(savingPlan)
-    transactionClient.savingPlan.update.mockResolvedValue({ ...savingPlan, name: '新名字' })
-    await financeService.updateSavingPlan('u1', 'p1', { name: ' 新名字 ' })
-    expect(transactionClient.savingPlan.findFirst).toHaveBeenCalledWith({ where: { id: 'p1', userId: 'u1' } })
     expect(transactionClient.savingPlan.update).toHaveBeenCalledWith({
       where: { id: 'p1' }, data: { name: '新名字' },
     })
-    expect(prisma.savingPlan.findFirst).not.toHaveBeenCalled()
-    expect(prisma.savingPlan.update).not.toHaveBeenCalled()
 
-    transactionClient.savingPlan.update.mockResolvedValue({ ...savingPlan, targetAmount: decimal('120'), currentAmount: decimal('50') })
-    await financeService.updateSavingPlan('u1', 'p1', { targetAmount: 120, currentAmount: 50 })
-    const updateData = transactionClient.savingPlan.update.mock.calls.at(-1)![0].data
-    expect(updateData.targetAmount).toBeInstanceOf(Prisma.Decimal)
-    expect(updateData.targetAmount.toString()).toBe('120')
-    expect(updateData.currentAmount).toBeInstanceOf(Prisma.Decimal)
-    expect(updateData.currentAmount.toString()).toBe('50')
+    await expect(financeService.updateSavingPlan('u1', 'p1', { targetAmount: 20 }))
+      .rejects.toBeInstanceOf(FinanceConflictError)
+    expect(transactionClient.savingPlan.update).toHaveBeenCalledTimes(1)
+  })
 
+  it('lists deposits in stable date order with pagination and user-scoped plan lookup', async () => {
+    prisma.savingPlan.findFirst.mockResolvedValue({ id: 'p1' })
+    prisma.savingDeposit.findMany.mockResolvedValue([savingDeposit])
+    const result = await financeService.getSavingDeposits('u1', 'p1', { limit: '2', offset: '3' } as any)
+
+    expect(prisma.savingPlan.findFirst).toHaveBeenCalledWith({ where: { id: 'p1', userId: 'u1' }, select: { id: true } })
+    expect(prisma.savingDeposit.findMany).toHaveBeenCalledWith({
+      where: { savingPlanId: 'p1' },
+      orderBy: [{ date: { sort: 'desc', nulls: 'last' } }, { createdAt: 'desc' }, { id: 'desc' }],
+      take: 2,
+      skip: 3,
+    })
+    expect(result[0]).toMatchObject({ id: 'd1', amount: 33.33, date: '2026-08-14', source: 'manual' })
+  })
+
+  it('creates deposits with trimmed notes and rejects future dates and over-target totals', async () => {
+    vi.useFakeTimers({ now: new Date('2026-08-14T12:00:00.000Z') })
+    transactionClient.savingPlan.findFirst.mockResolvedValue(savingPlan)
+    transactionClient.savingDeposit.aggregate.mockResolvedValue({ _sum: { amount: decimal('33.33') }, _count: { _all: 1 } })
+    transactionClient.savingDeposit.create.mockResolvedValue(savingDeposit)
+
+    await expect(financeService.createSavingDeposit('u1', 'p1', {
+      amount: 10, date: '2026-08-14', notes: '  固定存入  ',
+    })).resolves.toMatchObject({ id: 'd1', amount: 33.33 })
+    expect(transactionClient.savingDeposit.create).toHaveBeenCalledWith({
+      data: {
+        savingPlanId: 'p1', amount: decimal('10'), date: new Date('2026-08-14T00:00:00.000Z'), notes: '固定存入',
+      },
+    })
+
+    await expect(financeService.createSavingDeposit('u1', 'p1', {
+      amount: 1, date: '2026-08-15',
+    })).rejects.toBeInstanceOf(FinanceValidationError)
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1)
+
+    transactionClient.savingDeposit.aggregate.mockResolvedValue({ _sum: { amount: decimal('99') }, _count: { _all: 1 } })
+    await expect(financeService.createSavingDeposit('u1', 'p1', {
+      amount: 2, date: '2026-08-14',
+    })).rejects.toBeInstanceOf(FinanceConflictError)
+    expect(transactionClient.savingDeposit.create).toHaveBeenCalledTimes(1)
+  })
+
+  it('updates a deposit using the aggregate delta and preserves the separate plan object', async () => {
+    transactionClient.savingPlan.findFirst.mockResolvedValue(savingPlan)
+    transactionClient.savingDeposit.findFirst.mockResolvedValue(savingDeposit)
+    transactionClient.savingDeposit.aggregate.mockResolvedValue({ _sum: { amount: decimal('33.33') }, _count: { _all: 1 } })
+    transactionClient.savingDeposit.update.mockResolvedValue({ ...savingDeposit, amount: decimal('40'), notes: '修正' })
+
+    await expect(financeService.updateSavingDeposit('u1', 'p1', 'd1', {
+      amount: 40, date: '2026-08-13', notes: '  修正  ',
+    })).resolves.toMatchObject({ amount: 40 })
+    expect(transactionClient.savingDeposit.update).toHaveBeenCalledWith({
+      where: { id: 'd1' },
+      data: { amount: decimal('40'), date: new Date('2026-08-13T00:00:00.000Z'), notes: '修正' },
+    })
+  })
+
+  it('maps cross-user and unknown deposit resources to not found and deletes only the nested record', async () => {
+    transactionClient.savingPlan.findFirst.mockResolvedValue(null)
+    await expect(financeService.updateSavingDeposit('u1', 'p-other', 'd1', { amount: 2 }))
+      .rejects.toBeInstanceOf(FinanceNotFoundError)
+    expect(transactionClient.savingDeposit.findFirst).not.toHaveBeenCalled()
+
+    transactionClient.savingPlan.findFirst.mockResolvedValue({ id: 'p1' })
+    transactionClient.savingDeposit.deleteMany.mockResolvedValue({ count: 0 })
+    await expect(financeService.deleteSavingDeposit('u1', 'p1', 'd-other'))
+      .rejects.toBeInstanceOf(FinanceNotFoundError)
+    expect(transactionClient.savingDeposit.deleteMany).toHaveBeenCalledWith({ where: { id: 'd-other', savingPlanId: 'p1' } })
+
+    prisma.savingPlan.findFirst.mockResolvedValue(null)
+    await expect(financeService.getSavingDeposits('u1', 'p-other', {})).rejects.toBeInstanceOf(FinanceNotFoundError)
+  })
+
+  it('maps Serializable deposit conflicts to a user-facing FinanceConflictError', async () => {
+    const serializationConflict = new Prisma.PrismaClientKnownRequestError('write conflict', {
+      code: 'P2034', clientVersion: '5.9.0',
+    })
+    prisma.$transaction.mockRejectedValueOnce(serializationConflict)
+    await expect(financeService.createSavingDeposit('u1', 'p1', {
+      amount: 1, date: '2026-08-14',
+    })).rejects.toBeInstanceOf(FinanceConflictError)
+  })
+
+  it('deletes plans through the existing user-scoped cascade operation', async () => {
     prisma.savingPlan.deleteMany.mockResolvedValue({ count: 0 })
     await expect(financeService.deleteSavingPlan('u1', 'p-other')).rejects.toBeInstanceOf(FinanceNotFoundError)
     expect(prisma.savingPlan.deleteMany).toHaveBeenCalledWith({ where: { id: 'p-other', userId: 'u1' } })

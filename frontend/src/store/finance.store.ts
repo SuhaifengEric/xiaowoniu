@@ -3,12 +3,16 @@ import type {
   ApiErrorResponse,
   CreateBudgetRequest,
   CreateExpenseRequest,
+  CreateSavingDepositRequest,
   CreateSavingPlanRequest,
   ExpenseResponse,
   FinanceExpenseQueryParams,
   FinanceSummaryResponse,
   MonthlyBudgetResponse,
+  SavingDepositQueryParams,
+  SavingDepositResponse,
   SavingPlanResponse,
+  UpdateSavingDepositRequest,
   UpdateExpenseRequest,
   UpdateSavingPlanRequest,
 } from '@xiaowoniu/shared'
@@ -19,6 +23,10 @@ interface FinanceDataState {
   summary: FinanceSummaryResponse | null
   budget: MonthlyBudgetResponse | null
   savingPlans: SavingPlanResponse[]
+  savingDepositsByPlan: Record<string, SavingDepositResponse[]>
+  savingDepositsHasMoreByPlan: Record<string, boolean>
+  savingDepositsLoadingByPlan: Record<string, boolean>
+  savingDepositsErrorByPlan: Record<string, string | null>
   selectedMonth: string
   loading: boolean
   error: string | null
@@ -30,6 +38,7 @@ interface FinanceActions {
   fetchSummary: (month: string) => Promise<void>
   fetchBudget: (month: string) => Promise<void>
   fetchSavingPlans: () => Promise<void>
+  fetchSavingDeposits: (planId: string, params?: SavingDepositQueryParams) => Promise<void>
   setMonth: (month: string) => void
   createExpense: (data: CreateExpenseRequest) => Promise<void>
   updateExpense: (id: string, data: UpdateExpenseRequest) => Promise<void>
@@ -38,6 +47,9 @@ interface FinanceActions {
   createSavingPlan: (data: CreateSavingPlanRequest) => Promise<void>
   updateSavingPlan: (id: string, data: UpdateSavingPlanRequest) => Promise<void>
   deleteSavingPlan: (id: string) => Promise<void>
+  createSavingDeposit: (planId: string, data: CreateSavingDepositRequest) => Promise<void>
+  updateSavingDeposit: (planId: string, depositId: string, data: UpdateSavingDepositRequest) => Promise<void>
+  deleteSavingDeposit: (planId: string, depositId: string) => Promise<void>
   clearError: () => void
   reset: () => void
 }
@@ -53,6 +65,10 @@ export const initialFinanceState: FinanceDataState = {
   summary: null,
   budget: null,
   savingPlans: [],
+  savingDepositsByPlan: {},
+  savingDepositsHasMoreByPlan: {},
+  savingDepositsLoadingByPlan: {},
+  savingDepositsErrorByPlan: {},
   selectedMonth: formatMonth(new Date()),
   loading: false,
   error: null,
@@ -72,6 +88,7 @@ const getErrorMessage = (value: unknown): string => {
 const refreshFailureMessage = '操作已成功，但数据刷新失败'
 type Resource = 'expenses' | 'summary' | 'budget' | 'savingPlans'
 type RequestToken = { generation: number; version: number; monthVersion: number; resource: Resource }
+type DepositRequestToken = { generation: number; version: number; monthVersion: number; planId: string }
 const resources: Resource[] = ['expenses', 'summary', 'budget', 'savingPlans']
 
 const monthExpenseParams = (month: string): FinanceExpenseQueryParams => {
@@ -100,6 +117,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => {
     budget: 0,
     savingPlans: 0,
   }
+  const depositVersions: Record<string, number> = {}
 
   const nextToken = (resource: Resource): RequestToken => ({
     generation,
@@ -108,10 +126,22 @@ export const useFinanceStore = create<FinanceState>((set, get) => {
     version: ++versions[resource],
   })
 
+  const nextDepositToken = (planId: string): DepositRequestToken => ({
+    generation,
+    planId,
+    monthVersion,
+    version: depositVersions[planId] = (depositVersions[planId] ?? 0) + 1,
+  })
+
   const isCurrent = (token: RequestToken): boolean =>
     token.generation === generation &&
     token.monthVersion === monthVersion &&
     token.version === versions[token.resource]
+
+  const isCurrentDeposit = (token: DepositRequestToken): boolean =>
+    token.generation === generation &&
+    token.monthVersion === monthVersion &&
+    token.version === depositVersions[token.planId]
 
   const changeMonth = (month: string): void => {
     if (get().selectedMonth === month) return
@@ -197,6 +227,48 @@ export const useFinanceStore = create<FinanceState>((set, get) => {
     }])
   }
 
+  const refreshSavingDepositsAndPlan = async (planId: string): Promise<void> => {
+    const depositToken = nextDepositToken(planId)
+    const plansToken = nextToken('savingPlans')
+    const limit = 50
+    set((state) => ({
+      savingDepositsLoadingByPlan: { ...state.savingDepositsLoadingByPlan, [planId]: true },
+      savingDepositsErrorByPlan: { ...state.savingDepositsErrorByPlan, [planId]: null },
+    }))
+
+    const results = await Promise.allSettled([
+      financeService.getSavingDeposits(planId, { limit, offset: 0 }),
+      financeService.getSavingPlans(),
+    ])
+    let failed = false
+
+    if (isCurrentDeposit(depositToken)) {
+      const result = results[0]
+      if (result.status === 'fulfilled') {
+        set((state) => ({
+          savingDepositsByPlan: { ...state.savingDepositsByPlan, [planId]: result.value },
+          savingDepositsHasMoreByPlan: { ...state.savingDepositsHasMoreByPlan, [planId]: result.value.length >= limit },
+          savingDepositsErrorByPlan: { ...state.savingDepositsErrorByPlan, [planId]: null },
+        }))
+      } else {
+        failed = true
+        set((state) => ({
+          savingDepositsErrorByPlan: { ...state.savingDepositsErrorByPlan, [planId]: getErrorMessage(result.reason) },
+        }))
+      }
+      set((state) => ({
+        savingDepositsLoadingByPlan: { ...state.savingDepositsLoadingByPlan, [planId]: false },
+      }))
+    }
+
+    if (isCurrent(plansToken)) {
+      const result = results[1]
+      if (result.status === 'fulfilled') set({ savingPlans: result.value })
+      else failed = true
+    }
+    if (failed && generation === depositToken.generation) set({ error: refreshFailureMessage })
+  }
+
   return {
     ...initialFinanceState,
 
@@ -260,6 +332,41 @@ export const useFinanceStore = create<FinanceState>((set, get) => {
         const savingPlans = await financeService.getSavingPlans()
         if (isCurrent(token)) set({ savingPlans })
       }, () => isCurrent(token))
+    },
+
+    fetchSavingDeposits: (planId, params) => {
+      const limit = params?.limit ?? 50
+      const offset = params?.offset ?? 0
+      const token = nextDepositToken(planId)
+      set((state) => ({
+        savingDepositsLoadingByPlan: { ...state.savingDepositsLoadingByPlan, [planId]: true },
+        savingDepositsErrorByPlan: { ...state.savingDepositsErrorByPlan, [planId]: null },
+      }))
+      return financeService.getSavingDeposits(planId, { ...params, limit, offset }).then((deposits) => {
+        if (!isCurrentDeposit(token)) return
+        const current = get().savingDepositsByPlan[planId] ?? []
+        const merged = offset > 0
+          ? [...current, ...deposits.filter((item) => !current.some(({ id }) => id === item.id))]
+          : deposits
+        set((state) => ({
+          savingDepositsByPlan: { ...state.savingDepositsByPlan, [planId]: merged },
+          savingDepositsHasMoreByPlan: { ...state.savingDepositsHasMoreByPlan, [planId]: deposits.length >= limit },
+          savingDepositsErrorByPlan: { ...state.savingDepositsErrorByPlan, [planId]: null },
+        }))
+      }).catch((error: unknown) => {
+        if (isCurrentDeposit(token)) {
+          set((state) => ({
+            savingDepositsErrorByPlan: { ...state.savingDepositsErrorByPlan, [planId]: getErrorMessage(error) },
+          }))
+        }
+        throw error
+      }).finally(() => {
+        if (isCurrentDeposit(token)) {
+          set((state) => ({
+            savingDepositsLoadingByPlan: { ...state.savingDepositsLoadingByPlan, [planId]: false },
+          }))
+        }
+      })
     },
 
     setMonth: (month) => changeMonth(month),
@@ -340,9 +447,48 @@ export const useFinanceStore = create<FinanceState>((set, get) => {
       return runAction(async () => {
         await financeService.deleteSavingPlan(id)
         if (!isCurrent(token)) return
-        set({ savingPlans: get().savingPlans.filter((plan) => plan.id !== id) })
+        set((state) => {
+          const { [id]: _deposits, ...savingDepositsByPlan } = state.savingDepositsByPlan
+          const { [id]: _hasMore, ...savingDepositsHasMoreByPlan } = state.savingDepositsHasMoreByPlan
+          const { [id]: _loading, ...savingDepositsLoadingByPlan } = state.savingDepositsLoadingByPlan
+          const { [id]: _error, ...savingDepositsErrorByPlan } = state.savingDepositsErrorByPlan
+          return {
+            savingPlans: state.savingPlans.filter((plan) => plan.id !== id),
+            savingDepositsByPlan,
+            savingDepositsHasMoreByPlan,
+            savingDepositsLoadingByPlan,
+            savingDepositsErrorByPlan,
+          }
+        })
         await refreshSavingPlans()
       }, () => isCurrent(token))
+    },
+
+    createSavingDeposit: (planId, data) => {
+      const actionGeneration = generation
+      return runAction(async () => {
+        await financeService.createSavingDeposit(planId, data)
+        if (actionGeneration !== generation) return
+        await refreshSavingDepositsAndPlan(planId)
+      }, () => actionGeneration === generation)
+    },
+
+    updateSavingDeposit: (planId, depositId, data) => {
+      const actionGeneration = generation
+      return runAction(async () => {
+        await financeService.updateSavingDeposit(planId, depositId, data)
+        if (actionGeneration !== generation) return
+        await refreshSavingDepositsAndPlan(planId)
+      }, () => actionGeneration === generation)
+    },
+
+    deleteSavingDeposit: (planId, depositId) => {
+      const actionGeneration = generation
+      return runAction(async () => {
+        await financeService.deleteSavingDeposit(planId, depositId)
+        if (actionGeneration !== generation) return
+        await refreshSavingDepositsAndPlan(planId)
+      }, () => actionGeneration === generation)
     },
 
     clearError: () => set({ error: null }),
@@ -352,6 +498,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => {
       monthVersion += 1
       activeActions = 0
       resources.forEach((resource) => { versions[resource] = 0 })
+      Object.keys(depositVersions).forEach((planId) => { depositVersions[planId] += 1 })
       set(initialFinanceState)
     },
   }

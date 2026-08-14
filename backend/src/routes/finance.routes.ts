@@ -5,11 +5,15 @@ import { validate } from '../middlewares/validator.middleware'
 import {
   createBudgetSchema,
   createExpenseSchema,
+  createSavingDepositSchema,
   createSavingPlanSchema,
+  deleteSavingDepositSchema,
   emptySchema,
   expenseQuerySchema,
   idParamSchema,
   monthQuerySchema,
+  savingDepositQuerySchema,
+  updateSavingDepositSchema,
   updateExpenseRouteSchema,
   updateSavingPlanRouteSchema,
 } from '../validation/finance.schemas'
@@ -29,5 +33,9 @@ router.get('/saving-plans', authMiddleware, validate(emptySchema), financeContro
 router.post('/saving-plans', authMiddleware, validate(createSavingPlanSchema), financeController.createSavingPlan.bind(financeController))
 router.patch('/saving-plans/:id', authMiddleware, validate(updateSavingPlanRouteSchema), financeController.updateSavingPlan.bind(financeController))
 router.delete('/saving-plans/:id', authMiddleware, validate(idParamSchema), financeController.deleteSavingPlan.bind(financeController))
+router.get('/saving-plans/:id/deposits', authMiddleware, validate(savingDepositQuerySchema), financeController.listSavingDeposits.bind(financeController))
+router.post('/saving-plans/:id/deposits', authMiddleware, validate(createSavingDepositSchema), financeController.createSavingDeposit.bind(financeController))
+router.patch('/saving-plans/:id/deposits/:depositId', authMiddleware, validate(updateSavingDepositSchema), financeController.updateSavingDeposit.bind(financeController))
+router.delete('/saving-plans/:id/deposits/:depositId', authMiddleware, validate(deleteSavingDepositSchema), financeController.deleteSavingDeposit.bind(financeController))
 
 export default router

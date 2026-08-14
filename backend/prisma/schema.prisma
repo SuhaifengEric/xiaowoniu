@@ -171,9 +171,25 @@ model SavingPlan {
   targetDate    DateTime @map("target_date") @db.Date
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
+  deposits      SavingDeposit[] @relation("SavingPlanDeposits")
 
   @@index([userId, targetDate])
   @@map("saving_plans")
+}
+
+model SavingDeposit {
+  id           String     @id @default(uuid())
+  savingPlanId String     @map("saving_plan_id")
+  savingPlan   SavingPlan @relation("SavingPlanDeposits", fields: [savingPlanId], references: [id], onDelete: Cascade)
+  amount       Decimal    @db.Decimal(12, 2)
+  date         DateTime?  @db.Date
+  notes        String?    @db.Text
+  source       String     @default("manual") @db.VarChar(32)
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  @@index([savingPlanId, date, createdAt])
+  @@map("saving_deposits")
 }
 
 model WeddingTask {

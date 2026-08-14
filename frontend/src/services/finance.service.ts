@@ -2,12 +2,16 @@ import type {
   ApiSuccessResponse,
   CreateBudgetRequest,
   CreateExpenseRequest,
+  CreateSavingDepositRequest,
   CreateSavingPlanRequest,
   ExpenseResponse,
   FinanceExpenseQueryParams,
   FinanceSummaryResponse,
   MonthlyBudgetResponse,
+  SavingDepositQueryParams,
+  SavingDepositResponse,
   SavingPlanResponse,
+  UpdateSavingDepositRequest,
   UpdateExpenseRequest,
   UpdateSavingPlanRequest,
 } from '@xiaowoniu/shared'
@@ -95,6 +99,41 @@ export const financeService = {
   async deleteSavingPlan(id: string): Promise<null> {
     const response = await api.delete<ApiSuccessResponse<null>>(
       `/api/finance/saving-plans/${id}`
+    )
+    return response.data.data
+  },
+
+  async getSavingDeposits(planId: string, params?: SavingDepositQueryParams): Promise<SavingDepositResponse[]> {
+    const response = await api.get<ApiSuccessResponse<SavingDepositResponse[]>>(
+      `/api/finance/saving-plans/${planId}/deposits`,
+      { params },
+    )
+    return response.data.data
+  },
+
+  async createSavingDeposit(planId: string, data: CreateSavingDepositRequest): Promise<SavingDepositResponse> {
+    const response = await api.post<ApiSuccessResponse<SavingDepositResponse>>(
+      `/api/finance/saving-plans/${planId}/deposits`,
+      data,
+    )
+    return response.data.data
+  },
+
+  async updateSavingDeposit(
+    planId: string,
+    depositId: string,
+    data: UpdateSavingDepositRequest,
+  ): Promise<SavingDepositResponse> {
+    const response = await api.patch<ApiSuccessResponse<SavingDepositResponse>>(
+      `/api/finance/saving-plans/${planId}/deposits/${depositId}`,
+      data,
+    )
+    return response.data.data
+  },
+
+  async deleteSavingDeposit(planId: string, depositId: string): Promise<null> {
+    const response = await api.delete<ApiSuccessResponse<null>>(
+      `/api/finance/saving-plans/${planId}/deposits/${depositId}`,
     )
     return response.data.data
   },

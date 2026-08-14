@@ -89,7 +89,7 @@ export class DashboardService {
       }),
       prisma.savingPlan.findMany({
         where: { userId },
-        select: { currentAmount: true, targetAmount: true },
+        select: { id: true, targetAmount: true },
       }),
       prisma.weddingBudget.findUnique({
         where: { userId },
@@ -113,6 +113,14 @@ export class DashboardService {
       })
       : null
 
+    const savingDepositGroups = savingPlans.length === 0
+      ? []
+      : await prisma.savingDeposit.groupBy({
+        by: ['savingPlanId'],
+        where: { savingPlanId: { in: savingPlans.map(({ id }) => id) } },
+        _sum: { amount: true },
+      })
+
     const totalChapters = learningSubjects?._sum.totalChapters ?? 0
     const completedChapters = learningSubjects?._sum.currentChapter ?? 0
     const currentMonthExpense = numberValue(currentMonthExpenses._sum.amount)
@@ -120,6 +128,7 @@ export class DashboardService {
     const weddingSpent = numberValue(weddingExpenses._sum.actualAmount)
     const weddingTotalBudget = weddingBudget ? numberValue(weddingBudget.totalBudget) : null
     const taskCounts = new Map(weddingTaskGroups.map((group) => [group.status, group._count._all]))
+    const savingDepositTotals = new Map(savingDepositGroups.map((group) => [group.savingPlanId, group._sum.amount]))
 
     return {
       generatedAt: now.toISOString(),
@@ -149,7 +158,7 @@ export class DashboardService {
         currentMonthBudget: monthBudget,
         budgetRemaining: monthBudget === null ? null : monthBudget - currentMonthExpense,
         activeSavingPlansCount: savingPlans.filter((plan) => (
-          new Prisma.Decimal(plan.currentAmount).lt(plan.targetAmount)
+          new Prisma.Decimal(savingDepositTotals.get(plan.id) ?? 0).lt(plan.targetAmount)
         )).length,
       },
       wedding: {

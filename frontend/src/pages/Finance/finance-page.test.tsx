@@ -10,6 +10,10 @@ const store = vi.hoisted(() => ({
   summary: null as Record<string, unknown> | null,
   budget: null as Record<string, unknown> | null,
   savingPlans: [] as Array<Record<string, unknown>>,
+  savingDepositsByPlan: {} as Record<string, unknown[]>,
+  savingDepositsHasMoreByPlan: {} as Record<string, boolean>,
+  savingDepositsLoadingByPlan: {} as Record<string, boolean>,
+  savingDepositsErrorByPlan: {} as Record<string, string | null>,
   selectedMonth: '2026-07',
   loading: false,
   error: null as string | null,
@@ -22,9 +26,15 @@ const store = vi.hoisted(() => ({
   createSavingPlan: vi.fn().mockResolvedValue(undefined),
   updateSavingPlan: vi.fn().mockResolvedValue(undefined),
   deleteSavingPlan: vi.fn().mockResolvedValue(undefined),
+  fetchSavingDeposits: vi.fn().mockResolvedValue(undefined),
+  createSavingDeposit: vi.fn().mockResolvedValue(undefined),
+  updateSavingDeposit: vi.fn().mockResolvedValue(undefined),
+  deleteSavingDeposit: vi.fn().mockResolvedValue(undefined),
   clearError: vi.fn(),
 }))
 const auth = vi.hoisted(() => ({ logout: vi.fn().mockResolvedValue(undefined) }))
+const savingPlan = { id: 'plan-1', userId: 'user-1', name: '旅行基金', targetAmount: 1000, currentAmount: 300, depositCount: 1, targetDate: '2026-12-31', progressPercentage: 30, remainingAmount: 700, isCompleted: false, createdAt: '', updatedAt: '' }
+const savingDeposit = { id: 'deposit-1', savingPlanId: 'plan-1', amount: 300, date: '2026-08-14', notes: '固定存入', source: 'manual' as const, createdAt: '', updatedAt: '' }
 
 vi.mock('@/store/finance.store', () => ({
   formatMonth: (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`,
@@ -39,6 +49,10 @@ beforeEach(() => {
   store.summary = null
   store.budget = null
   store.savingPlans = []
+  store.savingDepositsByPlan = {}
+  store.savingDepositsHasMoreByPlan = {}
+  store.savingDepositsLoadingByPlan = {}
+  store.savingDepositsErrorByPlan = {}
   store.selectedMonth = '2026-07'
   store.loading = false
   store.error = null
@@ -52,6 +66,10 @@ beforeEach(() => {
   store.createSavingPlan.mockResolvedValue(undefined)
   store.updateSavingPlan.mockResolvedValue(undefined)
   store.deleteSavingPlan.mockResolvedValue(undefined)
+  store.fetchSavingDeposits.mockResolvedValue(undefined)
+  store.createSavingDeposit.mockResolvedValue(undefined)
+  store.updateSavingDeposit.mockResolvedValue(undefined)
+  store.deleteSavingDeposit.mockResolvedValue(undefined)
   auth.logout.mockClear()
 })
 
@@ -91,6 +109,36 @@ describe('Finance page', () => {
     await user.type(screen.getByLabelText('预算金额'), '300')
     await user.click(screen.getByRole('button', { name: '保存预算' }))
     expect(await screen.findByRole('status')).toHaveTextContent('预算已更新')
+  })
+
+  it('opens the selected plan deposit flow and lazily fetches its history', async () => {
+    const user = userEvent.setup()
+    store.savingPlans = [savingPlan]
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: '存一笔' }))
+    expect(screen.getByRole('dialog', { name: '给「旅行基金」存一笔' })).toBeInTheDocument()
+    await user.type(screen.getByLabelText('存入金额'), '500')
+    await user.type(screen.getByLabelText('备注'), '本周存入')
+    await user.click(screen.getByRole('button', { name: '保存存入记录' }))
+    await waitFor(() => expect(store.createSavingDeposit).toHaveBeenCalledWith('plan-1', expect.objectContaining({ amount: 500, date: expect.any(String), notes: '本周存入' })))
+
+    await user.click(screen.getByRole('button', { name: '查看存入记录' }))
+    expect(store.fetchSavingDeposits).toHaveBeenCalledWith('plan-1', { limit: 50, offset: 0 })
+  })
+
+  it('confirms deletion of a selected deposit without using the plan delete action', async () => {
+    const user = userEvent.setup()
+    store.savingPlans = [savingPlan]
+    store.savingDepositsByPlan = { 'plan-1': [savingDeposit] }
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: '查看存入记录' }))
+    await user.click(screen.getByRole('button', { name: '删除2026年8月14日存入记录' }))
+    expect(screen.getByRole('dialog', { name: '确认删除存入记录' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '确认删除' }))
+    await waitFor(() => expect(store.deleteSavingDeposit).toHaveBeenCalledWith('plan-1', 'deposit-1'))
+    expect(store.deleteSavingPlan).not.toHaveBeenCalled()
   })
 
   it('keeps delete confirmation open after a failed deletion and does not confirm on cancel', async () => {

@@ -22,7 +22,7 @@ const name = z.string()
 const expenseAmount = amount(0.01, 9_999_999_999.99)
 const budgetAmount = amount(0, 9_999_999_999.99)
 const savingTargetAmount = amount(0.01, 9_999_999_999.99)
-const savingCurrentAmount = amount(0, 9_999_999_999.99)
+const savingDepositAmount = amount(0.01, 9_999_999_999.99)
 
 const expenseQuery = z.object({
   startDate: dateString.optional(),
@@ -49,13 +49,35 @@ const updateExpenseBody = z.object({
 const updateSavingPlanBody = z.object({
   name: name.optional(),
   targetAmount: savingTargetAmount.optional(),
-  currentAmount: savingCurrentAmount.optional(),
   targetDate: dateString.optional(),
 }).strict().refine((value) => Object.keys(value).length > 0, {
   message: '至少提供一个可更新字段',
 })
 
+const savingDepositQuery = z.object({
+  limit: boundedInteger(1, 100).optional(),
+  offset: boundedInteger(0, 1_000_000).optional(),
+}).strict()
+
+const createSavingDepositBody = z.object({
+  amount: savingDepositAmount,
+  date: dateString,
+  notes: z.string().max(2000).optional(),
+}).strict()
+
+const updateSavingDepositBody = z.object({
+  amount: savingDepositAmount.optional(),
+  date: dateString.optional(),
+  notes: z.string().max(2000).nullable().optional(),
+}).strict().refine((value) => Object.keys(value).length > 0, {
+  message: '至少提供一个可更新字段',
+})
+
 const idParams = z.object({ id: z.string().min(1) }).strict()
+const savingDepositParams = z.object({
+  id: z.string().min(1),
+  depositId: z.string().min(1),
+}).strict()
 const emptyRequestPart = z.object({}).strict()
 
 export const expenseQuerySchema = z.object({ query: expenseQuery })
@@ -92,7 +114,6 @@ export const createSavingPlanSchema = z.object({
   body: z.object({
     name,
     targetAmount: savingTargetAmount,
-    currentAmount: savingCurrentAmount.optional(),
     targetDate: dateString,
   }).strict(),
 })
@@ -102,6 +123,25 @@ export const updateSavingPlanSchema = z.object({ body: updateSavingPlanBody })
 export const updateSavingPlanRouteSchema = z.object({
   params: idParams,
   body: updateSavingPlanBody,
+})
+
+export const savingDepositQuerySchema = z.object({
+  params: idParams,
+  query: savingDepositQuery,
+})
+
+export const createSavingDepositSchema = z.object({
+  params: idParams,
+  body: createSavingDepositBody,
+})
+
+export const updateSavingDepositSchema = z.object({
+  params: savingDepositParams,
+  body: updateSavingDepositBody,
+})
+
+export const deleteSavingDepositSchema = z.object({
+  params: savingDepositParams,
 })
 
 export const idParamSchema = z.object({ params: idParams })

@@ -77,12 +77,12 @@ pnpm --filter @xiaowoniu/frontend build
 - **Dashboard（已实现）** - 四个模块的服务端聚合摘要、空值/错误/重试状态和快捷操作，入口为受保护路由 `/dashboard`
 - **瘦瘦瘦（已实现）** - 运动打卡与月历、体重记录与趋势图、健身目标和周/月统计
 - **学学学（已实现）** - 考试倒计时、学习科目进度、学习打卡、42 天学习日历和近期记录，入口为受保护路由 `/learning`
-- **省省省（已实现）** - 消费记录、月度预算、支出汇总、每日趋势和存钱计划，入口为受保护路由 `/finance`
+- **省省省（已实现）** - 消费记录、月度预算、支出汇总、每日趋势、存钱计划和可追踪的存入历史，入口为受保护路由 `/finance`
 - **嫁嫁嫁（已实现）** - 以婚姻进程为主线，记录确认意愿、两次上门、双方父母见面、基本共识、订婚、领证和婚礼 8 个节点；同时保留阶段行动项、预算、花费和时间线，入口为受保护路由 `/wedding`
 
 Dashboard 摘要由后端 `GET /api/dashboard/summary` 按当前用户和服务端 UTC 边界聚合，前端快捷操作使用白名单 `action` 参数进入既有模块 dialog；没有预算、考试或婚期时使用 `null`，预算超支保留负数。所有受保护入口为 `/dashboard`、`/fitness`、`/learning`、`/finance`、`/wedding`。
 
-Finance 后端接口以 `/api/finance` 为前缀，月度汇总由服务端按 `YYYY-MM` 计算，分类和每日趋势包含零值数据。消费、预算和存钱计划均按当前 JWT 用户隔离，金额最多两位小数；执行 Finance 迁移前必须连接 PostgreSQL，`prisma validate` 和 `prisma generate` 不能替代 `prisma migrate deploy`。
+Finance 后端接口以 `/api/finance` 为前缀，月度汇总由服务端按 `YYYY-MM` 计算，分类和每日趋势包含零值数据。消费、预算、存钱计划和存入记录均按当前 JWT 用户隔离；存钱计划的累计金额、进度和剩余金额由存入记录聚合派生，金额最多两位小数。执行 Finance 迁移前必须连接 PostgreSQL，`prisma validate` 和 `prisma generate` 不能替代 `prisma migrate deploy`。
 
 Wedding 后端接口以 `/api/wedding` 为前缀。`PUT /api/wedding/process` 幂等初始化 8 个婚姻节点和 6 个默认共识议题；节点的计划日期、实际日期、状态、补录标记和历史分开保存，日期到了不会自动完成，父母见面也不表示审批。领证和婚礼独立记录，可分别调整计划顺序；阶段行动项扩展自原有备婚任务，未传阶段默认归入婚礼、负责人默认为双方。原有任务看板、预算与婚期、花费明细、里程碑时间线和倒计时仍可使用；花费按类别独立快照并可关联行动项，删除行动项后花费保留并解除关联。预算、节点概览、任务完成率、类别统计、时间线和有符号倒计时全部由服务端按当前用户实时派生。任务、节点、共识、花费、预算和统计均按当前 JWT 用户隔离，跨用户资源统一返回 `404`；金额最多两位小数，日期使用 `YYYY-MM-DD`。执行 Wedding 迁移前必须连接 PostgreSQL，`prisma validate` 和 `prisma generate` 不能替代 `prisma migrate deploy`。
 

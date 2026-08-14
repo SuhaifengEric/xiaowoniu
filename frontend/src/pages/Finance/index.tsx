@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ArrowLeft, ChevronLeft, ChevronRight, PiggyBank, Plus, Wallet, X } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import type { CreateExpenseRequest, CreateSavingPlanRequest, ExpenseResponse, SavingPlanResponse, UpdateExpenseRequest, UpdateSavingPlanRequest } from '@xiaowoniu/shared'
+import type { CreateExpenseRequest, CreateSavingDepositRequest, CreateSavingPlanRequest, ExpenseResponse, SavingDepositResponse, SavingPlanResponse, UpdateExpenseRequest, UpdateSavingDepositRequest, UpdateSavingPlanRequest } from '@xiaowoniu/shared'
 import AccountMenu from '@/components/navigation/AccountMenu'
 import MobileTabBar from '@/components/navigation/MobileTabBar'
 import { Button } from '@/components/ui/button'
@@ -10,6 +10,7 @@ import ExpenseDialog from '@/components/finance/ExpenseDialog'
 import FinanceDeleteDialog from '@/components/finance/FinanceDeleteDialog'
 import { ExpenseList } from '@/components/finance/ExpenseList'
 import { FinanceSummary } from '@/components/finance/FinanceSummary'
+import SavingDepositDialog from '@/components/finance/SavingDepositDialog'
 import SavingPlanDialog from '@/components/finance/SavingPlanDialog'
 import { SavingPlanList } from '@/components/finance/SavingPlanList'
 import Toast from '@/components/ui/toast'
@@ -25,14 +26,18 @@ function shiftMonth(month: string, offset: number) {
   return formatMonth(new Date(year, value - 1 + offset, 1))
 }
 
-type DialogName = 'expense' | 'budget' | 'savingPlan' | null
+type DialogName = 'expense' | 'budget' | 'savingPlan' | 'savingDeposit' | null
 type DashboardDialogName = Exclude<DialogName, null>
 const dashboardActions: Record<string, DashboardDialogName> = {
   expense: 'expense',
   budget: 'budget',
   'saving-plan': 'savingPlan',
 }
-type DeleteTarget = { resource: 'expense' | 'savingPlan'; id: string } | null
+type DeleteTarget =
+  | { resource: 'expense'; id: string }
+  | { resource: 'savingPlan'; id: string }
+  | { resource: 'savingDeposit'; id: string; planId: string; deposit: SavingDepositResponse }
+  | null
 
 export default function Finance() {
   const navigate = useNavigate()
@@ -41,6 +46,10 @@ export default function Finance() {
   const summary = useFinanceStore((state) => state.summary)
   const budget = useFinanceStore((state) => state.budget)
   const savingPlans = useFinanceStore((state) => state.savingPlans)
+  const savingDepositsByPlan = useFinanceStore((state) => state.savingDepositsByPlan)
+  const savingDepositsHasMoreByPlan = useFinanceStore((state) => state.savingDepositsHasMoreByPlan)
+  const savingDepositsLoadingByPlan = useFinanceStore((state) => state.savingDepositsLoadingByPlan)
+  const savingDepositsErrorByPlan = useFinanceStore((state) => state.savingDepositsErrorByPlan)
   const selectedMonth = useFinanceStore((state) => state.selectedMonth)
   const loading = useFinanceStore((state) => state.loading)
   const error = useFinanceStore((state) => state.error)
@@ -53,12 +62,18 @@ export default function Finance() {
   const createSavingPlan = useFinanceStore((state) => state.createSavingPlan)
   const updateSavingPlan = useFinanceStore((state) => state.updateSavingPlan)
   const deleteSavingPlan = useFinanceStore((state) => state.deleteSavingPlan)
+  const fetchSavingDeposits = useFinanceStore((state) => state.fetchSavingDeposits)
+  const createSavingDeposit = useFinanceStore((state) => state.createSavingDeposit)
+  const updateSavingDeposit = useFinanceStore((state) => state.updateSavingDeposit)
+  const deleteSavingDeposit = useFinanceStore((state) => state.deleteSavingDeposit)
   const clearError = useFinanceStore((state) => state.clearError)
 
   const [dialog, setDialog] = useState<DialogName>(null)
   const [dashboardReturnFocus, setDashboardReturnFocus] = useState<string | null>(null)
   const [editingExpense, setEditingExpense] = useState<ExpenseResponse | null>(null)
   const [editingPlan, setEditingPlan] = useState<SavingPlanResponse | null>(null)
+  const [depositPlan, setDepositPlan] = useState<SavingPlanResponse | null>(null)
+  const [editingDeposit, setEditingDeposit] = useState<SavingDepositResponse | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget>(null)
   const [deleteSubmitting, setDeleteSubmitting] = useState(false)
   const [status, setStatus] = useState('')
@@ -78,6 +93,13 @@ export default function Finance() {
     setEditingPlan(plan)
     setStatus('')
     setDialog('savingPlan')
+  }
+
+  const openSavingDeposit = (plan: SavingPlanResponse, deposit: SavingDepositResponse | null = null) => {
+    setDepositPlan(plan)
+    setEditingDeposit(deposit)
+    setStatus('')
+    setDialog('savingDeposit')
   }
 
   const openBudget = (dashboardAction: string | null = null) => {
@@ -129,6 +151,25 @@ export default function Finance() {
     }
   }
 
+  const submitSavingDeposit = async (data: CreateSavingDepositRequest | UpdateSavingDepositRequest) => {
+    if (!depositPlan) return
+    if (editingDeposit) {
+      await updateSavingDeposit(depositPlan.id, editingDeposit.id, data as UpdateSavingDepositRequest)
+      setStatus('存入记录已更新')
+    } else {
+      await createSavingDeposit(depositPlan.id, data as CreateSavingDepositRequest)
+      setStatus('存入记录已创建')
+    }
+  }
+
+  const loadSavingDeposits = (planId: string) => {
+    void fetchSavingDeposits(planId, { limit: 50, offset: 0 }).catch(() => undefined)
+  }
+
+  const loadMoreSavingDeposits = (planId: string, offset: number) => {
+    void fetchSavingDeposits(planId, { limit: 50, offset }).catch(() => undefined)
+  }
+
   const confirmDelete = async () => {
     if (!deleteTarget) return
     setDeleteSubmitting(true)
@@ -136,9 +177,12 @@ export default function Finance() {
       if (deleteTarget.resource === 'expense') {
         await deleteExpense(deleteTarget.id)
         setStatus('消费记录已删除')
-      } else {
+      } else if (deleteTarget.resource === 'savingPlan') {
         await deleteSavingPlan(deleteTarget.id)
         setStatus('存钱计划已删除')
+      } else {
+        await deleteSavingDeposit(deleteTarget.planId, deleteTarget.id)
+        setStatus('存入记录已删除')
       }
       setDeleteTarget(null)
     } catch {
@@ -178,14 +222,30 @@ export default function Finance() {
 
         <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
           <div className="grid min-w-0 gap-5"><FinanceSummary summary={summary} loading={loading} onEditBudget={openBudget} /><ExpenseList expenses={expenses} loading={loading} onCreate={() => openExpense()} onEdit={openExpense} onDelete={(expense) => setDeleteTarget({ resource: 'expense', id: expense.id })} /></div>
-          <SavingPlanList plans={savingPlans} loading={loading} onCreate={() => openSavingPlan()} onEdit={openSavingPlan} onDelete={(plan) => setDeleteTarget({ resource: 'savingPlan', id: plan.id })} />
+          <SavingPlanList
+            plans={savingPlans}
+            loading={loading}
+            onCreate={() => openSavingPlan()}
+            onEdit={openSavingPlan}
+            onDelete={(plan) => setDeleteTarget({ resource: 'savingPlan', id: plan.id })}
+            onDeposit={openSavingDeposit}
+            onLoadDeposits={loadSavingDeposits}
+            onLoadMoreDeposits={loadMoreSavingDeposits}
+            onEditDeposit={openSavingDeposit}
+            onDeleteDeposit={(plan, deposit) => setDeleteTarget({ resource: 'savingDeposit', id: deposit.id, planId: plan.id, deposit })}
+            depositsByPlan={savingDepositsByPlan}
+            depositsHasMoreByPlan={savingDepositsHasMoreByPlan}
+            depositsLoadingByPlan={savingDepositsLoadingByPlan}
+            depositsErrorByPlan={savingDepositsErrorByPlan}
+          />
         </div>
       </div>
 
       <ExpenseDialog open={dialog === 'expense'} expense={editingExpense} initialDate={`${selectedMonth}-01`} onOpenChange={(open) => !open && setDialog(null)} onSubmit={submitExpense} />
       <BudgetDialog open={dialog === 'budget'} month={selectedMonth} budget={budget} onOpenChange={(open) => !open && setDialog(null)} onSubmit={submitBudget} />
       <SavingPlanDialog open={dialog === 'savingPlan'} plan={editingPlan} onOpenChange={(open) => !open && setDialog(null)} onSubmit={submitSavingPlan} />
-      <FinanceDeleteDialog open={deleteTarget !== null} resource={deleteTarget?.resource ?? 'expense'} submitting={deleteSubmitting} onOpenChange={(open) => !open && setDeleteTarget(null)} onConfirm={confirmDelete} />
+      {depositPlan && <SavingDepositDialog open={dialog === 'savingDeposit'} plan={depositPlan} deposit={editingDeposit} initialDate={new Date().toISOString().slice(0, 10)} onOpenChange={(open) => !open && setDialog(null)} onSubmit={submitSavingDeposit} />}
+      <FinanceDeleteDialog open={deleteTarget !== null} resource={deleteTarget?.resource ?? 'expense'} deposit={deleteTarget?.resource === 'savingDeposit' ? deleteTarget.deposit : null} submitting={deleteSubmitting} onOpenChange={(open) => !open && setDeleteTarget(null)} onConfirm={confirmDelete} />
       <MobileTabBar />
     </main>
   )

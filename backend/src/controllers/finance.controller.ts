@@ -2,13 +2,16 @@ import { NextFunction, Request, Response } from 'express'
 import {
   CreateBudgetRequest,
   CreateExpenseRequest,
+  CreateSavingDepositRequest,
   CreateSavingPlanRequest,
   FinanceExpenseQueryParams,
   FinanceMonthQuery,
+  SavingDepositQueryParams,
   UpdateExpenseRequest,
+  UpdateSavingDepositRequest,
   UpdateSavingPlanRequest,
 } from '@xiaowoniu/shared'
-import financeService, { FinanceConflictError, FinanceNotFoundError } from '../services/finance.service'
+import financeService, { FinanceConflictError, FinanceNotFoundError, FinanceValidationError } from '../services/finance.service'
 import { error, success } from '../utils/response'
 
 export class FinanceController {
@@ -82,8 +85,47 @@ export class FinanceController {
     } catch (err) { return this.handle(err, res, next) }
   }
 
+  async listSavingDeposits(req: Request, res: Response, next: NextFunction) {
+    try {
+      return success(res, await financeService.getSavingDeposits(
+        req.user!.userId,
+        req.params.id,
+        req.query as SavingDepositQueryParams,
+      ))
+    } catch (err) { return this.handle(err, res, next) }
+  }
+
+  async createSavingDeposit(req: Request, res: Response, next: NextFunction) {
+    try {
+      return success(res, await financeService.createSavingDeposit(
+        req.user!.userId,
+        req.params.id,
+        req.body as CreateSavingDepositRequest,
+      ), '存入记录已创建')
+    } catch (err) { return this.handle(err, res, next) }
+  }
+
+  async updateSavingDeposit(req: Request, res: Response, next: NextFunction) {
+    try {
+      return success(res, await financeService.updateSavingDeposit(
+        req.user!.userId,
+        req.params.id,
+        req.params.depositId,
+        req.body as UpdateSavingDepositRequest,
+      ), '存入记录已更新')
+    } catch (err) { return this.handle(err, res, next) }
+  }
+
+  async deleteSavingDeposit(req: Request, res: Response, next: NextFunction) {
+    try {
+      await financeService.deleteSavingDeposit(req.user!.userId, req.params.id, req.params.depositId)
+      return success(res, null, '存入记录已删除')
+    } catch (err) { return this.handle(err, res, next) }
+  }
+
   private handle(err: unknown, res: Response, next: NextFunction) {
     if (err instanceof FinanceNotFoundError) return error(res, 404, { code: 'NOT_FOUND', message: err.message })
+    if (err instanceof FinanceValidationError) return error(res, 400, { code: 'VALIDATION_ERROR', message: err.message })
     if (err instanceof FinanceConflictError) return error(res, 409, { code: 'CONFLICT', message: err.message })
     return next(err)
   }

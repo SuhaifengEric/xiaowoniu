@@ -16,6 +16,10 @@ vi.mock('@/services/finance.service', () => ({
     createSavingPlan: vi.fn(),
     updateSavingPlan: vi.fn(),
     deleteSavingPlan: vi.fn(),
+    getSavingDeposits: vi.fn(),
+    createSavingDeposit: vi.fn(),
+    updateSavingDeposit: vi.fn(),
+    deleteSavingDeposit: vi.fn(),
   },
 }))
 
@@ -35,6 +39,7 @@ const budget = {
 }
 const savingPlan = {
   id: 'plan-1', userId: 'user-1', name: '旅行', targetAmount: 2000, currentAmount: 500,
+  depositCount: 1,
   targetDate: '2026-12-31', progressPercentage: 25, remainingAmount: 1500,
   isCompleted: false, createdAt: 'created', updatedAt: 'updated',
 }
@@ -189,11 +194,77 @@ describe('useFinanceStore', () => {
     await useFinanceStore.getState().upsertBudget({ month: '2026-07', amount: 1200 })
     await useFinanceStore.getState().createSavingPlan({
       name: savingPlan.name, targetAmount: savingPlan.targetAmount,
-      currentAmount: savingPlan.currentAmount, targetDate: savingPlan.targetDate,
+      targetDate: savingPlan.targetDate,
     })
 
     expect(service.getBudget).toHaveBeenCalledWith('2026-07')
     expect(service.getSummary).toHaveBeenCalledWith('2026-07')
     expect(service.getSavingPlans).toHaveBeenCalledOnce()
+  })
+
+  it('loads saving deposits lazily, paginates, and de-duplicates records by id', async () => {
+    const first = { id: 'deposit-1', savingPlanId: 'plan-1', amount: 500, date: '2026-08-14', notes: null, source: 'manual' as const, createdAt: 'created-1', updatedAt: 'updated-1' }
+    const second = { ...first, id: 'deposit-2', amount: 300, date: '2026-08-13' }
+    service.getSavingDeposits
+      .mockResolvedValueOnce([first])
+      .mockResolvedValueOnce([first, second])
+
+    await useFinanceStore.getState().fetchSavingDeposits('plan-1', { limit: 2, offset: 0 })
+    await useFinanceStore.getState().fetchSavingDeposits('plan-1', { limit: 2, offset: 1 })
+
+    expect(service.getSavingDeposits).toHaveBeenNthCalledWith(1, 'plan-1', { limit: 2, offset: 0 })
+    expect(service.getSavingDeposits).toHaveBeenNthCalledWith(2, 'plan-1', { limit: 2, offset: 1 })
+    expect(useFinanceStore.getState()).toMatchObject({
+      savingDepositsByPlan: { 'plan-1': [first, second] },
+      savingDepositsHasMoreByPlan: { 'plan-1': true },
+      savingDepositsLoadingByPlan: { 'plan-1': false },
+      savingDepositsErrorByPlan: { 'plan-1': null },
+    })
+  })
+
+  it('refreshes the selected plan and its deposits after a deposit mutation', async () => {
+    const deposit = { id: 'deposit-1', savingPlanId: 'plan-1', amount: 500, date: '2026-08-14', notes: null, source: 'manual' as const, createdAt: 'created', updatedAt: 'updated' }
+    const updatedPlan = { ...savingPlan, currentAmount: 1000, depositCount: 2 }
+    service.createSavingDeposit.mockResolvedValue(deposit)
+    service.getSavingDeposits.mockResolvedValue([deposit])
+    service.getSavingPlans.mockResolvedValue([updatedPlan])
+
+    await useFinanceStore.getState().createSavingDeposit('plan-1', { amount: 500, date: '2026-08-14' })
+
+    expect(service.createSavingDeposit).toHaveBeenCalledWith('plan-1', { amount: 500, date: '2026-08-14' })
+    expect(service.getSavingDeposits).toHaveBeenCalledWith('plan-1', { limit: 50, offset: 0 })
+    expect(service.getSavingPlans).toHaveBeenCalledOnce()
+    expect(useFinanceStore.getState()).toMatchObject({
+      savingPlans: [updatedPlan], savingDepositsByPlan: { 'plan-1': [deposit] }, error: null, loading: false,
+    })
+  })
+
+  it('keeps visible deposit history when the post-mutation refresh fails', async () => {
+    const existing = { id: 'deposit-1', savingPlanId: 'plan-1', amount: 500, date: '2026-08-14', notes: null, source: 'manual' as const, createdAt: 'created', updatedAt: 'updated' }
+    useFinanceStore.setState({ savingDepositsByPlan: { 'plan-1': [existing] } })
+    service.deleteSavingDeposit.mockResolvedValue(null)
+    service.getSavingDeposits.mockRejectedValue(new Error('history refresh failed'))
+    service.getSavingPlans.mockResolvedValue([savingPlan])
+
+    await expect(useFinanceStore.getState().deleteSavingDeposit('plan-1', 'deposit-1')).resolves.toBeUndefined()
+    expect(useFinanceStore.getState()).toMatchObject({
+      savingDepositsByPlan: { 'plan-1': [existing] },
+      savingDepositsErrorByPlan: { 'plan-1': 'history refresh failed' },
+      error: '操作已成功，但数据刷新失败',
+      loading: false,
+    })
+  })
+
+  it('refreshes the plan and history after editing a deposit', async () => {
+    const updatedDeposit = { id: 'deposit-1', savingPlanId: 'plan-1', amount: 550, date: '2026-08-14', notes: '修正金额', source: 'manual' as const, createdAt: 'created', updatedAt: 'updated' }
+    const updatedPlan = { ...savingPlan, currentAmount: 550, depositCount: 1 }
+    service.updateSavingDeposit.mockResolvedValue(updatedDeposit)
+    service.getSavingDeposits.mockResolvedValue([updatedDeposit])
+    service.getSavingPlans.mockResolvedValue([updatedPlan])
+
+    await useFinanceStore.getState().updateSavingDeposit('plan-1', 'deposit-1', { amount: 550, notes: '修正金额' })
+
+    expect(service.updateSavingDeposit).toHaveBeenCalledWith('plan-1', 'deposit-1', { amount: 550, notes: '修正金额' })
+    expect(useFinanceStore.getState()).toMatchObject({ savingPlans: [updatedPlan], savingDepositsByPlan: { 'plan-1': [updatedDeposit] }, loading: false, error: null })
   })
 })

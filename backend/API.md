@@ -499,6 +499,10 @@ Content-Type: application/json
 | `POST` | `/finance/saving-plans` | JWT | `存钱计划已创建` |
 | `PATCH` | `/finance/saving-plans/:id` | JWT | `存钱计划已更新` |
 | `DELETE` | `/finance/saving-plans/:id` | JWT | `存钱计划已删除` |
+| `GET` | `/finance/saving-plans/:id/deposits?limit=&offset=` | JWT | - |
+| `POST` | `/finance/saving-plans/:id/deposits` | JWT | `存入记录已创建` |
+| `PATCH` | `/finance/saving-plans/:id/deposits/:depositId` | JWT | `存入记录已更新` |
+| `DELETE` | `/finance/saving-plans/:id/deposits/:depositId` | JWT | `存入记录已删除` |
 
 获取存钱计划：
 
@@ -517,12 +521,11 @@ Content-Type: application/json
 {
   "name": "旅行基金",
   "targetAmount": 10000.00,
-  "currentAmount": 500.00,
   "targetDate": "2027-07-01"
 }
 ```
 
-`name` trim 后必须为 1–100 个字符；`targetAmount` 必须大于 `0`，`currentAmount` 默认为 `0` 且不得为负数；金额最多保留两位小数；`targetDate` 使用 `YYYY-MM-DD`。创建时 `currentAmount` 不得超过 `targetAmount`，否则返回 `409 CONFLICT`。
+`name` trim 后必须为 1–100 个字符；`targetAmount` 必须大于 `0`，金额最多保留两位小数；`targetDate` 使用 `YYYY-MM-DD`。新计划的已存金额为 `0`，不能通过计划接口提交 `currentAmount`。
 
 更新存钱计划：
 
@@ -532,30 +535,72 @@ Authorization: Bearer <token>
 Content-Type: application/json
 
 {
-  "currentAmount": 2500.00,
+  "targetAmount": 15000.00,
   "targetDate": "2027-09-01"
 }
 ```
 
-更新请求至少提供一个字段，可更新 `name`、`targetAmount`、`currentAmount` 或 `targetDate`；更新后的 `currentAmount` 不得超过更新后的 `targetAmount`，否则返回 `409 CONFLICT`。删除存钱计划：
+更新请求至少提供一个字段，可更新 `name`、`targetAmount` 或 `targetDate`。目标金额不得低于存入记录总额，否则返回 `409 CONFLICT`。删除存钱计划：
 
 ```http
 DELETE /api/finance/saving-plans/plan-id
 Authorization: Bearer <token>
 ```
 
-每个计划的响应会返回服务端派生字段 `progressPercentage`、`remainingAmount` 和 `isCompleted`：进度为已存金额除以目标金额后向下取整并限制在 `0..100`，剩余金额为目标金额减当前金额，当前金额达到目标金额时 `isCompleted` 为 `true`。计划不存在或属于其他用户时统一返回 `404 NOT_FOUND`，不泄露计划是否存在。
+每个计划的响应会返回服务端派生字段 `currentAmount`、`depositCount`、`progressPercentage`、`remainingAmount` 和 `isCompleted`。这些字段来自 `saving_deposits.amount` 的聚合，不是计划编辑接口的写入字段：进度为已存金额除以目标金额后向下取整并限制在 `0..100`，剩余金额为目标金额减当前金额，当前金额达到目标金额时 `isCompleted` 为 `true`。
+
+新增一笔存入：
+
+```http
+POST /api/finance/saving-plans/plan-id/deposits
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "amount": 500.00,
+  "date": "2026-08-14",
+  "notes": "本周固定存入"
+}
+```
+
+`amount` 必须大于 `0`、最多两位小数且不能使累计存入超过目标金额；`date` 必填且只能是今天或过去的 `YYYY-MM-DD`，服务端以 UTC 当天判断；`notes` 最多 2000 个字符，空备注保存为 `null`。金额超目标返回 `409 CONFLICT`，未来日期返回 `400 VALIDATION_ERROR`。
+
+查询存入历史：
+
+```http
+GET /api/finance/saving-plans/plan-id/deposits?limit=50&offset=0
+Authorization: Bearer <token>
+```
+
+默认按存入日期倒序、创建时间倒序、记录 id 倒序排列，历史迁移记录的 `date` 为 `null` 并稳定置底；`limit` 为 `1..100`，`offset` 为 `0..1000000`。
+
+编辑和删除存入记录：
+
+```http
+PATCH /api/finance/saving-plans/plan-id/deposits/deposit-id
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{ "amount": 550.00, "notes": "修正实际金额" }
+```
+
+```http
+DELETE /api/finance/saving-plans/plan-id/deposits/deposit-id
+Authorization: Bearer <token>
+```
+
+存入记录更新至少提供一个字段，日期不能清空；编辑后的累计金额仍不能超过目标金额。每个计划删除时由数据库级联删除其存入记录；计划或存入记录不存在、或属于其他用户时统一返回 `404 NOT_FOUND`，不泄露资源是否存在。旧 `saving_plans.current_amount` 在阶段 A migration 中回填为 `source=legacy_import`、`date=null` 的一条历史记录；本期保留旧字段用于核对，不能把它作为新的业务写入来源。
 
 ### Finance 错误
 
 除资源不存在和目标金额冲突外，Finance 请求遵循统一错误包络：
 
-- `400 VALIDATION_ERROR`：请求体、路径参数、日期、月份、金额或查询参数不合法；金额超过两位小数、日期不是有效的 `YYYY-MM-DD`、月份不是有效的 `YYYY-MM` 也属于此类。
+- `400 VALIDATION_ERROR`：请求体、路径参数、日期、月份、金额或查询参数不合法；金额超过两位小数、日期不是有效的 `YYYY-MM-DD`、未来存入日期、月份不是有效的 `YYYY-MM` 也属于此类。
 - `401 UNAUTHORIZED`：未提供认证 Token。
 - `401 INVALID_TOKEN`：Token 格式或签名无效。
 - `401 TOKEN_EXPIRED`：Token 已过期。
-- `404 NOT_FOUND`：消费记录或存钱计划不存在，或属于其他用户。
-- `409 CONFLICT`：存钱计划当前金额超过目标金额，或更新后的目标金额低于当前金额。
+- `404 NOT_FOUND`：消费记录、存钱计划或存入记录不存在，或属于其他用户。
+- `409 CONFLICT`：新增/编辑存入后累计金额超过目标、目标金额低于已存总额，或 Serializable 事务发生并发冲突。
 
 ---
 

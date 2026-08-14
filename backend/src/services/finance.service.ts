@@ -2,13 +2,18 @@ import { Prisma } from '@prisma/client'
 import {
   CreateBudgetRequest,
   CreateExpenseRequest,
+  CreateSavingDepositRequest,
   CreateSavingPlanRequest,
   ExpenseCategory,
   ExpenseResponse,
   FinanceExpenseQueryParams,
   FinanceSummaryResponse,
   MonthlyBudgetResponse,
+  SavingDepositQueryParams,
+  SavingDepositResponse,
+  SavingDepositSource,
   SavingPlanResponse,
+  UpdateSavingDepositRequest,
   UpdateExpenseRequest,
   UpdateSavingPlanRequest,
 } from '@xiaowoniu/shared'
@@ -25,6 +30,13 @@ export class FinanceConflictError extends Error {
   constructor(message = '财务记录存在冲突') {
     super(message)
     this.name = 'FinanceConflictError'
+  }
+}
+
+export class FinanceValidationError extends Error {
+  constructor(message = '财务请求参数无效') {
+    super(message)
+    this.name = 'FinanceValidationError'
   }
 }
 
@@ -50,6 +62,47 @@ function isSavingPlanCheckConflict(error: unknown) {
     : ''
   const details = `${message} ${meta}`.toLowerCase()
   return details.includes('saving_plans') && details.includes('check')
+}
+
+type SavingPlanRecord = {
+  id: string
+  userId: string
+  name: string
+  targetAmount: Prisma.Decimal
+  targetDate: Date
+  createdAt: Date
+  updatedAt: Date
+}
+
+type SavingDepositRecord = {
+  id: string
+  savingPlanId: string
+  amount: Prisma.Decimal
+  date: Date | null
+  notes: string | null
+  source: string
+  createdAt: Date
+  updatedAt: Date
+}
+
+type SavingPlanAggregate = {
+  _sum: { amount: Prisma.Decimal | null }
+  _count: { _all: number }
+}
+
+type SavingRecordClient = Pick<Prisma.TransactionClient, 'savingPlan' | 'savingDeposit'>
+
+const emptySavingPlanAggregate = (): SavingPlanAggregate => ({
+  _sum: { amount: null },
+  _count: { _all: 0 },
+})
+
+async function savingPlanAggregate(client: SavingRecordClient, savingPlanId: string): Promise<SavingPlanAggregate> {
+  return client.savingDeposit.aggregate({
+    where: { savingPlanId },
+    _sum: { amount: true },
+    _count: { _all: true },
+  })
 }
 
 export function monthBounds(month: string): [Date, Date] {
@@ -104,9 +157,9 @@ function toBudgetResponse(record: any): MonthlyBudgetResponse {
   }
 }
 
-function toSavingPlanResponse(record: any): SavingPlanResponse {
+function toSavingPlanResponse(record: SavingPlanRecord, aggregate: SavingPlanAggregate): SavingPlanResponse {
   const targetAmount = decimalValue(record.targetAmount)
-  const currentAmount = decimalValue(record.currentAmount)
+  const currentAmount = decimalValue(aggregate._sum.amount ?? 0)
   const progressPercentage = targetAmount.eq(0)
     ? 0
     : clamp(currentAmount.div(targetAmount).mul(100).floor().toNumber())
@@ -118,11 +171,31 @@ function toSavingPlanResponse(record: any): SavingPlanResponse {
     targetAmount: targetAmount.toNumber(),
     currentAmount: currentAmount.toNumber(),
     targetDate: formatDate(record.targetDate),
+    depositCount: aggregate._count._all,
     progressPercentage,
     remainingAmount: targetAmount.sub(currentAmount).toNumber(),
     isCompleted: currentAmount.gte(targetAmount),
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString(),
+  }
+}
+
+function toSavingDepositResponse(record: SavingDepositRecord): SavingDepositResponse {
+  return {
+    id: record.id,
+    savingPlanId: record.savingPlanId,
+    amount: numberValue(record.amount),
+    date: record.date ? formatDate(record.date) : null,
+    notes: record.notes,
+    source: record.source as SavingDepositSource,
+    createdAt: record.createdAt.toISOString(),
+    updatedAt: record.updatedAt.toISOString(),
+  }
+}
+
+function assertDepositDateIsNotFuture(value: string) {
+  if (utcDate(value).getTime() > utcDate(formatDate(new Date())).getTime()) {
+    throw new FinanceValidationError('存入日期不能晚于今天')
   }
 }
 
@@ -278,59 +351,191 @@ export class FinanceService {
     const records = await prisma.savingPlan.findMany({
       where: { userId },
       orderBy: [{ targetDate: 'desc' }, { createdAt: 'desc' }],
+      select: {
+        id: true,
+        userId: true,
+        name: true,
+        targetAmount: true,
+        targetDate: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     })
-    return records.map(toSavingPlanResponse)
+    if (records.length === 0) return []
+
+    const aggregates = await prisma.savingDeposit.groupBy({
+      by: ['savingPlanId'],
+      where: { savingPlanId: { in: records.map(({ id }) => id) } },
+      _sum: { amount: true },
+      _count: { _all: true },
+    })
+    const aggregateByPlan = new Map(aggregates.map((aggregate) => [aggregate.savingPlanId, aggregate]))
+    return records.map((record) => toSavingPlanResponse(
+      record,
+      aggregateByPlan.get(record.id) ?? emptySavingPlanAggregate(),
+    ))
   }
 
   async createSavingPlan(userId: string, data: CreateSavingPlanRequest): Promise<SavingPlanResponse> {
     const targetAmount = decimalValue(data.targetAmount)
-    const currentAmount = decimalValue(data.currentAmount ?? 0)
-    if (currentAmount.gt(targetAmount)) {
-      throw new FinanceConflictError('当前金额不能超过目标金额')
-    }
-
     const record = await prisma.savingPlan.create({
       data: {
         userId,
         name: data.name.trim(),
         targetAmount,
-        currentAmount,
+        currentAmount: decimalValue(0),
         targetDate: utcDate(data.targetDate),
       },
     })
-    return toSavingPlanResponse(record)
+    return toSavingPlanResponse(record, emptySavingPlanAggregate())
   }
 
   async updateSavingPlan(userId: string, id: string, data: UpdateSavingPlanRequest): Promise<SavingPlanResponse> {
     try {
-      const record = await prisma.$transaction(async (tx) => {
+      const result = await prisma.$transaction(async (tx) => {
         const existing = await tx.savingPlan.findFirst({ where: { id, userId } })
         if (!existing) throw new FinanceNotFoundError('储蓄计划不存在')
 
         const targetAmount = data.targetAmount === undefined
           ? decimalValue(existing.targetAmount)
           : decimalValue(data.targetAmount)
-        const currentAmount = data.currentAmount === undefined
-          ? decimalValue(existing.currentAmount)
-          : decimalValue(data.currentAmount)
+        const aggregate = await savingPlanAggregate(tx, id)
+        const currentAmount = decimalValue(aggregate._sum.amount ?? 0)
         if (targetAmount.lt(currentAmount)) {
-          throw new FinanceConflictError('目标金额不能低于当前金额')
+          throw new FinanceConflictError('目标金额不能低于已存总额')
         }
 
         const updateData: Record<string, unknown> = {}
         if (data.name !== undefined) updateData.name = data.name.trim()
         if (data.targetAmount !== undefined) updateData.targetAmount = targetAmount
-        if (data.currentAmount !== undefined) updateData.currentAmount = currentAmount
         if (data.targetDate !== undefined) updateData.targetDate = utcDate(data.targetDate)
 
-        return tx.savingPlan.update({ where: { id }, data: updateData })
+        const record = await tx.savingPlan.update({ where: { id }, data: updateData })
+        return { record, aggregate }
       }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
-      return toSavingPlanResponse(record)
+      return toSavingPlanResponse(result.record, result.aggregate)
     } catch (error) {
       if (error instanceof FinanceNotFoundError || error instanceof FinanceConflictError) throw error
       if (prismaErrorCode(error) === 'P2025') throw new FinanceNotFoundError('储蓄计划不存在')
       if (prismaErrorCode(error) === 'P2034' || isSavingPlanCheckConflict(error)) {
         throw new FinanceConflictError('储蓄计划金额在并发更新中发生冲突')
+      }
+      throw error
+    }
+  }
+
+  async getSavingDeposits(
+    userId: string,
+    planId: string,
+    query: SavingDepositQueryParams,
+  ): Promise<SavingDepositResponse[]> {
+    const plan = await prisma.savingPlan.findFirst({
+      where: { id: planId, userId },
+      select: { id: true },
+    })
+    if (!plan) throw new FinanceNotFoundError('储蓄计划不存在')
+
+    const records = await prisma.savingDeposit.findMany({
+      where: { savingPlanId: planId },
+      orderBy: [
+        { date: { sort: 'desc', nulls: 'last' } },
+        { createdAt: 'desc' },
+        { id: 'desc' },
+      ],
+      ...pagination(query),
+    })
+    return records.map(toSavingDepositResponse)
+  }
+
+  async createSavingDeposit(
+    userId: string,
+    planId: string,
+    data: CreateSavingDepositRequest,
+  ): Promise<SavingDepositResponse> {
+    assertDepositDateIsNotFuture(data.date)
+    try {
+      return await prisma.$transaction(async (tx) => {
+        const plan = await tx.savingPlan.findFirst({ where: { id: planId, userId } })
+        if (!plan) throw new FinanceNotFoundError('储蓄计划不存在')
+
+        const aggregate = await savingPlanAggregate(tx, planId)
+        const currentAmount = decimalValue(aggregate._sum.amount ?? 0)
+        const amount = decimalValue(data.amount)
+        if (currentAmount.add(amount).gt(decimalValue(plan.targetAmount))) {
+          throw new FinanceConflictError('存入后将超过目标金额，请先调整目标或修改存入金额')
+        }
+
+        const record = await tx.savingDeposit.create({
+          data: {
+            savingPlanId: planId,
+            amount,
+            date: utcDate(data.date),
+            notes: data.notes?.trim() || null,
+          },
+        })
+        return toSavingDepositResponse(record)
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
+    } catch (error) {
+      if (error instanceof FinanceNotFoundError || error instanceof FinanceConflictError || error instanceof FinanceValidationError) throw error
+      if (prismaErrorCode(error) === 'P2025') throw new FinanceNotFoundError('储蓄计划不存在')
+      if (prismaErrorCode(error) === 'P2034') {
+        throw new FinanceConflictError('计划金额在并发更新中发生变化，请刷新后重试')
+      }
+      throw error
+    }
+  }
+
+  async updateSavingDeposit(
+    userId: string,
+    planId: string,
+    depositId: string,
+    data: UpdateSavingDepositRequest,
+  ): Promise<SavingDepositResponse> {
+    if (data.date !== undefined) assertDepositDateIsNotFuture(data.date)
+    try {
+      return await prisma.$transaction(async (tx) => {
+        const plan = await tx.savingPlan.findFirst({ where: { id: planId, userId } })
+        if (!plan) throw new FinanceNotFoundError('储蓄计划不存在')
+        const existing = await tx.savingDeposit.findFirst({ where: { id: depositId, savingPlanId: planId } })
+        if (!existing) throw new FinanceNotFoundError('存入记录不存在')
+
+        const aggregate = await savingPlanAggregate(tx, planId)
+        const currentAmount = decimalValue(aggregate._sum.amount ?? 0)
+        const nextAmount = data.amount === undefined ? decimalValue(existing.amount) : decimalValue(data.amount)
+        const totalAfterUpdate = currentAmount.sub(decimalValue(existing.amount)).add(nextAmount)
+        if (totalAfterUpdate.gt(decimalValue(plan.targetAmount))) {
+          throw new FinanceConflictError('存入后将超过目标金额，请先调整目标或修改存入金额')
+        }
+
+        const updateData: Record<string, unknown> = {}
+        if (data.amount !== undefined) updateData.amount = nextAmount
+        if (data.date !== undefined) updateData.date = utcDate(data.date)
+        if (data.notes !== undefined) updateData.notes = data.notes?.trim() || null
+        const record = await tx.savingDeposit.update({ where: { id: depositId }, data: updateData })
+        return toSavingDepositResponse(record)
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
+    } catch (error) {
+      if (error instanceof FinanceNotFoundError || error instanceof FinanceConflictError || error instanceof FinanceValidationError) throw error
+      if (prismaErrorCode(error) === 'P2025') throw new FinanceNotFoundError('存入记录不存在')
+      if (prismaErrorCode(error) === 'P2034') {
+        throw new FinanceConflictError('计划金额在并发更新中发生变化，请刷新后重试')
+      }
+      throw error
+    }
+  }
+
+  async deleteSavingDeposit(userId: string, planId: string, depositId: string): Promise<void> {
+    try {
+      await prisma.$transaction(async (tx) => {
+        const plan = await tx.savingPlan.findFirst({ where: { id: planId, userId }, select: { id: true } })
+        if (!plan) throw new FinanceNotFoundError('储蓄计划不存在')
+        const result = await tx.savingDeposit.deleteMany({ where: { id: depositId, savingPlanId: planId } })
+        if (result.count === 0) throw new FinanceNotFoundError('存入记录不存在')
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
+    } catch (error) {
+      if (error instanceof FinanceNotFoundError || error instanceof FinanceConflictError) throw error
+      if (prismaErrorCode(error) === 'P2034') {
+        throw new FinanceConflictError('计划金额在并发更新中发生变化，请刷新后重试')
       }
       throw error
     }

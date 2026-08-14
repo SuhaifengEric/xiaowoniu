@@ -1322,6 +1322,14 @@
     box-shadow: 0 14px 26px -26px hsl(var(--paper-shadow) / 0.65);
   }
 
+  .saving-deposit-list {
+    min-width: 0;
+  }
+
+  .saving-deposit-row {
+    min-height: 64px;
+  }
+
   .finance-skeleton,
   .wedding-skeleton,
   .learning-skeleton {

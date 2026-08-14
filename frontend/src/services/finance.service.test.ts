@@ -47,12 +47,24 @@ const savingPlan = {
   name: '旅行基金',
   targetAmount: 10000,
   currentAmount: 2500,
+  depositCount: 2,
   targetDate: '2027-01-01',
   progressPercentage: 25,
   remainingAmount: 7500,
   isCompleted: false,
   createdAt: '2026-07-01T01:00:00.000Z',
   updatedAt: '2026-07-01T01:00:00.000Z',
+}
+
+const savingDeposit = {
+  id: 'deposit-1',
+  savingPlanId: 'plan-1',
+  amount: 500,
+  date: '2026-08-14',
+  notes: '本周固定存入',
+  source: 'manual' as const,
+  createdAt: '2026-08-14T01:00:00.000Z',
+  updatedAt: '2026-08-14T01:00:00.000Z',
 }
 
 describe('financeService', () => {
@@ -119,7 +131,6 @@ describe('financeService', () => {
     const createRequest = {
       name: '旅行基金',
       targetAmount: 10000,
-      currentAmount: 2500,
       targetDate: '2027-01-01',
     }
     apiMocks.get.mockResolvedValue({ data: { success: true, data: [savingPlan] } })
@@ -133,7 +144,7 @@ describe('financeService', () => {
   })
 
   it('uses PATCH for saving plan edits and DELETE returns null', async () => {
-    const updateRequest = { currentAmount: 3000, name: '旅行基金 2027' }
+    const updateRequest = { targetAmount: 12000, name: '旅行基金 2027' }
     apiMocks.patch.mockResolvedValue({ data: { success: true, data: savingPlan } })
     apiMocks.delete.mockResolvedValue({ data: { success: true, data: null } })
 
@@ -142,5 +153,22 @@ describe('financeService', () => {
 
     expect(apiMocks.patch).toHaveBeenCalledWith('/api/finance/saving-plans/plan-1', updateRequest)
     expect(apiMocks.delete).toHaveBeenCalledWith('/api/finance/saving-plans/plan-1')
+  })
+
+  it('lists paginated deposits and sends nested plan/deposit endpoints', async () => {
+    apiMocks.get.mockResolvedValue({ data: { success: true, data: [savingDeposit] } })
+    apiMocks.post.mockResolvedValue({ data: { success: true, data: savingDeposit } })
+    apiMocks.patch.mockResolvedValue({ data: { success: true, data: savingDeposit } })
+    apiMocks.delete.mockResolvedValue({ data: { success: true, data: null } })
+
+    await expect(financeService.getSavingDeposits('plan-1', { limit: 50, offset: 0 })).resolves.toEqual([savingDeposit])
+    await expect(financeService.createSavingDeposit('plan-1', { amount: 500, date: '2026-08-14', notes: '本周固定存入' })).resolves.toEqual(savingDeposit)
+    await expect(financeService.updateSavingDeposit('plan-1', 'deposit-1', { amount: 550 })).resolves.toEqual(savingDeposit)
+    await expect(financeService.deleteSavingDeposit('plan-1', 'deposit-1')).resolves.toBeNull()
+
+    expect(apiMocks.get).toHaveBeenCalledWith('/api/finance/saving-plans/plan-1/deposits', { params: { limit: 50, offset: 0 } })
+    expect(apiMocks.post).toHaveBeenCalledWith('/api/finance/saving-plans/plan-1/deposits', { amount: 500, date: '2026-08-14', notes: '本周固定存入' })
+    expect(apiMocks.patch).toHaveBeenCalledWith('/api/finance/saving-plans/plan-1/deposits/deposit-1', { amount: 550 })
+    expect(apiMocks.delete).toHaveBeenCalledWith('/api/finance/saving-plans/plan-1/deposits/deposit-1')
   })
 })

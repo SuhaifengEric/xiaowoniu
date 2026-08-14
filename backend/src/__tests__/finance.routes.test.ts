@@ -4,7 +4,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import express from 'express'
 import routes from '../routes'
 import financeRoutes from '../routes/finance.routes'
-import financeService, { FinanceConflictError, FinanceNotFoundError } from '../services/finance.service'
+import financeService, { FinanceConflictError, FinanceNotFoundError, FinanceValidationError } from '../services/finance.service'
 import { errorHandler } from '../middlewares/error.middleware'
 import { generateToken } from '../utils/jwt'
 
@@ -27,6 +27,10 @@ const expectedRoutes = [
   ['post', '/saving-plans'],
   ['patch', '/saving-plans/:id'],
   ['delete', '/saving-plans/:id'],
+  ['get', '/saving-plans/:id/deposits'],
+  ['post', '/saving-plans/:id/deposits'],
+  ['patch', '/saving-plans/:id/deposits/:depositId'],
+  ['delete', '/saving-plans/:id/deposits/:depositId'],
 ] as const
 
 const token = generateToken({ userId: 'u1', email: 'u1@example.com' })
@@ -386,6 +390,46 @@ describe('finance routes', () => {
         method: 'PATCH', path: '/api/finance/saving-plans/p1',
         service: 'updateSavingPlan', body: { currentAmount: -1 },
       },
+      {
+        method: 'GET', path: '/api/finance/saving-plans/p1/deposits?limit=0',
+        service: 'getSavingDeposits', body: undefined,
+      },
+      {
+        method: 'GET', path: '/api/finance/saving-plans/p1/deposits?offset=-1',
+        service: 'getSavingDeposits', body: undefined,
+      },
+      {
+        method: 'GET', path: '/api/finance/saving-plans/p1/deposits?injected=true',
+        service: 'getSavingDeposits', body: undefined,
+      },
+      {
+        method: 'POST', path: '/api/finance/saving-plans/p1/deposits',
+        service: 'createSavingDeposit', body: {},
+      },
+      {
+        method: 'POST', path: '/api/finance/saving-plans/p1/deposits',
+        service: 'createSavingDeposit', body: { amount: 0, date: '2026-08-14' },
+      },
+      {
+        method: 'POST', path: '/api/finance/saving-plans/p1/deposits',
+        service: 'createSavingDeposit', body: { amount: 1.001, date: '2026-08-14' },
+      },
+      {
+        method: 'POST', path: '/api/finance/saving-plans/p1/deposits',
+        service: 'createSavingDeposit', body: { amount: 1, date: '2026-02-30' },
+      },
+      {
+        method: 'PATCH', path: '/api/finance/saving-plans/p1/deposits/d1',
+        service: 'updateSavingDeposit', body: {},
+      },
+      {
+        method: 'PATCH', path: '/api/finance/saving-plans/p1/deposits/d1',
+        service: 'updateSavingDeposit', body: { date: null },
+      },
+      {
+        method: 'PATCH', path: '/api/finance/saving-plans/p1/deposits/d1',
+        service: 'updateSavingDeposit', body: { injected: true },
+      },
     ] as const
 
     for (const route of cases) {
@@ -413,8 +457,18 @@ describe('finance routes', () => {
     expect(invalidSavingPlanUpdate.response.statusCode).toBe(400)
     expect(invalidSavingPlanUpdate.next).not.toHaveBeenCalled()
 
-    for (const [method, path] of [['delete', '/expenses/:id'], ['delete', '/saving-plans/:id']] as const) {
-      const invalid = await invokeRouteValidator(method, path, { params: { id: '' } })
+    const invalidSavingDepositUpdate = await invokeRouteValidator('patch', '/saving-plans/:id/deposits/:depositId', {
+      params: { id: 'p1', depositId: '' }, body: { amount: 2 },
+    })
+    expect(invalidSavingDepositUpdate.response.statusCode).toBe(400)
+    expect(invalidSavingDepositUpdate.next).not.toHaveBeenCalled()
+
+    for (const [method, path, params] of [
+      ['delete', '/expenses/:id', { id: '' }],
+      ['delete', '/saving-plans/:id', { id: '' }],
+      ['delete', '/saving-plans/:id/deposits/:depositId', { id: 'p1', depositId: '' }],
+    ] as const) {
+      const invalid = await invokeRouteValidator(method, path, { params })
       expect(invalid.response.statusCode).toBe(400)
       expect(invalid.next).not.toHaveBeenCalled()
     }
@@ -445,8 +499,24 @@ describe('finance routes', () => {
     expect(validSavingPlanUpdate.response.statusCode).toBe(200)
     expect(validSavingPlanUpdate.next).toHaveBeenCalledOnce()
 
-    for (const path of ['/expenses/:id', '/saving-plans/:id']) {
-      const valid = await invokeRouteValidator('delete', path, { params: { id: 'resource-1' } })
+    const validSavingDepositQuery = await invokeRouteValidator('get', '/saving-plans/:id/deposits', {
+      params: { id: 'p1' }, query: { limit: '50', offset: '0' },
+    })
+    expect(validSavingDepositQuery.response.statusCode).toBe(200)
+    expect(validSavingDepositQuery.next).toHaveBeenCalledOnce()
+
+    const validSavingDepositUpdate = await invokeRouteValidator('patch', '/saving-plans/:id/deposits/:depositId', {
+      params: { id: 'p1', depositId: 'd1' }, body: { amount: 2 },
+    })
+    expect(validSavingDepositUpdate.response.statusCode).toBe(200)
+    expect(validSavingDepositUpdate.next).toHaveBeenCalledOnce()
+
+    for (const [path, params] of [
+      ['/expenses/:id', { id: 'resource-1' }],
+      ['/saving-plans/:id', { id: 'resource-1' }],
+      ['/saving-plans/:id/deposits/:depositId', { id: 'p1', depositId: 'resource-1' }],
+    ] as const) {
+      const valid = await invokeRouteValidator('delete', path, { params })
       expect(valid.response.statusCode).toBe(200)
       expect(valid.next).toHaveBeenCalledOnce()
     }
@@ -511,6 +581,27 @@ describe('finance routes', () => {
         result: undefined, args: ['u1', 'p1'],
         expected: { success: true, data: null, message: '存钱计划已删除' },
       },
+      {
+        method: 'GET', path: '/api/finance/saving-plans/p1/deposits?limit=50&offset=0', service: 'getSavingDeposits', body: undefined,
+        result: [{ id: 'd1' }], args: ['u1', 'p1', { limit: '50', offset: '0' }],
+        expected: { success: true, data: [{ id: 'd1' }] },
+      },
+      {
+        method: 'POST', path: '/api/finance/saving-plans/p1/deposits', service: 'createSavingDeposit',
+        body: { amount: 500, date: '2026-08-14', notes: '本周固定存入' },
+        result: { id: 'd1', amount: 500 }, args: ['u1', 'p1', { amount: 500, date: '2026-08-14', notes: '本周固定存入' }],
+        expected: { success: true, data: { id: 'd1', amount: 500 }, message: '存入记录已创建' },
+      },
+      {
+        method: 'PATCH', path: '/api/finance/saving-plans/p1/deposits/d1', service: 'updateSavingDeposit', body: { amount: 550 },
+        result: { id: 'd1', amount: 550 }, args: ['u1', 'p1', 'd1', { amount: 550 }],
+        expected: { success: true, data: { id: 'd1', amount: 550 }, message: '存入记录已更新' },
+      },
+      {
+        method: 'DELETE', path: '/api/finance/saving-plans/p1/deposits/d1', service: 'deleteSavingDeposit', body: { amount: 0 },
+        result: undefined, args: ['u1', 'p1', 'd1'],
+        expected: { success: true, data: null, message: '存入记录已删除' },
+      },
     ] as const
 
     for (const route of cases) {
@@ -533,6 +624,10 @@ describe('finance routes', () => {
       expect(missing.body).toMatchObject({ success: false, error: { code: 'NOT_FOUND' } })
       expect(serviceMethod).not.toHaveBeenCalled()
     }
+    const missingDeposit = await httpRequest('DELETE', '/api/finance/saving-plans/p1/deposits/')
+    expect(missingDeposit.statusCode).toBe(404)
+    expect(missingDeposit.body).toMatchObject({ success: false, error: { code: 'NOT_FOUND' } })
+    expect(vi.spyOn(financeService, 'deleteSavingDeposit')).not.toHaveBeenCalled()
   })
 
   it('maps unknown non-empty delete IDs to service not found through real HTTP routes', async () => {
@@ -546,6 +641,11 @@ describe('finance routes', () => {
       expect(unknown.body).toMatchObject({ success: false, error: { code: 'NOT_FOUND' } })
       expect(serviceMethod).toHaveBeenCalledWith('u1', 'missing-id')
     }
+    const nestedDelete = vi.spyOn(financeService, 'deleteSavingDeposit').mockRejectedValue(new FinanceNotFoundError('存入记录不存在'))
+    const unknownDeposit = await httpRequest('DELETE', '/api/finance/saving-plans/p1/deposits/missing-id')
+    expect(unknownDeposit.statusCode).toBe(404)
+    expect(unknownDeposit.body).toMatchObject({ success: false, error: { code: 'NOT_FOUND' } })
+    expect(nestedDelete).toHaveBeenCalledWith('u1', 'p1', 'missing-id')
   })
 
   it('maps service not-found and conflict errors through real endpoints', async () => {
@@ -555,12 +655,19 @@ describe('finance routes', () => {
     expect(notFound.body).toMatchObject({ success: false, error: { code: 'NOT_FOUND' } })
     expect(JSON.stringify(notFound.body)).not.toContain('other-user-record')
 
-    vi.spyOn(financeService, 'createSavingPlan').mockRejectedValue(new FinanceConflictError('当前金额不能超过目标金额'))
-    const conflict = await httpRequest('POST', '/api/finance/saving-plans', {
-      name: '旅行', targetAmount: 10, currentAmount: 11, targetDate: '2026-12-31',
+    vi.spyOn(financeService, 'createSavingDeposit').mockRejectedValue(new FinanceConflictError('存入后将超过目标金额，请先调整目标或修改存入金额'))
+    const conflict = await httpRequest('POST', '/api/finance/saving-plans/p1/deposits', {
+      amount: 11, date: '2026-08-14',
     })
     expect(conflict.statusCode).toBe(409)
     expect(conflict.body).toMatchObject({ success: false, error: { code: 'CONFLICT' } })
+
+    vi.spyOn(financeService, 'createSavingDeposit').mockRejectedValue(new FinanceValidationError('存入日期不能晚于今天'))
+    const invalidDate = await httpRequest('POST', '/api/finance/saving-plans/p1/deposits', {
+      amount: 1, date: '2026-08-15',
+    })
+    expect(invalidDate.statusCode).toBe(400)
+    expect(invalidDate.body).toMatchObject({ success: false, error: { code: 'VALIDATION_ERROR' } })
   })
 
   it('passes unknown service errors to the real error handler as 500', async () => {

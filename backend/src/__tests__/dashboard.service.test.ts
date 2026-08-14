@@ -12,6 +12,7 @@ const prisma = vi.hoisted(() => ({
   expense: { aggregate: vi.fn() },
   monthlyBudget: { findUnique: vi.fn() },
   savingPlan: { findMany: vi.fn() },
+  savingDeposit: { groupBy: vi.fn() },
   weddingBudget: { findUnique: vi.fn() },
   weddingExpense: { aggregate: vi.fn() },
   weddingTask: { groupBy: vi.fn() },
@@ -33,6 +34,7 @@ function mockEmptySummary() {
   prisma.expense.aggregate.mockResolvedValue({ _sum: { amount: null } })
   prisma.monthlyBudget.findUnique.mockResolvedValue(null)
   prisma.savingPlan.findMany.mockResolvedValue([])
+  prisma.savingDeposit.groupBy.mockResolvedValue([])
   prisma.weddingBudget.findUnique.mockResolvedValue(null)
   prisma.weddingExpense.aggregate.mockResolvedValue({ _sum: { actualAmount: null } })
   prisma.weddingTask.groupBy.mockResolvedValue([])
@@ -82,9 +84,14 @@ describe('dashboard summary service', () => {
     prisma.expense.aggregate.mockResolvedValue({ _sum: { amount: decimal('120.5') } })
     prisma.monthlyBudget.findUnique.mockResolvedValue({ amount: decimal('100') })
     prisma.savingPlan.findMany.mockResolvedValue([
-      { currentAmount: decimal('20'), targetAmount: decimal('100') },
-      { currentAmount: decimal('100'), targetAmount: decimal('100') },
-      { currentAmount: decimal('160'), targetAmount: decimal('120') },
+      { id: 'p1', targetAmount: decimal('100') },
+      { id: 'p2', targetAmount: decimal('100') },
+      { id: 'p3', targetAmount: decimal('120') },
+    ])
+    prisma.savingDeposit.groupBy.mockResolvedValue([
+      { savingPlanId: 'p1', _sum: { amount: decimal('20') } },
+      { savingPlanId: 'p2', _sum: { amount: decimal('100') } },
+      { savingPlanId: 'p3', _sum: { amount: decimal('160') } },
     ])
     prisma.weddingBudget.findUnique.mockResolvedValue({
       totalBudget: decimal('1000'), weddingDate: new Date('2026-08-01T00:00:00.000Z'),
@@ -117,6 +124,9 @@ describe('dashboard summary service', () => {
       where: { userId: 'u1', date: { gte: new Date('2026-08-01T00:00:00.000Z'), lt: new Date('2026-09-01T00:00:00.000Z') } },
       _sum: { amount: true },
     })
+    expect(prisma.savingDeposit.groupBy).toHaveBeenCalledWith({
+      by: ['savingPlanId'], where: { savingPlanId: { in: ['p1', 'p2', 'p3'] } }, _sum: { amount: true },
+    })
   })
 
   it('keeps every aggregate query isolated to its supplied user', async () => {
@@ -131,7 +141,7 @@ describe('dashboard summary service', () => {
       select: { amount: true },
     })
     expect(prisma.savingPlan.findMany).toHaveBeenCalledWith({
-      where: { userId: 'u2' }, select: { currentAmount: true, targetAmount: true },
+      where: { userId: 'u2' }, select: { id: true, targetAmount: true },
     })
     expect(prisma.weddingBudget.findUnique).toHaveBeenCalledWith({ where: { userId: 'u2' }, select: { totalBudget: true, weddingDate: true } })
   })

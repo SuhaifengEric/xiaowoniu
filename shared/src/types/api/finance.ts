@@ -56,7 +56,6 @@ export interface FinanceMonthQuery {
 export interface CreateSavingPlanRequest {
   name: string
   targetAmount: number
-  currentAmount?: number
   targetDate: string
 }
 
@@ -66,8 +65,33 @@ export interface CreateSavingPlanRequest {
 export interface UpdateSavingPlanRequest {
   name?: string
   targetAmount?: number
-  currentAmount?: number
   targetDate?: string
+}
+
+/**
+ * 创建存入记录请求。
+ */
+export interface CreateSavingDepositRequest {
+  amount: number
+  date: string
+  notes?: string
+}
+
+/**
+ * 更新存入记录请求。
+ */
+export interface UpdateSavingDepositRequest {
+  amount?: number
+  date?: string
+  notes?: string | null
+}
+
+/**
+ * 存入记录查询参数。
+ */
+export interface SavingDepositQueryParams {
+  limit?: number
+  offset?: number
 }
 
 /**
