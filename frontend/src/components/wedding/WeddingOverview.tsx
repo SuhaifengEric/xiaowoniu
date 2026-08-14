@@ -9,7 +9,7 @@ export const money = (value: number) => `¥${value.toFixed(2)}`
 export interface WeddingOverviewProps {
   overview: WeddingOverviewResponse | null
   loading: boolean
-  onEditBudget: () => void
+  onEditBudget: (trigger: HTMLElement) => void
 }
 
 function countdownText(days: number | null) {
@@ -32,7 +32,7 @@ export function WeddingOverview({ overview, loading, onEditBudget }: WeddingOver
       <div>
         <h2 id="wedding-overview-title" className="text-xl font-semibold text-stone-950">备婚概览</h2>
       </div>
-      <Button type="button" variant="outline" className="min-h-11 gap-2" onClick={onEditBudget}><Wallet aria-hidden="true" className="h-4 w-4" />{budget ? '调整预算与婚期' : '设置预算与婚期'}</Button>
+      <Button type="button" variant="outline" className="min-h-11 gap-2" onClick={(event) => onEditBudget(event.currentTarget)}><Wallet aria-hidden="true" className="h-4 w-4" />{budget ? '调整预算与婚期' : '设置预算与婚期'}</Button>
     </div>
     <div className="wedding-overview-grid mt-4 grid gap-px overflow-hidden rounded-sm border border-stone-200 bg-stone-200 sm:grid-cols-2 lg:grid-cols-4">
       <div className="bg-white p-4"><p className="text-xs font-semibold uppercase text-stone-500">婚期倒计时</p><p className="mt-2 flex items-center gap-2 text-2xl font-semibold text-stone-950"><CalendarHeart aria-hidden="true" className="h-5 w-5 shrink-0 text-pink-700" /><span className="break-words">{countdownText(overview?.daysUntilWedding ?? null)}</span></p><p className="mt-1 text-sm text-stone-600">{budget ? `婚礼日期 ${budget.weddingDate}` : '设置婚期后显示倒计时'}</p></div>

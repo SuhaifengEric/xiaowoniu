@@ -61,7 +61,7 @@ export default function WeddingBudgetDialog({ open, onOpenChange, onSubmit, budg
 
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => !submitting && onOpenChange(nextOpen)}>
-      <DialogContent aria-describedby="wedding-budget-description" onEscapeKeyDown={(event) => submitting && event.preventDefault()} onPointerDownOutside={(event) => submitting && event.preventDefault()} onInteractOutside={(event) => submitting && event.preventDefault()}>
+      <DialogContent aria-describedby="wedding-budget-description" onEscapeKeyDown={(event) => { if (submitting) { event.preventDefault(); return } event.preventDefault(); onOpenChange(false) }} onPointerDownOutside={(event) => submitting && event.preventDefault()} onInteractOutside={(event) => submitting && event.preventDefault()}>
         <DialogHeader><DialogTitle>设置备婚预算与婚期</DialogTitle><DialogDescription id="wedding-budget-description">总预算用于计算预算使用情况，婚礼日期用于倒计时与里程碑终点。</DialogDescription></DialogHeader>
         <form className="grid gap-4" onSubmit={handleSubmit} noValidate>
           <div className="grid gap-2"><Label htmlFor="wedding-budget-total">总预算</Label><Input id="wedding-budget-total" type="text" inputMode="decimal" className="min-h-11" value={totalBudget} onChange={(event) => { setTotalBudget(event.target.value); setErrors((current) => ({ ...current, totalBudget: moneyError(event.target.value, 0) || undefined })) }} disabled={submitting} aria-invalid={Boolean(errors.totalBudget)} aria-describedby={errors.totalBudget ? 'wedding-budget-total-error' : undefined} />{errors.totalBudget && <p id="wedding-budget-total-error" role="alert" className="text-sm text-destructive">{errors.totalBudget}</p>}</div>

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { AgreementStatus, EngagementMode, MarriageNodeKey, MarriageNodeStatus, MarriageOrder, MarriageRecorderRole, TaskStatus, VisitOrder, WeddingTaskCategory } from '@xiaowoniu/shared'
 import { MemoryRouter } from 'react-router-dom'
@@ -138,15 +138,42 @@ describe('Wedding page', () => {
     expect(tablist).toBeInTheDocument()
     const processTab = screen.getByRole('tab', { name: '婚姻进程' })
     const stagesTab = screen.getByRole('tab', { name: '阶段记录' })
+    const agreementsTab = screen.getByRole('tab', { name: '双方共识' })
+    const executionTab = screen.getByRole('tab', { name: '婚礼执行' })
+    const settingsTab = screen.getByRole('tab', { name: '流程设置' })
     expect(processTab).toHaveAttribute('aria-selected', 'true')
-    expect(screen.getByRole('tab', { name: '双方共识' })).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: '婚礼执行' })).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: '流程设置' })).toBeInTheDocument()
-    stagesTab.focus()
+    expect(agreementsTab).toBeInTheDocument()
+    expect(executionTab).toBeInTheDocument()
+    expect(settingsTab).toBeInTheDocument()
+    processTab.focus()
     await user.keyboard('{ArrowRight}')
-    expect(screen.getByRole('tab', { name: '双方共识' })).toHaveAttribute('aria-selected', 'true')
+    expect(stagesTab).toHaveAttribute('aria-selected', 'true')
+    expect(document.activeElement).toBe(stagesTab)
+    await user.keyboard('{ArrowRight}')
+    expect(agreementsTab).toHaveAttribute('aria-selected', 'true')
+    expect(document.activeElement).toBe(agreementsTab)
+    await user.keyboard('{ArrowRight}')
+    expect(executionTab).toHaveAttribute('aria-selected', 'true')
+    expect(document.activeElement).toBe(executionTab)
+    await user.keyboard('{ArrowRight}')
+    expect(settingsTab).toHaveAttribute('aria-selected', 'true')
+    expect(document.activeElement).toBe(settingsTab)
+    await user.keyboard('{ArrowRight}')
+    expect(processTab).toHaveAttribute('aria-selected', 'true')
+    expect(document.activeElement).toBe(processTab)
     await user.keyboard('{ArrowLeft}')
-    expect(screen.getByRole('tab', { name: '婚姻进程' })).toHaveAttribute('aria-selected', 'true')
+    expect(settingsTab).toHaveAttribute('aria-selected', 'true')
+    expect(document.activeElement).toBe(settingsTab)
+  })
+
+  it('restores focus to the budget trigger after closing its dialog', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    const trigger = screen.getByRole('button', { name: '设置预算' })
+    fireEvent.click(trigger)
+    expect(screen.getByRole('dialog', { name: '设置备婚预算与婚期' })).toBeInTheDocument()
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(document.activeElement).toBe(trigger))
   })
 
   it('opens the process setup for an empty user and submits the recorder perspective', async () => {

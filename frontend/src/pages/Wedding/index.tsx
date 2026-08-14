@@ -1,4 +1,4 @@
-import { useEffect, useState, type KeyboardEvent } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { ArrowLeft, CalendarRange, HeartHandshake, ListTodo, PencilLine, Plus, Receipt, Route, SlidersHorizontal, Wallet, X } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { engagementModeLabels, marriageNodeKeyLabels, marriageOrderLabels, recorderRoleLabels, visitOrderLabels } from '@/components/wedding/wedding.constants'
@@ -106,6 +106,8 @@ export default function Wedding() {
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget>(null)
   const [deleteSubmitting, setDeleteSubmitting] = useState(false)
   const [status, setStatus] = useState('')
+  const tabRefs = useRef<Partial<Record<ViewName, HTMLButtonElement | null>>>({})
+  const budgetReturnFocusRef = useRef<HTMLElement | null>(null)
 
   useEffect(() => {
     void fetchDashboard().catch(() => undefined)
@@ -124,10 +126,26 @@ export default function Wedding() {
     setStatus('')
     setDialog('expense')
   }
-  const openBudget = (dashboardAction: string | null = null) => {
+  const openBudget = (dashboardAction: string | null = null, trigger: HTMLElement | null = null) => {
+    const focused = document.activeElement instanceof HTMLElement
+      && document.activeElement !== document.body
+      && document.activeElement !== document.documentElement
+      ? document.activeElement
+      : null
+    const active = trigger?.isConnected ? trigger : focused ?? document.querySelector<HTMLElement>('[data-dialog-focus="budget"]')
+    budgetReturnFocusRef.current = active?.isConnected ? active : null
     setDashboardReturnFocus(dashboardAction)
     setStatus('')
     setDialog('budget')
+  }
+
+  const closeBudget = () => {
+    const target = budgetReturnFocusRef.current
+    setDialog(null)
+    window.setTimeout(() => {
+      const nextTarget = target?.isConnected ? target : document.querySelector<HTMLElement>('[data-dialog-focus="budget"]')
+      if (nextTarget?.isConnected) nextTarget.focus({ preventScroll: true })
+    }, 0)
   }
   const openSettings = () => {
     setStatus('')
@@ -218,7 +236,9 @@ export default function Wedding() {
     if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return
     event.preventDefault()
     const direction = event.key === 'ArrowRight' ? 1 : -1
-    setView(tabs[(index + direction + tabs.length) % tabs.length].value)
+    const nextTab = tabs[(index + direction + tabs.length) % tabs.length]
+    setView(nextTab.value)
+    tabRefs.current[nextTab.value]?.focus()
   }
 
   return (
@@ -234,7 +254,7 @@ export default function Wedding() {
           <section aria-label="婚礼执行操作" className="app-actions grid grid-cols-1 gap-2 sm:grid-cols-3">
             <Button className="min-h-11 gap-2" data-dialog-focus="task" onClick={() => openTask()} disabled={loading}><Plus aria-hidden="true" className="h-4 w-4" />新增行动项</Button>
             <Button variant="outline" className="min-h-11 gap-2" data-dialog-focus="expense" onClick={() => openExpense()} disabled={loading}><Receipt aria-hidden="true" className="h-4 w-4" />新增花费</Button>
-            <Button variant="outline" className="min-h-11 gap-2" data-dialog-focus="budget" onClick={() => openBudget()} disabled={loading}><Wallet aria-hidden="true" className="h-4 w-4" />设置预算</Button>
+            <Button variant="outline" className="min-h-11 gap-2" data-dialog-focus="budget" onClick={(event) => openBudget(null, event.currentTarget)} disabled={loading}><Wallet aria-hidden="true" className="h-4 w-4" />设置预算</Button>
           </section>
         </header>
 
@@ -242,15 +262,15 @@ export default function Wedding() {
         <Toast message={status} onDismiss={() => setStatus('')} />
 
         <div role="tablist" aria-label="嫁嫁嫁视图" className="wedding-tabs mt-2 flex min-w-0 gap-1 border-b border-border">
-          {tabs.map(({ value, label, icon: Icon }, index) => <button key={value} type="button" role="tab" id={`wedding-tab-${value}`} aria-selected={view === value} aria-controls={`wedding-panel-${value}`} tabIndex={view === value ? 0 : -1} className={`inline-flex min-h-11 min-w-0 items-center gap-2 border-b-2 px-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${view === value ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`} onClick={() => setView(value)} onKeyDown={(event) => selectTab(event, index)}><Icon aria-hidden="true" className="h-4 w-4 shrink-0" /><span className="truncate">{label}</span></button>)}
+          {tabs.map(({ value, label, icon: Icon }, index) => <button key={value} ref={(element) => { tabRefs.current[value] = element }} type="button" role="tab" id={`wedding-tab-${value}`} aria-selected={view === value} aria-controls={`wedding-panel-${value}`} tabIndex={view === value ? 0 : -1} className={`inline-flex min-h-11 min-w-0 items-center gap-2 border-b-2 px-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${view === value ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`} onClick={() => setView(value)} onKeyDown={(event) => selectTab(event, index)}><Icon aria-hidden="true" className="h-4 w-4 shrink-0" /><span className="truncate">{label}</span></button>)}
         </div>
 
         <div className="mt-5 grid gap-5">
-          {view === 'process' && <div role="tabpanel" id="wedding-panel-process" aria-labelledby="wedding-tab-process" className="grid gap-5"><MarriageProcessCard process={process} nodes={nodes} loading={loading} onCreate={openSettings} onEditNode={openNode} onOpenAgreements={() => setView('agreements')} onOpenSettings={openSettings} /><WeddingOverview overview={overview} loading={loading} onEditBudget={openBudget} /></div>}
+          {view === 'process' && <div role="tabpanel" id="wedding-panel-process" aria-labelledby="wedding-tab-process" className="grid gap-5"><MarriageProcessCard process={process} nodes={nodes} loading={loading} onCreate={openSettings} onEditNode={openNode} onOpenAgreements={() => setView('agreements')} onOpenSettings={openSettings} /><WeddingOverview overview={overview} loading={loading} onEditBudget={(trigger) => openBudget(null, trigger)} /></div>}
           {view === 'stages' && <div role="tabpanel" id="wedding-panel-stages" aria-labelledby="wedding-tab-stages" className="grid gap-5"><MarriageNodeList nodes={nodes} loading={loading} onEdit={openNode} onHistory={openHistory} onCreateAction={(node) => openTask(null, node.nodeKey)} /></div>}
           {view === 'agreements' && <div role="tabpanel" id="wedding-panel-agreements" aria-labelledby="wedding-tab-agreements"><MarriageAgreementList agreements={agreements} loading={loading} onCreate={async (title) => { await createAgreement({ title }); setStatus('共识议题已添加') }} onUpdate={async (id, data) => { await updateAgreement(id, data); setStatus('共识议题已更新') }} onArchive={async (id) => { await archiveAgreement(id); setStatus('共识议题已归档') }} /></div>}
-          {view === 'execution' && <div role="tabpanel" id="wedding-panel-execution" aria-labelledby="wedding-tab-execution" className="grid gap-5"><WeddingOverview overview={overview} loading={loading} onEditBudget={openBudget} /><WeddingTaskBoard tasks={tasks} loading={loading} hasMore={tasksHasMore} onLoadMore={() => void fetchTasks({ limit: 50, offset: tasks.length }).catch(() => undefined)} onEdit={(task) => openTask(task, task.stageKey ?? ('wedding' as MarriageNodeKey))} onDelete={(task) => setDeleteTarget({ resource: 'task', id: task.id })} onStatusChange={(id, nextStatus) => void changeTaskStatus(id, nextStatus).catch(() => undefined)} /><WeddingTimeline timeline={timeline} loading={loading} /><WeddingExpenseList expenses={expenses} loading={loading} hasMore={expensesHasMore} onLoadMore={() => void fetchExpenses({ limit: 50, offset: expenses.length }).catch(() => undefined)} onCreate={() => openExpense()} onEdit={openExpense} onDelete={(expense) => setDeleteTarget({ resource: 'expense', id: expense.id })} /></div>}
-          {view === 'settings' && <div role="tabpanel" id="wedding-panel-settings" aria-labelledby="wedding-tab-settings" className="grid gap-5"><section className="wedding-panel" aria-labelledby="wedding-settings-title"><div className="flex flex-wrap items-start justify-between gap-4"><div><p className="wedding-eyebrow">流程设置</p><h2 id="wedding-settings-title" className="mt-1 text-xl font-semibold text-stone-950">决定记录方式和未来安排</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-stone-600">这些设置不会改变已经发生的节点事实；领证和婚礼也始终分别记录。</p></div><Button type="button" className="min-h-11 gap-2" onClick={openSettings}><PencilLine aria-hidden="true" className="h-4 w-4" />{process ? '编辑流程设置' : '建立婚姻进程'}</Button></div>{process ? <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><div className="wedding-fact-cell"><span className="wedding-fact-label">记录人视角</span><strong>{recorderRoleLabels[process.recorderRole]}</strong><span>只影响称呼</span></div><div className="wedding-fact-cell"><span className="wedding-fact-label">上门顺序</span><strong>{visitOrderLabels[process.visitOrder]}</strong><span>两次上门独立完成</span></div><div className="wedding-fact-cell"><span className="wedding-fact-label">领证与婚礼</span><strong>{marriageOrderLabels[process.marriageOrder]}</strong><span>实际顺序以记录为准</span></div><div className="wedding-fact-cell"><span className="wedding-fact-label">订婚</span><strong>{engagementModeLabels[process.engagementMode]}</strong><span>可采用、跳过或暂不决定</span></div></div> : <div className="mt-6 border-l-2 border-rose-300 bg-rose-50 px-4 py-3 text-sm text-rose-950">还没有婚姻进程。建立后会初始化 8 个节点和 6 个默认共识议题，不会根据旧任务臆造已经发生的事实。</div>}</section><WeddingOverview overview={overview} loading={loading} onEditBudget={openBudget} /></div>}
+          {view === 'execution' && <div role="tabpanel" id="wedding-panel-execution" aria-labelledby="wedding-tab-execution" className="grid gap-5"><WeddingOverview overview={overview} loading={loading} onEditBudget={(trigger) => openBudget(null, trigger)} /><WeddingTaskBoard tasks={tasks} loading={loading} hasMore={tasksHasMore} onLoadMore={() => void fetchTasks({ limit: 50, offset: tasks.length }).catch(() => undefined)} onEdit={(task) => openTask(task, task.stageKey ?? ('wedding' as MarriageNodeKey))} onDelete={(task) => setDeleteTarget({ resource: 'task', id: task.id })} onStatusChange={(id, nextStatus) => void changeTaskStatus(id, nextStatus).catch(() => undefined)} /><WeddingTimeline timeline={timeline} loading={loading} /><WeddingExpenseList expenses={expenses} loading={loading} hasMore={expensesHasMore} onLoadMore={() => void fetchExpenses({ limit: 50, offset: expenses.length }).catch(() => undefined)} onCreate={() => openExpense()} onEdit={openExpense} onDelete={(expense) => setDeleteTarget({ resource: 'expense', id: expense.id })} /></div>}
+          {view === 'settings' && <div role="tabpanel" id="wedding-panel-settings" aria-labelledby="wedding-tab-settings" className="grid gap-5"><section className="wedding-panel" aria-labelledby="wedding-settings-title"><div className="flex flex-wrap items-start justify-between gap-4"><div><p className="wedding-eyebrow">流程设置</p><h2 id="wedding-settings-title" className="mt-1 text-xl font-semibold text-stone-950">决定记录方式和未来安排</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-stone-600">这些设置不会改变已经发生的节点事实；领证和婚礼也始终分别记录。</p></div><Button type="button" className="min-h-11 gap-2" onClick={openSettings}><PencilLine aria-hidden="true" className="h-4 w-4" />{process ? '编辑流程设置' : '建立婚姻进程'}</Button></div>{process ? <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><div className="wedding-fact-cell"><span className="wedding-fact-label">记录人视角</span><strong>{recorderRoleLabels[process.recorderRole]}</strong><span>只影响称呼</span></div><div className="wedding-fact-cell"><span className="wedding-fact-label">上门顺序</span><strong>{visitOrderLabels[process.visitOrder]}</strong><span>两次上门独立完成</span></div><div className="wedding-fact-cell"><span className="wedding-fact-label">领证与婚礼</span><strong>{marriageOrderLabels[process.marriageOrder]}</strong><span>实际顺序以记录为准</span></div><div className="wedding-fact-cell"><span className="wedding-fact-label">订婚</span><strong>{engagementModeLabels[process.engagementMode]}</strong><span>可采用、跳过或暂不决定</span></div></div> : <div className="mt-6 border-l-2 border-rose-300 bg-rose-50 px-4 py-3 text-sm text-rose-950">还没有婚姻进程。建立后会初始化 8 个节点和 6 个默认共识议题，不会根据旧任务臆造已经发生的事实。</div>}</section><WeddingOverview overview={overview} loading={loading} onEditBudget={(trigger) => openBudget(null, trigger)} /></div>}
         </div>
       </div>
 
@@ -259,7 +279,7 @@ export default function Wedding() {
       <Dialog open={historyNode !== null} onOpenChange={(open) => !open && setHistoryNode(null)}><DialogContent aria-describedby="marriage-history-description"><DialogHeader><DialogTitle>{historyNode ? `${marriageNodeKeyLabels[historyNode.nodeKey]}历史` : '节点历史'}</DialogTitle><DialogDescription id="marriage-history-description">历史记录用于区分计划调整、事实记录和重新打开，不会改写已经发生的日期。</DialogDescription></DialogHeader><div className="grid gap-3">{historyNode && (nodeHistory[historyNode.nodeKey] ?? []).length === 0 ? <p className="py-5 text-sm text-muted-foreground">暂时没有变更历史。</p> : <ol className="grid gap-3">{historyNode && (nodeHistory[historyNode.nodeKey] ?? []).map((item) => <li key={item.id} className="border-l-2 border-rose-200 pl-3 text-sm"><p className="font-semibold text-stone-900">{item.eventType === 'reopened' ? '重新打开节点' : '更新节点记录'}</p><p className="mt-1 text-stone-600">{item.fromStatus ?? '—'} → {item.toStatus ?? '—'} · {item.createdAt.slice(0, 10)}</p>{item.reason && <p className="mt-1 break-words text-stone-600">原因：{item.reason}</p>}</li>)}</ol>}</div></DialogContent></Dialog>
       <WeddingTaskDialog open={dialog === 'task'} task={editingTask} processId={process?.id ?? null} defaultStageKey={actionStageKey} onOpenChange={(open) => !open && setDialog(null)} onSubmit={submitTask} />
       <WeddingExpenseDialog open={dialog === 'expense'} tasks={tasks} expense={editingExpense} onOpenChange={(open) => !open && setDialog(null)} onSubmit={submitExpense} />
-      <WeddingBudgetDialog open={dialog === 'budget'} budget={budget} onOpenChange={(open) => !open && setDialog(null)} onSubmit={submitBudget} />
+      <WeddingBudgetDialog open={dialog === 'budget'} budget={budget} onOpenChange={(open) => !open && closeBudget()} onSubmit={submitBudget} />
       <WeddingDeleteDialog open={deleteTarget !== null} resource={deleteTarget?.resource ?? 'task'} submitting={deleteSubmitting} onOpenChange={(open) => !open && setDeleteTarget(null)} onConfirm={confirmDelete} />
       <MobileTabBar />
     </main>
