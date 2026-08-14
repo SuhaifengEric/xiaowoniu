@@ -1369,6 +1369,105 @@
     @apply min-w-0;
   }
 
+  .wedding-eyebrow {
+    color: hsl(var(--brand-pink-deep));
+    font-size: 0.6875rem;
+    font-weight: 750;
+    letter-spacing: 0.13em;
+    line-height: 1.25;
+    text-transform: uppercase;
+  }
+
+  .wedding-process-hero {
+    background:
+      radial-gradient(circle at 90% 0%, hsl(var(--brand-pink-soft) / 0.82), transparent 22rem),
+      linear-gradient(135deg, hsl(var(--card) / 0.96), hsl(var(--brand-blue-soft) / 0.3));
+  }
+
+  .wedding-fact-cell {
+    display: grid;
+    min-width: 0;
+    gap: 0.35rem;
+    border-left: 2px solid hsl(var(--brand-pink) / 0.35);
+    padding: 0.15rem 0 0.15rem 0.8rem;
+  }
+
+  .wedding-fact-cell strong {
+    overflow-wrap: anywhere;
+    color: hsl(var(--foreground));
+    font-size: 1.05rem;
+    line-height: 1.35;
+  }
+
+  .wedding-fact-cell > span:last-child {
+    color: hsl(var(--muted-foreground));
+    font-size: 0.75rem;
+    line-height: 1.5;
+  }
+
+  .wedding-fact-label {
+    color: hsl(var(--muted-foreground));
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+  }
+
+  .marriage-node-row,
+  .agreement-row {
+    display: flex;
+    min-width: 0;
+    align-items: flex-start;
+    gap: 0.85rem;
+    border-bottom: 1px solid hsl(var(--border) / 0.82);
+    padding: 0.9rem 0;
+  }
+
+  .marriage-node-row:last-child,
+  .agreement-row:last-child {
+    border-bottom: 0;
+  }
+
+  .marriage-node-row--complete {
+    border-left: 2px solid hsl(152 58% 38% / 0.5);
+    padding-left: 0.75rem;
+  }
+
+  .marriage-node-index {
+    display: grid;
+    width: 2rem;
+    height: 2rem;
+    flex: 0 0 auto;
+    place-items: center;
+    border-radius: 999px;
+    background: hsl(var(--brand-pink-soft));
+    color: hsl(var(--brand-pink-deep));
+    font-size: 0.75rem;
+    font-weight: 750;
+  }
+
+  .agreement-row--risk {
+    border-left: 2px solid hsl(36 90% 46% / 0.6);
+    padding-left: 0.75rem;
+  }
+
+  @media (max-width: 479px) {
+    .marriage-node-row,
+    .agreement-row {
+      flex-wrap: wrap;
+    }
+
+    .marriage-node-row > div:nth-child(2),
+    .agreement-row > div:first-child {
+      width: calc(100% - 2.85rem);
+    }
+
+    .marriage-node-row > div:last-child,
+    .agreement-row > div:last-child {
+      width: 100%;
+      justify-content: flex-end;
+    }
+  }
+
   .learning-countdown {
     border-color: hsl(var(--brand-blue) / 0.25);
     background: hsl(var(--brand-blue-soft) / 0.7);

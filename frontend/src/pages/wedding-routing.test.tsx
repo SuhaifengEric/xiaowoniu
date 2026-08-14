@@ -39,7 +39,7 @@ describe('wedding routing', () => {
     const AppRoutes = (await import('@/routes')).default
     render(<AppRoutes />)
     expect(await screen.findByRole('heading', { name: '嫁嫁嫁' }, { timeout: 20_000 })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /新建任务/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /新增行动项/ })).toBeInTheDocument()
   }, 25_000)
 
   it('redirects unauthenticated visitors to login', async () => {

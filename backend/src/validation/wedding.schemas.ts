@@ -1,4 +1,16 @@
-import { PaidStatus, TaskStatus, WeddingTaskCategory } from '@xiaowoniu/shared'
+import {
+  ActionOwnerRole,
+  AgreementStatus,
+  EngagementMode,
+  MarriageNodeKey,
+  MarriageNodeStatus,
+  MarriageOrder,
+  MarriageRecorderRole,
+  PaidStatus,
+  TaskStatus,
+  VisitOrder,
+  WeddingTaskCategory,
+} from '@xiaowoniu/shared'
 import { z } from 'zod'
 
 const uuidString = z.string().uuid('必须是有效的 UUID')
@@ -39,11 +51,15 @@ const atLeastOneField = (schema: z.ZodObject<z.ZodRawShape>) => schema.refine((v
 
 const createTaskBody = z.object({
   taskName,
-  category: z.nativeEnum(WeddingTaskCategory),
+  category: z.nativeEnum(WeddingTaskCategory).default(WeddingTaskCategory.OTHER),
   plannedDate: strictDateString.nullable().optional(),
   status: z.nativeEnum(TaskStatus).optional(),
   priority: priority.optional(),
   notes: optionalNullableNotes,
+  processId: uuidString.nullable().optional(),
+  stageKey: z.nativeEnum(MarriageNodeKey).optional(),
+  ownerRole: z.nativeEnum(ActionOwnerRole).optional(),
+  completionCriteria: z.string().trim().max(500).nullable().optional(),
 }).strict()
 
 const updateTaskBody = atLeastOneField(z.object({
@@ -53,12 +69,18 @@ const updateTaskBody = atLeastOneField(z.object({
   status: z.nativeEnum(TaskStatus).optional(),
   priority: priority.optional(),
   notes: optionalNullableNotes,
+  processId: uuidString.nullable().optional(),
+  stageKey: z.nativeEnum(MarriageNodeKey).optional(),
+  ownerRole: z.nativeEnum(ActionOwnerRole).optional(),
+  completionCriteria: z.string().trim().max(500).nullable().optional(),
 }).strict())
 
 const taskQuery = z.object({
   status: z.nativeEnum(TaskStatus).optional(),
   category: z.nativeEnum(WeddingTaskCategory).optional(),
   ...paginationQuery,
+  processId: uuidString.optional(),
+  stageKey: z.nativeEnum(MarriageNodeKey).optional(),
 }).strict()
 
 const createExpenseBody = z.object({
@@ -134,3 +156,60 @@ export const weddingEmptySchema = z.object({
   query: emptyRequestPart,
   params: emptyRequestPart,
 })
+
+const nodeText = (max: number) => z.string().trim().max(max).nullable().optional()
+
+const processSettingsBody = z.object({
+  recorderRole: z.nativeEnum(MarriageRecorderRole).optional(),
+  visitOrder: z.nativeEnum(VisitOrder).optional(),
+  marriageOrder: z.nativeEnum(MarriageOrder).optional(),
+  engagementMode: z.nativeEnum(EngagementMode).optional(),
+}).strict().refine((value) => Object.keys(value).length > 0, { message: '至少提供一个可更新字段' })
+
+const processCreateBody = z.object({
+  recorderRole: z.nativeEnum(MarriageRecorderRole),
+  visitOrder: z.nativeEnum(VisitOrder).optional(),
+  marriageOrder: z.nativeEnum(MarriageOrder).optional(),
+  engagementMode: z.nativeEnum(EngagementMode).optional(),
+}).strict()
+
+const nodePatchBody = z.object({
+  status: z.nativeEnum(MarriageNodeStatus).optional(),
+  plannedDate: strictDateString.nullable().optional(),
+  actualDate: strictDateString.nullable().optional(),
+  participants: nodeText(500),
+  conclusion: nodeText(5000),
+  disagreements: nodeText(5000),
+  nextStep: nodeText(5000),
+  notes: nodeText(5000),
+  skipReason: nodeText(500),
+  backfilled: z.boolean().optional(),
+  reason: z.string().trim().max(500).nullable().optional(),
+}).strict().refine((value) => Object.keys(value).length > 0, { message: '至少提供一个可更新字段' })
+
+const nodeKeyParams = z.object({ nodeKey: z.nativeEnum(MarriageNodeKey) }).strict()
+
+const agreementCreateBody = z.object({
+  title: trimmedString(1, 100, '议题标题'),
+  status: z.nativeEnum(AgreementStatus).optional(),
+  notes: z.string().trim().max(5000).nullable().optional(),
+  sortOrder: z.number().int().min(0).max(10000).optional(),
+}).strict()
+
+const agreementPatchBody = z.object({
+  title: trimmedString(1, 100, '议题标题').optional(),
+  status: z.nativeEnum(AgreementStatus).optional(),
+  notes: z.string().trim().max(5000).nullable().optional(),
+  sortOrder: z.number().int().min(0).max(10000).optional(),
+}).strict().refine((value) => Object.keys(value).length > 0, { message: '至少提供一个可更新字段' })
+
+export const getMarriageProcessSchema = weddingEmptySchema
+export const putMarriageProcessSchema = z.object({ body: processCreateBody })
+export const updateMarriageSettingsSchema = z.object({ body: processSettingsBody })
+export const marriageNodeListSchema = weddingEmptySchema
+export const updateMarriageNodeRouteSchema = z.object({ params: nodeKeyParams, body: nodePatchBody })
+export const marriageNodeHistoryRouteSchema = z.object({ params: nodeKeyParams, body: emptyRequestPart, query: emptyRequestPart })
+export const marriageAgreementListSchema = weddingEmptySchema
+export const createMarriageAgreementSchema = z.object({ body: agreementCreateBody })
+export const updateMarriageAgreementRouteSchema = z.object({ params: idParams, body: agreementPatchBody })
+export const deleteMarriageAgreementRouteSchema = z.object({ params: idParams, body: emptyRequestPart, query: emptyRequestPart })

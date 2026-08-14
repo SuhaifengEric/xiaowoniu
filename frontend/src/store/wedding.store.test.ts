@@ -5,6 +5,16 @@ import { initialWeddingState, useWeddingStore } from './wedding.store'
 
 vi.mock('@/services/wedding.service', () => ({
   weddingService: {
+    getProcess: vi.fn(),
+    createProcess: vi.fn(),
+    updateProcessSettings: vi.fn(),
+    getNodes: vi.fn(),
+    updateNode: vi.fn(),
+    getNodeHistory: vi.fn(),
+    getAgreements: vi.fn(),
+    createAgreement: vi.fn(),
+    updateAgreement: vi.fn(),
+    archiveAgreement: vi.fn(),
     getTasks: vi.fn(),
     createTask: vi.fn(),
     updateTask: vi.fn(),
@@ -54,6 +64,9 @@ const timeline = {
 }
 
 const setDefaultResponses = () => {
+  service.getProcess.mockResolvedValue(null)
+  service.getNodes.mockResolvedValue([])
+  service.getAgreements.mockResolvedValue([])
   service.getTasks.mockResolvedValue([task])
   service.getExpenses.mockResolvedValue([expense])
   service.getBudget.mockResolvedValue(budget)

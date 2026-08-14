@@ -2,6 +2,15 @@ import type {
   ApiSuccessResponse,
   CreateWeddingExpenseRequest,
   CreateWeddingTaskRequest,
+  CreateAgreementTopicRequest,
+  MarriageNodeHistoryResponse,
+  MarriageNodeKey,
+  MarriageNodeResponse,
+  MarriageProcessResponse,
+  PutMarriageProcessRequest,
+  UpdateAgreementTopicRequest,
+  UpdateMarriageNodeRequest,
+  UpdateMarriageSettingsRequest,
   UpdateWeddingExpenseRequest,
   UpdateWeddingTaskRequest,
   UpsertWeddingBudgetRequest,
@@ -21,6 +30,56 @@ export const weddingService = {
       '/api/wedding/tasks',
       { params }
     )
+    return response.data.data
+  },
+
+  async getProcess(): Promise<MarriageProcessResponse | null> {
+    const response = await api.get<ApiSuccessResponse<MarriageProcessResponse | null>>('/api/wedding/process')
+    return response.data.data
+  },
+
+  async createProcess(data: PutMarriageProcessRequest): Promise<MarriageProcessResponse> {
+    const response = await api.put<ApiSuccessResponse<MarriageProcessResponse>>('/api/wedding/process', data)
+    return response.data.data
+  },
+
+  async updateProcessSettings(data: UpdateMarriageSettingsRequest): Promise<MarriageProcessResponse> {
+    const response = await api.patch<ApiSuccessResponse<MarriageProcessResponse>>('/api/wedding/process/settings', data)
+    return response.data.data
+  },
+
+  async getNodes(): Promise<MarriageNodeResponse[]> {
+    const response = await api.get<ApiSuccessResponse<MarriageNodeResponse[]>>('/api/wedding/process/nodes')
+    return response.data.data
+  },
+
+  async updateNode(nodeKey: MarriageNodeKey, data: UpdateMarriageNodeRequest): Promise<MarriageNodeResponse> {
+    const response = await api.patch<ApiSuccessResponse<MarriageNodeResponse>>(`/api/wedding/process/nodes/${nodeKey}`, data)
+    return response.data.data
+  },
+
+  async getNodeHistory(nodeKey: MarriageNodeKey): Promise<MarriageNodeHistoryResponse[]> {
+    const response = await api.get<ApiSuccessResponse<MarriageNodeHistoryResponse[]>>(`/api/wedding/process/nodes/${nodeKey}/history`)
+    return response.data.data
+  },
+
+  async getAgreements(): Promise<MarriageProcessResponse['agreements']> {
+    const response = await api.get<ApiSuccessResponse<MarriageProcessResponse['agreements']>>('/api/wedding/process/agreements')
+    return response.data.data
+  },
+
+  async createAgreement(data: CreateAgreementTopicRequest): Promise<MarriageProcessResponse['agreements'][number]> {
+    const response = await api.post<ApiSuccessResponse<MarriageProcessResponse['agreements'][number]>>('/api/wedding/process/agreements', data)
+    return response.data.data
+  },
+
+  async updateAgreement(id: string, data: UpdateAgreementTopicRequest): Promise<MarriageProcessResponse['agreements'][number]> {
+    const response = await api.patch<ApiSuccessResponse<MarriageProcessResponse['agreements'][number]>>(`/api/wedding/process/agreements/${id}`, data)
+    return response.data.data
+  },
+
+  async archiveAgreement(id: string): Promise<null> {
+    const response = await api.delete<ApiSuccessResponse<null>>(`/api/wedding/process/agreements/${id}`)
     return response.data.data
   },
 

@@ -1,0 +1,845 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>嫁嫁嫁｜婚姻进程工作台原型</title>
+    <style>
+      :root {
+        --paper: #fffafd;
+        --surface: #ffffff;
+        --surface-soft: #fff5fa;
+        --surface-blue: #f1f8ff;
+        --ink: #202235;
+        --muted: #70758a;
+        --soft: #a0a5b5;
+        --line: #eee5ed;
+        --pink: #f05d91;
+        --pink-deep: #d93e76;
+        --pink-soft: #ffe8f1;
+        --blue: #5ca9ed;
+        --blue-deep: #397fbe;
+        --blue-soft: #e9f5ff;
+        --lavender: #f2efff;
+        --green: #43b989;
+        --green-soft: #eaf9f3;
+        --yellow: #d99c31;
+        --yellow-soft: #fff6dc;
+        --red: #d96161;
+        --red-soft: #fff0f0;
+        --shadow: 0 18px 42px rgba(65, 46, 79, 0.08);
+        --shadow-soft: 0 8px 20px rgba(65, 46, 79, 0.06);
+        --radius-sm: 10px;
+        --radius-md: 16px;
+        --radius-lg: 24px;
+      }
+
+      * { box-sizing: border-box; }
+
+      html { scroll-behavior: smooth; }
+
+      body {
+        min-width: 320px;
+        margin: 0;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at 0 0, rgba(255, 212, 230, 0.36), transparent 28rem),
+          radial-gradient(circle at 100% 7%, rgba(204, 233, 255, 0.44), transparent 30rem),
+          var(--paper);
+        font-family: "Avenir Next", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+        line-height: 1.5;
+      }
+
+      button,
+      input,
+      select,
+      textarea { font: inherit; }
+
+      button { cursor: pointer; }
+
+      .prototype-shell {
+        width: min(1440px, calc(100% - 48px));
+        margin: 0 auto;
+        padding: 26px 0 72px;
+      }
+
+      .prototype-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0 0 10px;
+        color: var(--pink-deep);
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      .prototype-label::before {
+        width: 24px;
+        height: 2px;
+        content: "";
+        background: linear-gradient(90deg, var(--pink), var(--blue));
+        border-radius: 99px;
+      }
+
+      .prototype-header {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 24px;
+        margin-bottom: 22px;
+      }
+
+      .prototype-header h1 {
+        margin: 0;
+        font-size: clamp(28px, 4vw, 44px);
+        letter-spacing: -0.05em;
+        line-height: 1.04;
+      }
+
+      .prototype-header p {
+        max-width: 680px;
+        margin: 12px 0 0;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .prototype-note {
+        max-width: 330px;
+        padding: 12px 15px;
+        border: 1px solid rgba(92, 169, 237, 0.22);
+        border-radius: var(--radius-md);
+        background: linear-gradient(135deg, rgba(255, 232, 241, 0.78), rgba(233, 245, 255, 0.86));
+        color: var(--blue-deep);
+        font-size: 12px;
+        line-height: 1.55;
+      }
+
+      .app-frame {
+        overflow: hidden;
+        border: 1px solid rgba(234, 218, 231, 0.96);
+        border-radius: 28px;
+        background: rgba(255, 255, 255, 0.78);
+        box-shadow: var(--shadow);
+      }
+
+      .app-topbar {
+        display: flex;
+        min-height: 74px;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        padding: 14px 28px;
+        border-bottom: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.8);
+      }
+
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        color: var(--ink);
+        font-size: 17px;
+        font-weight: 800;
+        letter-spacing: -0.04em;
+      }
+
+      .brand-mark {
+        display: grid;
+        width: 34px;
+        height: 34px;
+        place-items: center;
+        border-radius: 12px;
+        background: linear-gradient(135deg, var(--pink), var(--blue));
+        color: white;
+        font-size: 16px;
+        box-shadow: 0 6px 14px rgba(240, 93, 145, 0.24);
+      }
+
+      .topbar-context {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .topbar-context strong { color: var(--ink); }
+
+      .avatar {
+        display: grid;
+        width: 36px;
+        height: 36px;
+        place-items: center;
+        border: 2px solid #fff;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #ffc5dc, #a9d8ff);
+        color: #7f4262;
+        font-size: 13px;
+        font-weight: 800;
+        box-shadow: 0 0 0 1px rgba(240, 93, 145, 0.2);
+      }
+
+      .workspace {
+        display: grid;
+        grid-template-columns: 232px minmax(0, 1fr);
+        min-height: 830px;
+      }
+
+      .sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+        padding: 26px 14px 20px;
+        border-right: 1px solid var(--line);
+        background: linear-gradient(180deg, rgba(255, 247, 251, 0.9), rgba(248, 252, 255, 0.76));
+      }
+
+      .sidebar-title {
+        padding: 0 12px;
+        color: var(--soft);
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+
+      .sidebar-nav {
+        display: grid;
+        gap: 5px;
+      }
+
+      .nav-button {
+        display: flex;
+        min-height: 45px;
+        align-items: center;
+        gap: 11px;
+        width: 100%;
+        padding: 0 12px;
+        border: 0;
+        border-radius: 12px;
+        background: transparent;
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 700;
+        text-align: left;
+        transition: 160ms ease;
+      }
+
+      .nav-button:hover,
+      .nav-button.active {
+        background: linear-gradient(135deg, rgba(255, 232, 241, 0.95), rgba(233, 245, 255, 0.88));
+        color: var(--pink-deep);
+      }
+
+      .nav-icon {
+        display: grid;
+        width: 25px;
+        height: 25px;
+        place-items: center;
+        border-radius: 8px;
+        background: #fff;
+        color: var(--blue);
+        font-size: 14px;
+      }
+
+      .nav-button.active .nav-icon { background: #fff; color: var(--pink); }
+
+      .sidebar-mini {
+        margin-top: auto;
+        padding: 15px;
+        border: 1px solid rgba(92, 169, 237, 0.2);
+        border-radius: var(--radius-md);
+        background: linear-gradient(145deg, rgba(255, 236, 244, 0.74), rgba(232, 246, 255, 0.8));
+      }
+
+      .sidebar-mini p { margin: 0; color: var(--muted); font-size: 11px; }
+      .sidebar-mini strong { display: block; margin: 5px 0 9px; font-size: 15px; }
+
+      .progress-track {
+        height: 7px;
+        overflow: hidden;
+        border-radius: 99px;
+        background: rgba(255, 255, 255, 0.8);
+      }
+
+      .progress-value {
+        width: 49%;
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, var(--pink), var(--blue));
+      }
+
+      .main-content { min-width: 0; padding: 28px 34px 34px; }
+
+      .view { display: none; animation: view-in 220ms ease both; }
+      .view.active { display: block; }
+
+      @keyframes view-in {
+        from { opacity: 0; transform: translateY(4px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      .view-header {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 20px;
+        margin-bottom: 20px;
+      }
+
+      .view-kicker {
+        margin: 0 0 7px;
+        color: var(--blue-deep);
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.1em;
+      }
+
+      .view-header h2 { margin: 0; font-size: 26px; letter-spacing: -0.05em; line-height: 1.1; }
+      .view-header p { margin: 8px 0 0; color: var(--muted); font-size: 13px; }
+
+      .button {
+        display: inline-flex;
+        min-height: 40px;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        padding: 0 15px;
+        border: 1px solid transparent;
+        border-radius: 11px;
+        font-size: 12px;
+        font-weight: 800;
+        transition: 160ms ease;
+      }
+
+      .button:hover { transform: translateY(-1px); }
+
+      .button-primary {
+        background: linear-gradient(135deg, var(--pink), var(--blue));
+        color: #fff;
+        box-shadow: 0 8px 18px rgba(240, 93, 145, 0.18);
+      }
+
+      .button-secondary { border-color: rgba(92, 169, 237, 0.4); background: #fff; color: var(--blue-deep); }
+      .button-ghost { border-color: transparent; background: transparent; color: var(--muted); }
+      .button-danger { border-color: rgba(217, 97, 97, 0.25); background: var(--red-soft); color: var(--red); }
+
+      .hero-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.5fr) minmax(260px, 0.8fr);
+        gap: 16px;
+        margin-bottom: 17px;
+      }
+
+      .hero-panel {
+        position: relative;
+        overflow: hidden;
+        min-height: 214px;
+        padding: 24px;
+        border-radius: var(--radius-lg);
+        background: linear-gradient(135deg, #fff0f6 0%, #f6efff 48%, #e9f7ff 100%);
+      }
+
+      .hero-panel::after {
+        position: absolute;
+        right: -34px;
+        bottom: -48px;
+        width: 220px;
+        height: 220px;
+        border: 30px solid rgba(255, 255, 255, 0.45);
+        border-radius: 50%;
+        content: "";
+      }
+
+      .hero-panel .eyebrow { margin: 0 0 13px; color: var(--pink-deep); font-size: 11px; font-weight: 800; }
+      .hero-panel h3 { position: relative; z-index: 1; max-width: 410px; margin: 0; font-size: 28px; letter-spacing: -0.06em; line-height: 1.13; }
+      .hero-panel p { position: relative; z-index: 1; max-width: 450px; margin: 10px 0 19px; color: var(--muted); font-size: 13px; }
+
+      .hero-next {
+        display: flex;
+        position: relative;
+        z-index: 1;
+        align-items: center;
+        gap: 10px;
+        width: fit-content;
+        padding: 10px 13px;
+        border: 1px solid rgba(255, 255, 255, 0.85);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.72);
+        color: var(--ink);
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .hero-next span { color: var(--pink-deep); font-size: 17px; }
+
+      .countdown-panel {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        min-height: 214px;
+        padding: 22px;
+        border: 1px solid rgba(92, 169, 237, 0.22);
+        border-radius: var(--radius-lg);
+        background: linear-gradient(145deg, #f0f9ff, #ffffff);
+      }
+
+      .countdown-panel .label { color: var(--blue-deep); font-size: 11px; font-weight: 800; }
+      .countdown-panel strong { display: block; margin-top: 8px; color: var(--ink); font-size: 37px; letter-spacing: -0.07em; line-height: 1; }
+      .countdown-panel strong small { margin-left: 5px; color: var(--muted); font-size: 13px; letter-spacing: 0; }
+      .countdown-panel p { margin: 9px 0 0; color: var(--muted); font-size: 12px; }
+
+      .status-line { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 18px; color: var(--muted); font-size: 11px; }
+      .status-line b { color: var(--ink); }
+
+      .surface {
+        border: 1px solid var(--line);
+        border-radius: var(--radius-md);
+        background: var(--surface);
+        box-shadow: var(--shadow-soft);
+      }
+
+      .section-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin: 22px 0 11px; }
+      .section-row h3 { margin: 0; font-size: 16px; letter-spacing: -0.03em; }
+      .section-row p { margin: 0; color: var(--muted); font-size: 12px; }
+
+      .stage-strip {
+        display: grid;
+        grid-template-columns: repeat(8, minmax(86px, 1fr));
+        overflow-x: auto;
+        padding: 18px 12px 14px;
+      }
+
+      .stage-item {
+        position: relative;
+        min-width: 86px;
+        padding: 0 8px;
+        text-align: center;
+      }
+
+      .stage-item:not(:last-child)::after {
+        position: absolute;
+        top: 14px;
+        right: -4px;
+        left: calc(50% + 21px);
+        height: 2px;
+        content: "";
+        background: #e7ecf4;
+      }
+
+      .stage-dot {
+        position: relative;
+        z-index: 1;
+        display: grid;
+        width: 28px;
+        height: 28px;
+        margin: 0 auto 8px;
+        place-items: center;
+        border: 2px solid #dbe5ef;
+        border-radius: 50%;
+        background: #fff;
+        color: var(--soft);
+        font-size: 11px;
+        font-weight: 800;
+      }
+
+      .stage-item.done .stage-dot { border-color: var(--green); background: var(--green-soft); color: var(--green); }
+      .stage-item.current .stage-dot { border-color: var(--pink); background: var(--pink-soft); color: var(--pink-deep); box-shadow: 0 0 0 5px rgba(240, 93, 145, 0.11); }
+      .stage-item.done:not(:last-child)::after { background: linear-gradient(90deg, var(--green), #d6ebec); }
+      .stage-item.current:not(:last-child)::after { background: linear-gradient(90deg, var(--pink), #e7ecf4); }
+      .stage-name { color: var(--muted); font-size: 11px; line-height: 1.35; }
+      .stage-item.current .stage-name { color: var(--pink-deep); font-weight: 800; }
+
+      .control-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+
+      .control-panel { padding: 18px; }
+      .control-panel h3 { margin: 0; font-size: 15px; letter-spacing: -0.03em; }
+      .control-panel > p { margin: 6px 0 14px; color: var(--muted); font-size: 12px; }
+
+      .choice-row { display: flex; flex-wrap: wrap; gap: 8px; }
+
+      .choice {
+        min-height: 37px;
+        padding: 0 11px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: #fff;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 700;
+        transition: 150ms ease;
+      }
+
+      .choice:hover { border-color: rgba(240, 93, 145, 0.4); color: var(--pink-deep); }
+      .choice.selected { border-color: rgba(240, 93, 145, 0.42); background: var(--pink-soft); color: var(--pink-deep); }
+
+      .control-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 13px; color: var(--muted); font-size: 11px; }
+      .control-foot strong { color: var(--ink); }
+
+      .two-column { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(260px, 0.75fr); gap: 16px; }
+
+      .next-panel { padding: 18px; }
+      .next-panel h3 { margin: 0; font-size: 15px; }
+      .next-panel > p { margin: 5px 0 13px; color: var(--muted); font-size: 12px; }
+
+      .action-item {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        min-height: 61px;
+        padding: 10px 0;
+        border-top: 1px solid #f1edf1;
+      }
+
+      .action-item:first-of-type { border-top: 0; }
+      .action-icon { display: grid; width: 30px; height: 30px; flex: none; place-items: center; border-radius: 10px; background: var(--blue-soft); color: var(--blue-deep); font-size: 14px; }
+      .action-copy { min-width: 0; flex: 1; }
+      .action-copy strong { display: block; overflow: hidden; color: var(--ink); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+      .action-copy span { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; }
+      .date-badge { flex: none; padding: 5px 8px; border-radius: 8px; background: var(--surface-soft); color: var(--pink-deep); font-size: 10px; font-weight: 800; }
+
+      .risk-panel { padding: 18px; }
+      .risk-panel h3 { margin: 0; font-size: 15px; }
+      .risk-list { display: grid; gap: 10px; margin-top: 13px; }
+      .risk-item { display: flex; align-items: flex-start; gap: 9px; padding: 10px; border-radius: 11px; background: var(--yellow-soft); color: #8c681d; font-size: 11px; }
+      .risk-item.blue { background: var(--blue-soft); color: var(--blue-deep); }
+      .risk-item.pink { background: var(--pink-soft); color: var(--pink-deep); }
+      .risk-mark { font-size: 14px; line-height: 1; }
+
+      .status-pill { display: inline-flex; align-items: center; min-height: 23px; padding: 0 8px; border-radius: 99px; font-size: 10px; font-weight: 800; white-space: nowrap; }
+      .status-pill.green { background: var(--green-soft); color: var(--green); }
+      .status-pill.pink { background: var(--pink-soft); color: var(--pink-deep); }
+      .status-pill.blue { background: var(--blue-soft); color: var(--blue-deep); }
+      .status-pill.yellow { background: var(--yellow-soft); color: var(--yellow); }
+      .status-pill.gray { background: #f3f4f7; color: var(--muted); }
+
+      .detail-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr); gap: 16px; }
+      .detail-panel { padding: 20px; }
+      .detail-panel h3 { margin: 0; font-size: 16px; }
+      .detail-panel .lead { margin: 7px 0 17px; color: var(--muted); font-size: 12px; }
+
+      .record-list { display: grid; gap: 8px; }
+      .record-row { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 11px 0; border-top: 1px solid #f1edf1; }
+      .record-row:first-child { border-top: 0; }
+      .record-symbol { display: grid; width: 30px; height: 30px; place-items: center; border-radius: 10px; background: var(--surface-blue); color: var(--blue-deep); font-size: 14px; }
+      .record-row strong { display: block; font-size: 12px; }
+      .record-row small { display: block; margin-top: 3px; color: var(--muted); font-size: 10px; }
+
+      .form-row { display: grid; gap: 6px; margin-bottom: 13px; }
+      .form-row label { color: var(--muted); font-size: 11px; font-weight: 800; }
+      .field,
+      .select,
+      .textarea {
+        width: 100%;
+        min-height: 40px;
+        padding: 0 11px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        outline: 0;
+        background: #fff;
+        color: var(--ink);
+        font-size: 12px;
+      }
+
+      .textarea { min-height: 74px; padding-top: 9px; resize: vertical; }
+      .field:focus, .select:focus, .textarea:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(92, 169, 237, 0.14); }
+      .inline-form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+      .order-card { margin-top: 14px; padding: 13px; border: 1px solid var(--line); border-radius: 12px; background: #fffafd; }
+      .order-card h4 { margin: 0 0 9px; font-size: 12px; }
+      .order-line { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 11px; }
+      .order-line + .order-line { margin-top: 7px; }
+      .order-number { display: grid; width: 20px; height: 20px; place-items: center; border-radius: 7px; background: var(--pink-soft); color: var(--pink-deep); font-size: 10px; font-weight: 800; }
+
+      .agreement-list { display: grid; gap: 8px; margin-top: 10px; }
+      .agreement-row { display: flex; align-items: center; gap: 9px; min-height: 42px; padding: 8px 10px; border-radius: 10px; background: #faf9fc; }
+      .agreement-dot { width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--green); }
+      .agreement-dot.open { background: var(--yellow); }
+      .agreement-row span { min-width: 0; flex: 1; color: var(--ink); font-size: 11px; }
+
+      .budget-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; margin-bottom: 16px; }
+      .budget-stat { padding: 13px; border-radius: 12px; background: linear-gradient(135deg, var(--surface-soft), var(--surface-blue)); }
+      .budget-stat small { display: block; color: var(--muted); font-size: 10px; }
+      .budget-stat strong { display: block; margin-top: 4px; font-size: 18px; letter-spacing: -0.04em; }
+      .budget-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 0; border-top: 1px solid #f1edf1; font-size: 12px; }
+      .budget-row span { color: var(--muted); }
+
+      .process-list { display: grid; gap: 8px; }
+      .process-row { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 11px 0; border-bottom: 1px solid #f1edf1; }
+      .process-row:last-child { border-bottom: 0; }
+      .process-num { display: grid; width: 26px; height: 26px; place-items: center; border-radius: 9px; background: var(--blue-soft); color: var(--blue-deep); font-size: 10px; font-weight: 800; }
+      .process-row strong { display: block; font-size: 12px; }
+      .process-row small { display: block; margin-top: 2px; color: var(--muted); font-size: 10px; }
+
+      .mobile-tabs { display: none; }
+
+      .toast {
+        position: fixed;
+        right: 24px;
+        bottom: 24px;
+        z-index: 20;
+        display: none;
+        max-width: min(360px, calc(100vw - 32px));
+        padding: 12px 15px;
+        border: 1px solid rgba(67, 185, 137, 0.3);
+        border-radius: 12px;
+        background: #fff;
+        box-shadow: var(--shadow);
+        color: var(--green);
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .toast.show { display: block; animation: toast-in 180ms ease both; }
+      @keyframes toast-in { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: translateY(0); } }
+
+      .prototype-footer { margin-top: 16px; color: var(--soft); font-size: 11px; text-align: center; }
+
+      @media (max-width: 1020px) {
+        .workspace { grid-template-columns: 190px minmax(0, 1fr); }
+        .main-content { padding: 24px; }
+        .hero-grid, .two-column, .detail-grid { grid-template-columns: 1fr; }
+        .stage-strip { grid-template-columns: repeat(8, minmax(100px, 1fr)); }
+      }
+
+      @media (max-width: 720px) {
+        .prototype-shell { width: min(100% - 24px, 1440px); padding-top: 18px; }
+        .prototype-header { display: block; }
+        .prototype-note { max-width: none; margin-top: 14px; }
+        .app-frame { border-radius: 20px; }
+        .app-topbar { min-height: 64px; padding: 12px 16px; }
+        .topbar-context > span { display: none; }
+        .workspace { display: block; min-height: auto; }
+        .sidebar { display: none; }
+        .main-content { padding: 20px 14px 85px; }
+        .view-header { align-items: flex-start; display: block; }
+        .view-header .button { margin-top: 13px; }
+        .view-header h2 { font-size: 24px; }
+        .hero-panel, .countdown-panel { min-height: 190px; padding: 19px; }
+        .hero-panel h3 { font-size: 24px; }
+        .control-grid { grid-template-columns: 1fr; }
+        .budget-summary { grid-template-columns: 1fr 1fr 1fr; }
+        .budget-stat { padding: 10px; }
+        .budget-stat strong { font-size: 15px; }
+        .mobile-tabs { position: fixed; right: 0; bottom: 0; left: 0; z-index: 15; display: grid; grid-template-columns: repeat(5, 1fr); gap: 3px; padding: 7px 6px calc(7px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: rgba(255, 255, 255, 0.96); box-shadow: 0 -12px 24px rgba(65, 46, 79, 0.08); }
+        .mobile-tab { display: grid; min-height: 53px; place-items: center; gap: 2px; padding: 3px 1px; border: 0; border-radius: 10px; background: transparent; color: var(--muted); font-size: 9px; font-weight: 800; }
+        .mobile-tab.active { background: var(--pink-soft); color: var(--pink-deep); }
+        .mobile-tab span:first-child { font-size: 17px; }
+        .toast { right: 14px; bottom: calc(78px + env(safe-area-inset-bottom)); left: 14px; max-width: none; }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="prototype-shell">
+      <header class="prototype-header">
+        <div>
+          <p class="prototype-label">嫁嫁嫁 / 工作台原型</p>
+          <h1>把两个家庭，走成一个家</h1>
+          <p>原型围绕真实婚姻节点设计：先看现在走到哪里，再决定下一步；两次上门和领证/婚礼顺序，都由双方自己安排。</p>
+        </div>
+        <aside class="prototype-note">可点击原型：点击左侧导航、顺序选项、阶段节点和操作按钮，查看不同业务状态。</aside>
+      </header>
+
+      <section class="app-frame" aria-label="嫁嫁嫁婚姻进程工作台原型">
+        <header class="app-topbar">
+          <div class="brand"><span class="brand-mark">♡</span><span>小窝牛 · 嫁嫁嫁</span></div>
+          <div class="topbar-context"><span>当前记录人：<strong>小窝</strong></span><span class="avatar">小窝</span></div>
+        </header>
+
+        <div class="workspace">
+          <aside class="sidebar" aria-label="嫁嫁嫁导航">
+            <div class="sidebar-title">婚姻工作台</div>
+            <nav class="sidebar-nav">
+              <button class="nav-button active" data-view="home"><span class="nav-icon">⌂</span>婚姻进程</button>
+              <button class="nav-button" data-view="stages"><span class="nav-icon">◌</span>阶段记录</button>
+              <button class="nav-button" data-view="agreement"><span class="nav-icon">☷</span>双方共识</button>
+              <button class="nav-button" data-view="execution"><span class="nav-icon">◇</span>婚礼执行</button>
+              <button class="nav-button" data-view="settings"><span class="nav-icon">⚙</span>流程设置</button>
+            </nav>
+            <div class="sidebar-mini">
+              <p>整体进程</p>
+              <strong id="sidebar-progress-text">4 / 8 个节点已完成</strong>
+              <div class="progress-track"><div class="progress-value" id="sidebar-progress"></div></div>
+              <p style="margin-top:9px">完成事实由你们自己确认。</p>
+            </div>
+          </aside>
+
+          <div class="main-content">
+            <section class="view active" id="view-home">
+              <div class="view-header">
+                <div><p class="view-kicker">当前阶段 · 04 / 共识</p><h2>你们正在把婚姻谈清楚</h2><p>两次上门已经完成，接下来是确认重要生活安排。</p></div>
+                <button class="button button-primary" data-action="record">＋ 记录一次进展</button>
+              </div>
+
+              <div class="hero-grid">
+                <article class="hero-panel">
+                  <p class="eyebrow">下一步行动</p>
+                  <h3>确认婚后居住城市，和双方父母再沟通一次。</h3>
+                  <p>还有 2 个议题需要再讨论。你可以先记录结论，也可以把它安排到某个日期。</p>
+                  <button class="hero-next" data-action="agreement"><span>→</span> 查看待沟通议题</button>
+                </article>
+                <article class="countdown-panel">
+                  <div><span class="label">婚礼计划</span><strong>还有 128<small>天</small></strong><p>计划婚礼：2026 年 12 月 19 日</p></div>
+                  <div><div class="progress-track"><div class="progress-value" style="width: 49%"></div></div><div class="status-line"><span>当前进程</span><b>49%</b></div></div>
+                </article>
+              </div>
+
+              <div class="section-row"><div><h3>你们的婚姻进程</h3><p>已发生的事实和接下来的计划分开记录</p></div><button class="button button-secondary" data-view-target="settings">调整流程顺序</button></div>
+              <div class="surface stage-strip" aria-label="婚姻阶段进度">
+                <button class="stage-item done" data-stage="01"><span class="stage-dot">✓</span><span class="stage-name">确认意愿</span></button>
+                <button class="stage-item done" data-stage="02"><span class="stage-dot">✓</span><span class="stage-name">两次上门</span></button>
+                <button class="stage-item done" data-stage="03"><span class="stage-dot">✓</span><span class="stage-name">父母见面</span></button>
+                <button class="stage-item current" data-stage="04"><span class="stage-dot">4</span><span class="stage-name">基本共识</span></button>
+                <button class="stage-item" data-stage="05"><span class="stage-dot">5</span><span class="stage-name">订婚</span></button>
+                <button class="stage-item" data-stage="06"><span class="stage-dot">6</span><span class="stage-name">安排顺序</span></button>
+                <button class="stage-item" data-stage="07"><span class="stage-dot">7</span><span class="stage-name">领证 / 婚礼</span></button>
+                <button class="stage-item" data-stage="08"><span class="stage-dot">8</span><span class="stage-name">婚后生活</span></button>
+              </div>
+
+              <div class="section-row"><div><h3>由你们决定的顺序</h3><p>推荐顺序可以改变，已经发生的事实不会被覆盖</p></div></div>
+              <div class="control-grid">
+                <article class="surface control-panel">
+                  <h3>两次上门</h3><p>两次都要完成，谁先谁后由双方安排。</p>
+                  <div class="choice-row" data-choice-group="visit-order">
+                    <button class="choice selected" data-choice="男方先上门">男方先上门</button>
+                    <button class="choice" data-choice="女方先上门">女方先上门</button>
+                  </div>
+                  <div class="control-foot"><span>当前安排：<strong id="visit-order-value">男方先上门</strong></span><button class="button button-ghost" data-action="visit">查看记录 →</button></div>
+                </article>
+                <article class="surface control-panel">
+                  <h3>领证与婚礼</h3><p>两个节点独立完成，顺序和日期由双方控制。</p>
+                  <div class="choice-row" data-choice-group="marriage-order">
+                    <button class="choice selected" data-choice="先领证后婚礼">先领证后婚礼</button>
+                    <button class="choice" data-choice="先婚礼后领证">先婚礼后领证</button>
+                    <button class="choice" data-choice="同日 / 临近完成">同日 / 临近完成</button>
+                  </div>
+                  <div class="control-foot"><span>当前安排：<strong id="marriage-order-value">先领证后婚礼</strong></span><button class="button button-ghost" data-action="schedule">编辑日期 →</button></div>
+                </article>
+              </div>
+
+              <div class="section-row"><div><h3>下一步与提醒</h3><p>只展示会影响当前推进的事情</p></div></div>
+              <div class="two-column">
+                <article class="surface next-panel">
+                  <h3>下一步行动</h3><p>你们可以从这里继续推进</p>
+                  <div class="action-item"><span class="action-icon">☷</span><div class="action-copy"><strong>确认婚后居住城市</strong><span>双方共识 · 需要再沟通</span></div><span class="date-badge">本周</span></div>
+                  <div class="action-item"><span class="action-icon">◷</span><div class="action-copy"><strong>安排双方父母再次通话</strong><span>基本共识 · 女方负责发起</span></div><span class="date-badge">8 月 23 日</span></div>
+                  <div class="action-item"><span class="action-icon">◇</span><div class="action-copy"><strong>确认订婚是否按当地习俗进行</strong><span>订婚 · 尚未决定</span></div><span class="date-badge">待定</span></div>
+                </article>
+                <article class="surface risk-panel">
+                  <h3>需要留意</h3>
+                  <div class="risk-list">
+                    <div class="risk-item"><span class="risk-mark">!</span><span>有 2 个共识议题需要再沟通，不建议直接进入订婚。</span></div>
+                    <div class="risk-item blue"><span class="risk-mark">◇</span><span>婚礼预算已使用 68%，还有 42,000 元未安排。</span></div>
+                    <div class="risk-item pink"><span class="risk-mark">○</span><span>先领证后婚礼：领证计划 10 月 1 日，婚礼计划 12 月 19 日。</span></div>
+                  </div>
+                </article>
+              </div>
+            </section>
+
+            <section class="view" id="view-stages">
+              <div class="view-header"><div><p class="view-kicker">阶段记录</p><h2>每一步，都留下真实结果</h2><p>记录发生过什么，不让计划覆盖事实。</p></div><button class="button button-primary" data-action="record">＋ 补录已发生节点</button></div>
+              <div class="detail-grid">
+                <article class="surface detail-panel"><h3>两次上门 · 都已完成</h3><p class="lead">先后可以调整，但每次拜访都有自己的结果。</p><div class="record-list"><div class="record-row"><span class="record-symbol">♂</span><div><strong>男方上门见女方家长</strong><small>2026 年 7 月 12 日 · 女方家 · 表达婚姻意愿</small></div><span class="status-pill green">已完成</span></div><div class="record-row"><span class="record-symbol">♀</span><div><strong>女方上门见男方家长</strong><small>2026 年 7 月 26 日 · 男方家 · 正式认识家庭</small></div><span class="status-pill green">已完成</span></div></div><div class="order-card"><h4>当前顺序</h4><div class="order-line"><span class="order-number">1</span><b>男方先上门</b><span>→</span><span>2026 / 07 / 12</span></div><div class="order-line"><span class="order-number">2</span><b>女方后上门</b><span>→</span><span>2026 / 07 / 26</span></div></div></article>
+                <article class="surface detail-panel"><h3>双方父母见面</h3><p class="lead">第一次面对面谈婚事，记录结论比记录“同意”更重要。</p><div class="form-row"><label for="meeting-date">见面日期</label><input id="meeting-date" class="field" type="date" value="2026-08-02" /></div><div class="form-row"><label for="meeting-note">主要结论</label><textarea id="meeting-note" class="textarea">双方愿意继续推进婚事；居住城市和婚礼费用还需要两个人再确认。</textarea></div><div class="control-foot"><span class="status-pill green">见面已记录</span><button class="button button-secondary" data-action="save">保存记录</button></div></article>
+              </div>
+              <div class="section-row"><div><h3>节点历史</h3><p>可以补录，也可以查看曾经的安排</p></div></div>
+              <article class="surface detail-panel"><div class="process-list"><div class="process-row"><span class="process-num">01</span><div><strong>确认以婚姻为目标</strong><small>2026 年 6 月 28 日 · 双方共同决定</small></div><span class="status-pill green">已完成</span></div><div class="process-row"><span class="process-num">02</span><div><strong>安排两次上门顺序</strong><small>男方先上门 · 女方后上门</small></div><span class="status-pill blue">已确定</span></div><div class="process-row"><span class="process-num">03</span><div><strong>双方父母正式见面</strong><small>2026 年 8 月 2 日 · 2 个议题待再沟通</small></div><span class="status-pill green">已完成</span></div><div class="process-row"><span class="process-num">04</span><div><strong>确认婚姻基本共识</strong><small>居住城市、费用边界仍需讨论</small></div><span class="status-pill pink">进行中</span></div></div></article>
+            </section>
+
+            <section class="view" id="view-agreement">
+              <div class="view-header"><div><p class="view-kicker">双方共识</p><h2>重要的事，逐项谈清楚</h2><p>父母可以表达意见，但最终要由你们两个人确认。</p></div><button class="button button-primary" data-action="add-agreement">＋ 添加议题</button></div>
+              <div class="detail-grid">
+                <article class="surface detail-panel"><h3>共识进度</h3><p class="lead">4 个默认议题，当前 2 个已达成共识，2 个需要再沟通。</p><div class="budget-summary"><div class="budget-stat"><small>已达成</small><strong>2 项</strong></div><div class="budget-stat"><small>待沟通</small><strong>2 项</strong></div><div class="budget-stat"><small>完成度</small><strong>50%</strong></div></div><div class="progress-track"><div class="progress-value" style="width:50%"></div></div><div class="agreement-list"><div class="agreement-row"><span class="agreement-dot"></span><span>是否确定进入婚姻</span><span class="status-pill green">已达成共识</span></div><div class="agreement-row"><span class="agreement-dot"></span><span>领证与婚礼的时间安排</span><span class="status-pill green">已达成共识</span></div><div class="agreement-row"><span class="agreement-dot open"></span><span>婚后居住城市 / 居住安排</span><span class="status-pill yellow">需再沟通</span></div><div class="agreement-row"><span class="agreement-dot open"></span><span>费用、礼金和预算边界</span><span class="status-pill yellow">需再沟通</span></div></div></article>
+                <article class="surface detail-panel"><h3>当前议题</h3><p class="lead">婚后居住城市 / 居住安排</p><div class="form-row"><label for="agreement-status">讨论状态</label><select id="agreement-status" class="select"><option>需再沟通</option><option>讨论中</option><option>已达成共识</option><option>尚未讨论</option></select></div><div class="form-row"><label for="agreement-note">你们的记录</label><textarea id="agreement-note" class="textarea">女方希望留在目前城市，男方希望回到家乡。计划周末分别和双方父母再聊一次，再由两个人做决定。</textarea></div><div class="control-foot"><span>最近更新：今天</span><button class="button button-secondary" data-action="save">保存议题</button></div></article>
+              </div>
+            </section>
+
+            <section class="view" id="view-execution">
+              <div class="view-header"><div><p class="view-kicker">婚礼执行</p><h2>把仪式办好，也把预算看清</h2><p>婚礼是婚姻主线的一部分，但预算和行动项服务于你们的决定。</p></div><button class="button button-primary" data-action="add-task">＋ 新增行动项</button></div>
+              <div class="budget-summary"><div class="budget-stat"><small>婚礼预算</small><strong>¥ 128,000</strong></div><div class="budget-stat"><small>已确认金额</small><strong>¥ 86,400</strong></div><div class="budget-stat"><small>预算余量</small><strong>¥ 41,600</strong></div></div>
+              <div class="detail-grid"><article class="surface detail-panel"><h3>婚礼行动项</h3><p class="lead">行动项挂在“婚礼”节点下，完成情况不会改变领证状态。</p><div class="process-list"><div class="process-row"><span class="process-num">✓</span><div><strong>确认婚宴场地和档期</strong><small>双方 · 已确认合同与日期</small></div><span class="status-pill green">已完成</span></div><div class="process-row"><span class="process-num">2</span><div><strong>确定摄影摄像方案</strong><small>女方 · 计划 9 月 10 日</small></div><span class="status-pill pink">进行中</span></div><div class="process-row"><span class="process-num">3</span><div><strong>整理宾客名单初稿</strong><small>双方 · 计划 9 月 18 日</small></div><span class="status-pill blue">待办</span></div><div class="process-row"><span class="process-num">4</span><div><strong>预约结婚登记</strong><small>领证节点 · 计划 10 月 1 日</small></div><span class="status-pill blue">待办</span></div></div></article><article class="surface detail-panel"><h3>最近花费</h3><p class="lead">确认金额不等于已经支付金额。</p><div class="budget-row"><div><strong>婚宴场地定金</strong><br><span>计划 ¥50,000 · 已支付</span></div><b>¥ 50,000</b></div><div class="budget-row"><div><strong>摄影摄像套餐</strong><br><span>计划 ¥18,000 · 部分支付</span></div><b>¥ 16,400</b></div><div class="budget-row"><div><strong>礼服预留</strong><br><span>计划 ¥12,000 · 未支付</span></div><b>¥ 12,000</b></div><div class="control-foot"><span>共 8 笔花费</span><button class="button button-secondary" data-action="add-expense">查看全部 →</button></div></article></div>
+            </section>
+
+            <section class="view" id="view-settings">
+              <div class="view-header"><div><p class="view-kicker">流程设置</p><h2>顺序由你们掌控</h2><p>只调整未来安排，不改写已经发生的事实。</p></div><button class="button button-primary" data-action="save-settings">保存调整</button></div>
+              <div class="detail-grid"><article class="surface detail-panel"><h3>两次上门顺序</h3><p class="lead">两次上门都必须完成，顺序可以根据家庭时间安排改变。</p><div class="form-row"><label for="visit-order-select">推荐顺序</label><select id="visit-order-select" class="select"><option>男方先上门，女方后上门</option><option>女方先上门，男方后上门</option></select></div><div class="order-card"><h4>已发生的事实</h4><div class="order-line"><span class="order-number">✓</span><b>男方上门</b><span>2026 / 07 / 12</span></div><div class="order-line"><span class="order-number">✓</span><b>女方上门</b><span>2026 / 07 / 26</span></div></div><p style="margin:14px 0 0;color:var(--muted);font-size:11px">修改推荐顺序不会改变两次拜访的实际日期。</p></article><article class="surface detail-panel"><h3>领证与婚礼顺序</h3><p class="lead">两个节点独立完成；可以先领证，也可以先办婚礼。</p><div class="form-row"><label for="marriage-order-select">顺序方案</label><select id="marriage-order-select" class="select"><option>先领证后婚礼</option><option>先婚礼后领证</option><option>同日 / 临近完成</option></select></div><div class="inline-form"><div class="form-row"><label for="register-date">领证计划</label><input id="register-date" class="field" type="date" value="2026-10-01" /></div><div class="form-row"><label for="wedding-date">婚礼计划</label><input id="wedding-date" class="field" type="date" value="2026-12-19" /></div></div><div class="order-card"><h4>页面将这样展示</h4><div class="order-line"><span class="order-number">1</span><b>领证</b><span>待完成</span></div><div class="order-line"><span class="order-number">2</span><b>婚礼</b><span>待完成</span></div></div></article></div>
+              <div class="section-row"><div><h3>订婚节点</h3><p>订婚是可选习俗节点，不是法律婚姻成立条件。</p></div></div>
+              <article class="surface detail-panel"><div class="choice-row" data-choice-group="engagement"><button class="choice selected" data-choice="采用订婚">采用订婚</button><button class="choice" data-choice="跳过订婚">跳过订婚</button><button class="choice" data-choice="暂不决定">暂不决定</button></div><div class="control-foot"><span>当前选择：<strong id="engagement-value">采用订婚</strong></span><button class="button button-ghost" data-action="record">记录订婚安排 →</button></div></article>
+            </section>
+          </div>
+        </div>
+
+        <nav class="mobile-tabs" aria-label="主导航">
+          <button class="mobile-tab" data-view="home"><span>⌂</span><span>世界</span></button>
+          <button class="mobile-tab" data-view="home"><span>♧</span><span>瘦瘦瘦</span></button>
+          <button class="mobile-tab" data-view="home"><span>▤</span><span>学学学</span></button>
+          <button class="mobile-tab" data-view="execution"><span>◈</span><span>省省省</span></button>
+          <button class="mobile-tab active" data-view="home"><span>♡</span><span>嫁嫁嫁</span></button>
+        </nav>
+      </section>
+
+      <p class="prototype-footer">原型说明：此页面用于验证业务流程与信息结构，数据为演示数据，不代表正式产品视觉验收。</p>
+    </main>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <script>
+      const toast = document.getElementById('toast')
+      let toastTimer
+
+      function showToast(message) {
+        toast.textContent = message
+        toast.classList.add('show')
+        window.clearTimeout(toastTimer)
+        toastTimer = window.setTimeout(() => toast.classList.remove('show'), 2600)
+      }
+
+      function setView(viewName) {
+        document.querySelectorAll('.view').forEach((view) => view.classList.toggle('active', view.id === `view-${viewName}`))
+        document.querySelectorAll('[data-view]').forEach((button) => button.classList.toggle('active', button.dataset.view === viewName))
+        document.querySelectorAll('.mobile-tab').forEach((button) => button.classList.toggle('active', button.dataset.view === viewName))
+        window.scrollTo({ top: document.querySelector('.app-frame').offsetTop - 12, behavior: 'smooth' })
+      }
+
+      document.querySelectorAll('[data-view]').forEach((button) => button.addEventListener('click', () => setView(button.dataset.view)))
+      document.querySelectorAll('[data-view-target]').forEach((button) => button.addEventListener('click', () => setView(button.dataset.viewTarget)))
+
+      document.querySelectorAll('[data-choice-group]').forEach((group) => {
+        group.querySelectorAll('[data-choice]').forEach((choice) => choice.addEventListener('click', () => {
+          group.querySelectorAll('[data-choice]').forEach((item) => item.classList.remove('selected'))
+          choice.classList.add('selected')
+          const target = group.dataset.choiceGroup === 'visit-order' ? 'visit-order-value' : group.dataset.choiceGroup === 'marriage-order' ? 'marriage-order-value' : 'engagement-value'
+          const targetElement = document.getElementById(target)
+          if (targetElement) targetElement.textContent = choice.dataset.choice
+          showToast(`已调整：${choice.dataset.choice}`)
+        }))
+      })
+
+      document.querySelectorAll('.stage-item').forEach((stage) => stage.addEventListener('click', () => {
+        document.querySelectorAll('.stage-item').forEach((item) => item.classList.remove('current'))
+        stage.classList.add('current')
+        showToast(`已查看阶段：${stage.querySelector('.stage-name').textContent}`)
+      }))
+
+      document.querySelectorAll('[data-action]').forEach((button) => button.addEventListener('click', () => {
+        const action = button.dataset.action
+        if (action === 'agreement' || action === 'add-agreement') setView('agreement')
+        else if (action === 'visit') setView('stages')
+        else if (action === 'schedule' || action === 'save-settings') setView('settings')
+        else if (action === 'add-task' || action === 'add-expense') setView('execution')
+        else if (action === 'record') setView('stages')
+        else if (action === 'save') showToast('记录已保存，下一步仍由你们决定。')
+        else showToast('已记录这次操作。')
+      }))
+
+      document.querySelectorAll('select').forEach((select) => select.addEventListener('change', () => showToast(`已更新：${select.value}`)))
+      document.querySelectorAll('input[type="date"]').forEach((input) => input.addEventListener('change', () => showToast(`日期已调整：${input.value}`)))
+    </script>
+  </body>
+</html>

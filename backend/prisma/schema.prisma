@@ -28,6 +28,7 @@ model User {
   weddingTasks    WeddingTask[]    @relation("UserWeddingTasks")
   weddingExpenses WeddingExpense[] @relation("UserWeddingExpenses")
   weddingBudget   WeddingBudget?   @relation("UserWeddingBudget")
+  marriageProcess MarriageProcess? @relation("UserMarriageProcess")
 
   @@map("users")
 }
@@ -186,13 +187,97 @@ model WeddingTask {
   status        String           @default("pending") @db.VarChar(32)
   priority      Int              @default(3)
   notes         String?          @db.Text
+  processId     String?          @map("process_id")
+  process       MarriageProcess? @relation("MarriageProcessTasks", fields: [processId], references: [id], onDelete: SetNull)
+  stageKey      String?          @map("stage_key") @db.VarChar(32)
+  ownerRole     String?          @map("owner_role") @db.VarChar(32)
+  completionCriteria String?     @map("completion_criteria") @db.VarChar(500)
   createdAt     DateTime         @default(now()) @map("created_at")
   updatedAt     DateTime         @updatedAt @map("updated_at")
   expenses      WeddingExpense[] @relation("WeddingTaskExpenses")
 
   @@index([userId, status, plannedDate])
   @@index([userId, category, plannedDate])
+  @@index([processId, stageKey, plannedDate])
   @@map("wedding_tasks")
+}
+
+model MarriageProcess {
+  id              String              @id @default(uuid())
+  userId          String              @unique @map("user_id")
+  user            User                @relation("UserMarriageProcess", fields: [userId], references: [id], onDelete: Cascade)
+  recorderRole    String              @map("recorder_role") @db.VarChar(32)
+  visitOrder      String              @default("male_first") @map("visit_order") @db.VarChar(32)
+  marriageOrder   String              @default("registration_first") @map("marriage_order") @db.VarChar(32)
+  engagementMode  String              @default("undecided") @map("engagement_mode") @db.VarChar(32)
+  nodes           MarriageNode[]      @relation("MarriageProcessNodes")
+  agreements      AgreementTopic[]    @relation("MarriageProcessAgreements")
+  histories       MarriageNodeHistory[] @relation("MarriageProcessHistories")
+  tasks           WeddingTask[]       @relation("MarriageProcessTasks")
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+
+  @@map("marriage_processes")
+}
+
+model MarriageNode {
+  id             String                @id @default(uuid())
+  processId      String                @map("process_id")
+  process        MarriageProcess       @relation("MarriageProcessNodes", fields: [processId], references: [id], onDelete: Cascade)
+  nodeKey        String                @map("node_key") @db.VarChar(32)
+  status         String                @default("not_started") @db.VarChar(32)
+  plannedDate    DateTime?             @map("planned_date") @db.Date
+  actualDate     DateTime?             @map("actual_date") @db.Date
+  participants   String?               @db.VarChar(500)
+  conclusion     String?               @db.Text
+  disagreements  String?               @db.Text
+  nextStep       String?               @map("next_step") @db.Text
+  notes          String?               @db.Text
+  skipReason     String?               @map("skip_reason") @db.VarChar(500)
+  backfilled     Boolean               @default(false)
+  histories      MarriageNodeHistory[] @relation("MarriageNodeHistories")
+  createdAt      DateTime              @default(now()) @map("created_at")
+  updatedAt      DateTime              @updatedAt @map("updated_at")
+
+  @@unique([processId, nodeKey])
+  @@index([processId, status, plannedDate])
+  @@map("marriage_nodes")
+}
+
+model AgreementTopic {
+  id          String          @id @default(uuid())
+  processId   String          @map("process_id")
+  process     MarriageProcess @relation("MarriageProcessAgreements", fields: [processId], references: [id], onDelete: Cascade)
+  title       String          @db.VarChar(100)
+  status      String          @default("not_discussed") @db.VarChar(32)
+  sortOrder   Int             @default(0) @map("sort_order")
+  notes       String?         @db.Text
+  archivedAt  DateTime?       @map("archived_at")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+
+  @@index([processId, archivedAt, sortOrder])
+  @@map("agreement_topics")
+}
+
+model MarriageNodeHistory {
+  id              String          @id @default(uuid())
+  processId       String          @map("process_id")
+  process         MarriageProcess @relation("MarriageProcessHistories", fields: [processId], references: [id], onDelete: Cascade)
+  nodeId          String          @map("node_id")
+  node            MarriageNode    @relation("MarriageNodeHistories", fields: [nodeId], references: [id], onDelete: Cascade)
+  eventType       String          @map("event_type") @db.VarChar(64)
+  fromStatus      String?         @map("from_status") @db.VarChar(32)
+  toStatus        String?          @map("to_status") @db.VarChar(32)
+  fromPlannedDate DateTime?       @map("from_planned_date") @db.Date
+  toPlannedDate   DateTime?       @map("to_planned_date") @db.Date
+  fromActualDate  DateTime?       @map("from_actual_date") @db.Date
+  toActualDate    DateTime?       @map("to_actual_date") @db.Date
+  reason          String?         @db.VarChar(500)
+  createdAt       DateTime        @default(now()) @map("created_at")
+
+  @@index([processId, nodeId, createdAt])
+  @@map("marriage_node_histories")
 }
 
 model WeddingExpense {

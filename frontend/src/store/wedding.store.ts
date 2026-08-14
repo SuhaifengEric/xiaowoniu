@@ -1,11 +1,21 @@
 import { create } from 'zustand'
 import type {
   ApiErrorResponse,
+  AgreementTopicResponse,
   CreateWeddingExpenseRequest,
   CreateWeddingTaskRequest,
+  CreateAgreementTopicRequest,
+  MarriageNodeHistoryResponse,
+  MarriageNodeKey,
+  MarriageNodeResponse,
+  MarriageProcessResponse,
   UpdateWeddingExpenseRequest,
   UpdateWeddingTaskRequest,
+  UpdateAgreementTopicRequest,
+  UpdateMarriageNodeRequest,
+  UpdateMarriageSettingsRequest,
   UpsertWeddingBudgetRequest,
+  PutMarriageProcessRequest,
   WeddingBudgetResponse,
   WeddingExpenseQueryParams,
   WeddingExpenseResponse,
@@ -17,6 +27,10 @@ import type {
 import { weddingService } from '@/services/wedding.service'
 
 interface WeddingDataState {
+  process: MarriageProcessResponse | null
+  nodes: MarriageNodeResponse[]
+  agreements: AgreementTopicResponse[]
+  nodeHistory: Record<string, MarriageNodeHistoryResponse[]>
   tasks: WeddingTaskResponse[]
   expenses: WeddingExpenseResponse[]
   budget: WeddingBudgetResponse | null
@@ -30,6 +44,14 @@ interface WeddingDataState {
 
 interface WeddingActions {
   fetchDashboard: () => Promise<void>
+  fetchProcess: () => Promise<void>
+  createProcess: (data: PutMarriageProcessRequest) => Promise<void>
+  updateProcessSettings: (data: UpdateMarriageSettingsRequest) => Promise<void>
+  updateNode: (nodeKey: MarriageNodeKey, data: UpdateMarriageNodeRequest) => Promise<void>
+  fetchNodeHistory: (nodeKey: MarriageNodeKey) => Promise<void>
+  createAgreement: (data: CreateAgreementTopicRequest) => Promise<void>
+  updateAgreement: (id: string, data: UpdateAgreementTopicRequest) => Promise<void>
+  archiveAgreement: (id: string) => Promise<void>
   fetchTasks: (params?: WeddingTaskQueryParams) => Promise<void>
   fetchExpenses: (params?: WeddingExpenseQueryParams) => Promise<void>
   createTask: (data: CreateWeddingTaskRequest) => Promise<void>
@@ -46,6 +68,10 @@ interface WeddingActions {
 export type WeddingState = WeddingDataState & WeddingActions
 
 export const initialWeddingState: WeddingDataState = {
+  process: null,
+  nodes: [],
+  agreements: [],
+  nodeHistory: {},
   tasks: [],
   expenses: [],
   budget: null,
@@ -69,9 +95,9 @@ const getErrorMessage = (value: unknown): string => {
 }
 
 const refreshFailureMessage = '操作已成功，但数据刷新失败'
-type Resource = 'tasks' | 'expenses' | 'budget' | 'overview' | 'timeline'
+type Resource = 'process' | 'nodes' | 'agreements' | 'tasks' | 'expenses' | 'budget' | 'overview' | 'timeline'
 type RequestToken = { generation: number; version: number; resource: Resource }
-const resources: Resource[] = ['tasks', 'expenses', 'budget', 'overview', 'timeline']
+const resources: Resource[] = ['process', 'nodes', 'agreements', 'tasks', 'expenses', 'budget', 'overview', 'timeline']
 
 const firstPage = { limit: 50, offset: 0 }
 
@@ -79,6 +105,9 @@ export const useWeddingStore = create<WeddingState>((set, get) => {
   let generation = 0
   let activeActions = 0
   const versions: Record<Resource, number> = {
+    process: 0,
+    nodes: 0,
+    agreements: 0,
     tasks: 0,
     expenses: 0,
     budget: 0,
@@ -138,6 +167,13 @@ export const useWeddingStore = create<WeddingState>((set, get) => {
     }])
   }
 
+  const refreshProcess = async (): Promise<void> => {
+    const processToken = nextToken('process')
+    const process = await weddingService.getProcess()
+    const agreements = process ? await weddingService.getAgreements() : []
+    if (isCurrent(processToken)) set({ process, nodes: process?.nodes ?? [], agreements: agreements ?? [] })
+  }
+
   const refreshExpenses = async (): Promise<void> => {
     const token = nextToken('expenses')
     await refresh([{
@@ -156,6 +192,15 @@ export const useWeddingStore = create<WeddingState>((set, get) => {
     }])
   }
 
+  const refreshBudget = async (): Promise<void> => {
+    const token = nextToken('budget')
+    await refresh([{
+      token,
+      request: weddingService.getBudget(),
+      apply: (value) => set({ budget: value as WeddingBudgetResponse | null }),
+    }])
+  }
+
   const refreshTimeline = async (): Promise<void> => {
     const token = nextToken('timeline')
     await refresh([{
@@ -167,6 +212,7 @@ export const useWeddingStore = create<WeddingState>((set, get) => {
 
   const refreshAfterTaskMutation = async (): Promise<void> => {
     await Promise.all([
+      refreshProcess(),
       refreshTasks(),
       refreshExpenses(),
       refreshOverview(),
@@ -182,13 +228,18 @@ export const useWeddingStore = create<WeddingState>((set, get) => {
   }
 
   const refreshAfterBudgetMutation = async (): Promise<void> => {
-    const budgetToken = nextToken('budget')
     await Promise.all([
-      refresh([{
-        token: budgetToken,
-        request: weddingService.getBudget(),
-        apply: (value) => set({ budget: value as WeddingBudgetResponse | null }),
-      }]),
+      refreshBudget(),
+      refreshOverview(),
+      refreshTimeline(),
+      refreshProcess(),
+    ])
+  }
+
+  const refreshAfterProcessMutation = async (): Promise<void> => {
+    await Promise.all([
+      refreshTasks(),
+      refreshExpenses(),
       refreshOverview(),
       refreshTimeline(),
     ])
@@ -198,12 +249,14 @@ export const useWeddingStore = create<WeddingState>((set, get) => {
     ...initialWeddingState,
 
     fetchDashboard: () => {
+      const processToken = nextToken('process')
       const tasksToken = nextToken('tasks')
       const expensesToken = nextToken('expenses')
       const budgetToken = nextToken('budget')
       const overviewToken = nextToken('overview')
       const timelineToken = nextToken('timeline')
       return runAction(async () => {
+        const process = await weddingService.getProcess()
         const [tasks, expenses, budget, overview, timeline] = await Promise.all([
           weddingService.getTasks(firstPage),
           weddingService.getExpenses(firstPage),
@@ -211,6 +264,7 @@ export const useWeddingStore = create<WeddingState>((set, get) => {
           weddingService.getOverview(),
           weddingService.getTimeline(),
         ])
+        if (isCurrent(processToken)) set({ process, nodes: process?.nodes ?? [], agreements: process?.agreements ?? [] })
         if (isCurrent(tasksToken)) set({ tasks, tasksHasMore: tasks.length >= firstPage.limit })
         if (isCurrent(expensesToken)) set({ expenses, expensesHasMore: expenses.length >= firstPage.limit })
         if (isCurrent(budgetToken)) set({ budget })
@@ -218,6 +272,53 @@ export const useWeddingStore = create<WeddingState>((set, get) => {
         if (isCurrent(timelineToken)) set({ timeline })
       }, () => [tasksToken, expensesToken, budgetToken, overviewToken, timelineToken].every(isCurrent))
     },
+
+    fetchProcess: () => runAction(async () => {
+      const process = await weddingService.getProcess()
+      const agreements = process ? process.agreements : await weddingService.getAgreements().catch(() => [])
+      set({ process, nodes: process?.nodes ?? [], agreements })
+    }),
+
+    createProcess: (data) => runAction(async () => {
+      const process = await weddingService.createProcess(data)
+      set({ process, nodes: process.nodes, agreements: process.agreements })
+      await refreshAfterProcessMutation()
+    }),
+
+    updateProcessSettings: (data) => runAction(async () => {
+      const process = await weddingService.updateProcessSettings(data)
+      set({ process, nodes: process.nodes, agreements: process.agreements })
+      await Promise.all([refreshOverview(), refreshTimeline()])
+    }),
+
+    updateNode: (nodeKey, data) => runAction(async () => {
+      await weddingService.updateNode(nodeKey, data)
+      await refreshProcess()
+      await Promise.all([refreshOverview(), refreshTimeline(), refreshTasks(), refreshBudget()])
+    }),
+
+    fetchNodeHistory: (nodeKey) => runAction(async () => {
+      const history = await weddingService.getNodeHistory(nodeKey)
+      set({ nodeHistory: { ...get().nodeHistory, [nodeKey]: history } })
+    }),
+
+    createAgreement: (data) => runAction(async () => {
+      await weddingService.createAgreement(data)
+      await refreshProcess()
+      await refreshOverview()
+    }),
+
+    updateAgreement: (id, data) => runAction(async () => {
+      await weddingService.updateAgreement(id, data)
+      await refreshProcess()
+      await refreshOverview()
+    }),
+
+    archiveAgreement: (id) => runAction(async () => {
+      await weddingService.archiveAgreement(id)
+      await refreshProcess()
+      await refreshOverview()
+    }),
 
     fetchTasks: (params) => {
       const token = nextToken('tasks')

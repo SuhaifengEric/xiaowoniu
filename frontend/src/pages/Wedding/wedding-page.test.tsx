@@ -1,11 +1,15 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { TaskStatus, WeddingTaskCategory } from '@xiaowoniu/shared'
+import { AgreementStatus, EngagementMode, MarriageNodeKey, MarriageNodeStatus, MarriageOrder, MarriageRecorderRole, TaskStatus, VisitOrder, WeddingTaskCategory } from '@xiaowoniu/shared'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import Wedding from './index'
 
 const store = vi.hoisted(() => ({
+  process: null as Record<string, unknown> | null,
+  nodes: [] as Array<Record<string, unknown>>,
+  agreements: [] as Array<Record<string, unknown>>,
+  nodeHistory: {} as Record<string, unknown[]>,
   tasks: [] as Array<Record<string, unknown>>,
   expenses: [] as Array<Record<string, unknown>>,
   budget: null as Record<string, unknown> | null,
@@ -16,6 +20,13 @@ const store = vi.hoisted(() => ({
   loading: false,
   error: null as string | null,
   fetchDashboard: vi.fn().mockResolvedValue(undefined),
+  createProcess: vi.fn().mockResolvedValue(undefined),
+  updateProcessSettings: vi.fn().mockResolvedValue(undefined),
+  updateNode: vi.fn().mockResolvedValue(undefined),
+  fetchNodeHistory: vi.fn().mockResolvedValue(undefined),
+  createAgreement: vi.fn().mockResolvedValue(undefined),
+  updateAgreement: vi.fn().mockResolvedValue(undefined),
+  archiveAgreement: vi.fn().mockResolvedValue(undefined),
   fetchTasks: vi.fn().mockResolvedValue(undefined),
   fetchExpenses: vi.fn().mockResolvedValue(undefined),
   createTask: vi.fn().mockResolvedValue(undefined),
@@ -69,8 +80,19 @@ const task = {
   notes: null, createdAt: 'created', updatedAt: 'updated',
 }
 
+const process = {
+  id: 'process-1', recorderRole: MarriageRecorderRole.RECORD_KEEPER, visitOrder: VisitOrder.MALE_FIRST,
+  marriageOrder: MarriageOrder.REGISTRATION_FIRST, engagementMode: EngagementMode.UNDECIDED,
+  nodes: [], agreements: [], currentStage: MarriageNodeKey.INTENTION, recommendedNext: MarriageNodeKey.INTENTION,
+  outOfOrder: false, progress: { completed: 0, total: 8, percentage: 0 }, warnings: [], createdAt: 'created', updatedAt: 'updated',
+}
+
 beforeEach(() => {
   store.tasks = []
+  store.process = null
+  store.nodes = []
+  store.agreements = []
+  store.nodeHistory = {}
   store.expenses = []
   store.budget = null
   store.overview = null
@@ -79,6 +101,13 @@ beforeEach(() => {
   store.error = null
   Object.values(store).forEach((value) => typeof value === 'function' && value.mockClear())
   store.fetchDashboard.mockResolvedValue(undefined)
+  store.createProcess.mockResolvedValue(undefined)
+  store.updateProcessSettings.mockResolvedValue(undefined)
+  store.updateNode.mockResolvedValue(undefined)
+  store.fetchNodeHistory.mockResolvedValue(undefined)
+  store.createAgreement.mockResolvedValue(undefined)
+  store.updateAgreement.mockResolvedValue(undefined)
+  store.archiveAgreement.mockResolvedValue(undefined)
   store.fetchTasks.mockResolvedValue(undefined)
   store.fetchExpenses.mockResolvedValue(undefined)
   store.createTask.mockResolvedValue(undefined)
@@ -97,7 +126,7 @@ describe('Wedding page', () => {
     await waitFor(() => expect(store.fetchDashboard).toHaveBeenCalledTimes(1))
   })
 
-  it('shows header actions and switches between tabs with keyboard', async () => {
+  it('shows the five marriage views and switches between tabs with keyboard', async () => {
     const user = userEvent.setup()
     renderPage()
     expect(screen.getByRole('button', { name: '返回世界仪表盘' })).toBeInTheDocument()
@@ -107,29 +136,87 @@ describe('Wedding page', () => {
     await user.keyboard('{Escape}')
     const tablist = screen.getByRole('tablist')
     expect(tablist).toBeInTheDocument()
-    const boardTab = screen.getByRole('tab', { name: /任务看板/ })
-    const timelineTab = screen.getByRole('tab', { name: /时间线/ })
-    expect(boardTab).toHaveAttribute('aria-selected', 'true')
-    timelineTab.focus()
+    const processTab = screen.getByRole('tab', { name: '婚姻进程' })
+    const stagesTab = screen.getByRole('tab', { name: '阶段记录' })
+    expect(processTab).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: '双方共识' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: '婚礼执行' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: '流程设置' })).toBeInTheDocument()
+    stagesTab.focus()
     await user.keyboard('{ArrowRight}')
-    expect(screen.getByRole('tab', { name: /花费明细/ })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: '双方共识' })).toHaveAttribute('aria-selected', 'true')
     await user.keyboard('{ArrowLeft}')
-    await user.keyboard('{ArrowLeft}')
-    expect(screen.getByRole('tab', { name: /任务看板/ })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: '婚姻进程' })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('opens the process setup for an empty user and submits the recorder perspective', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await user.click(screen.getByRole('button', { name: '建立婚姻进程' }))
+    expect(screen.getByRole('dialog', { name: '建立婚姻进程' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '建立进程' }))
+    await waitFor(() => expect(store.createProcess).toHaveBeenCalledWith(expect.objectContaining({ recorderRole: MarriageRecorderRole.RECORD_KEEPER, visitOrder: VisitOrder.MALE_FIRST })))
+  })
+
+  it('renders process labels and preserves separate registration and wedding facts', async () => {
+    const user = userEvent.setup()
+    const nodes = [
+      { id: 'registration', processId: 'process-1', nodeKey: MarriageNodeKey.REGISTRATION, status: MarriageNodeStatus.COMPLETED, plannedDate: '2026-07-01', actualDate: '2026-07-02', participants: null, conclusion: null, disagreements: null, nextStep: null, notes: null, skipReason: null, backfilled: false, recordSource: 'direct', actionItemCount: 0, isOverdue: false, createdAt: 'c', updatedAt: 'u' },
+      { id: 'wedding', processId: 'process-1', nodeKey: MarriageNodeKey.WEDDING, status: MarriageNodeStatus.NOT_STARTED, plannedDate: '2026-12-01', actualDate: null, participants: null, conclusion: null, disagreements: null, nextStep: null, notes: null, skipReason: null, backfilled: false, recordSource: 'direct', actionItemCount: 0, isOverdue: false, createdAt: 'c', updatedAt: 'u' },
+    ]
+    store.process = {
+      ...process,
+      nodes,
+    }
+    store.nodes = nodes
+    renderPage()
+    await user.click(screen.getByRole('tab', { name: '流程设置' }))
+    expect(screen.getAllByText('记录人视角')).not.toHaveLength(0)
+    await user.click(screen.getByRole('tab', { name: '阶段记录' }))
+    expect(screen.getByText('依法办理结婚登记')).toBeInTheDocument()
+    expect(screen.getByText('婚礼筹备与婚礼')).toBeInTheDocument()
+    expect(screen.queryByText('用户补录')).not.toBeInTheDocument()
+  })
+
+  it('updates a node through the record dialog without treating parents as approval', async () => {
+    const user = userEvent.setup()
+    const parentsNode = { id: 'parents', processId: 'process-1', nodeKey: MarriageNodeKey.PARENTS_MEETING, status: MarriageNodeStatus.NOT_STARTED, plannedDate: null, actualDate: null, participants: null, conclusion: null, disagreements: null, nextStep: null, notes: null, skipReason: null, backfilled: false, recordSource: 'direct', actionItemCount: 0, isOverdue: false, createdAt: 'c', updatedAt: 'u' }
+    const maleVisitNode = { ...parentsNode, id: 'male-visit', nodeKey: MarriageNodeKey.MALE_VISIT }
+    const femaleVisitNode = { ...parentsNode, id: 'female-visit', nodeKey: MarriageNodeKey.FEMALE_VISIT }
+    store.process = { ...process, nodes: [maleVisitNode, femaleVisitNode, parentsNode], currentStage: MarriageNodeKey.PARENTS_MEETING, recommendedNext: MarriageNodeKey.PARENTS_MEETING }
+    store.nodes = [maleVisitNode, femaleVisitNode, parentsNode]
+    renderPage()
+    await user.click(screen.getByRole('tab', { name: '阶段记录' }))
+    await user.click(screen.getByRole('button', { name: '记录双方父母正式见面' }))
+    expect(screen.getByText(/不是父母审批/)).toBeInTheDocument()
+    expect(screen.queryByText(/审批通过/)).not.toBeInTheDocument()
+  })
+
+  it('supports agreement status language and adding a topic', async () => {
+    const user = userEvent.setup()
+    const agreements: Array<Record<string, unknown>> = [{ id: 'a1', processId: 'process-1', title: '婚后居住城市', status: AgreementStatus.NEEDS_DISCUSSION, sortOrder: 0, notes: null, archivedAt: null, createdAt: 'c', updatedAt: 'u' }]
+    store.process = { ...process, agreements }
+    store.agreements = agreements
+    renderPage()
+    await user.click(screen.getByRole('tab', { name: '双方共识' }))
+    expect(screen.getByText('需再沟通')).toBeInTheDocument()
+    await user.type(screen.getByRole('textbox', { name: '新共识议题' }), '礼金边界')
+    await user.click(screen.getByRole('button', { name: '添加议题' }))
+    await waitFor(() => expect(store.createAgreement).toHaveBeenCalledWith({ title: '礼金边界' }))
   })
 
   it('opens the task dialog and submits through the store action', async () => {
     const user = userEvent.setup()
     store.tasks = [task]
     renderPage()
-    await user.click(screen.getByRole('button', { name: /新建任务/ }))
+    await user.click(screen.getByRole('button', { name: /新增行动项/ }))
     expect(screen.getByRole('dialog', { name: '新建备婚任务' })).toBeInTheDocument()
     await user.type(screen.getByLabelText('任务名称'), '拍婚纱照')
     await user.click(screen.getByRole('combobox', { name: '任务类别' }))
     await user.click(await screen.findByRole('option', { name: '婚纱照' }))
     await user.click(screen.getByRole('button', { name: '保存任务' }))
     await waitFor(() => expect(store.createTask).toHaveBeenCalledWith(expect.objectContaining({ taskName: '拍婚纱照' })))
-    expect(await screen.findByRole('status')).toHaveTextContent('备婚任务已创建')
+    expect(await screen.findByRole('status')).toHaveTextContent('阶段行动项已创建')
   })
 
   it('opens the expense dialog and submits with task link', async () => {
@@ -154,7 +241,7 @@ describe('Wedding page', () => {
   it('opens the budget dialog and submits total budget and wedding date', async () => {
     const user = userEvent.setup()
     renderPage()
-    await user.click(screen.getAllByRole('button', { name: /设置预算与婚期/ })[0])
+    await user.click(screen.getByRole('button', { name: /设置预算$/ }))
     expect(screen.getByRole('dialog', { name: '设置备婚预算与婚期' })).toBeInTheDocument()
     await user.type(screen.getByLabelText('总预算'), '150000')
     await selectDate(user, '婚礼日期', '2026-12-01')
@@ -167,6 +254,7 @@ describe('Wedding page', () => {
     const user = userEvent.setup()
     store.tasks = [task]
     renderPage()
+    await user.click(screen.getByRole('tab', { name: '婚礼执行' }))
     await user.click(screen.getByRole('button', { name: '开始' }))
     await waitFor(() => expect(store.updateTask).toHaveBeenCalledWith('task-1', { status: TaskStatus.IN_PROGRESS }))
   })
@@ -175,7 +263,7 @@ describe('Wedding page', () => {
     const user = userEvent.setup()
     store.createTask.mockRejectedValue(new Error('任务名称无效'))
     renderPage()
-    await user.click(screen.getByRole('button', { name: /新建任务/ }))
+    await user.click(screen.getByRole('button', { name: /新增行动项/ }))
     await user.type(screen.getByLabelText('任务名称'), '拍婚纱照')
     await user.click(screen.getByRole('combobox', { name: '任务类别' }))
     await user.click(await screen.findByRole('option', { name: '婚纱照' }))
@@ -189,6 +277,7 @@ describe('Wedding page', () => {
     store.tasks = [task]
     store.deleteTask.mockRejectedValue(new Error('删除失败'))
     renderPage()
+    await user.click(screen.getByRole('tab', { name: '婚礼执行' }))
     await user.click(screen.getByRole('button', { name: `删除任务${task.taskName}` }))
     await user.click(screen.getByRole('button', { name: '确认删除' }))
     await waitFor(() => expect(store.deleteTask).toHaveBeenCalledWith('task-1'))
@@ -199,12 +288,13 @@ describe('Wedding page', () => {
     const user = userEvent.setup()
     store.tasks = [task]
     renderPage()
+    await user.click(screen.getByRole('tab', { name: '婚礼执行' }))
     await user.click(screen.getByRole('button', { name: `删除任务${task.taskName}` }))
     await user.click(screen.getByRole('button', { name: '确认删除' }))
 
     await waitFor(() => expect(store.deleteTask).toHaveBeenCalledWith('task-1'))
     expect(screen.queryByRole('dialog', { name: '确认删除备婚任务' })).not.toBeInTheDocument()
-    expect(await screen.findByRole('status')).toHaveTextContent('备婚任务已删除')
+    expect(await screen.findByRole('status')).toHaveTextContent('阶段行动项已删除')
   })
 
   it('shows store errors and clears them', async () => {

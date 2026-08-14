@@ -12,9 +12,30 @@ import {
   weddingExpenseQuerySchema,
   weddingIdParamSchema,
   weddingTaskQuerySchema,
+  createMarriageAgreementSchema,
+  deleteMarriageAgreementRouteSchema,
+  getMarriageProcessSchema,
+  marriageAgreementListSchema,
+  marriageNodeHistoryRouteSchema,
+  marriageNodeListSchema,
+  putMarriageProcessSchema,
+  updateMarriageAgreementRouteSchema,
+  updateMarriageNodeRouteSchema,
+  updateMarriageSettingsSchema,
 } from '../validation/wedding.schemas'
 
 const router: IRouter = Router()
+
+router.get('/process', authMiddleware, validate(getMarriageProcessSchema), weddingController.getMarriageProcess.bind(weddingController))
+router.put('/process', authMiddleware, validate(putMarriageProcessSchema), weddingController.putMarriageProcess.bind(weddingController))
+router.patch('/process/settings', authMiddleware, validate(updateMarriageSettingsSchema), weddingController.updateMarriageSettings.bind(weddingController))
+router.get('/process/nodes', authMiddleware, validate(marriageNodeListSchema), weddingController.listMarriageNodes.bind(weddingController))
+router.patch('/process/nodes/:nodeKey', authMiddleware, validate(updateMarriageNodeRouteSchema), weddingController.updateMarriageNode.bind(weddingController))
+router.get('/process/nodes/:nodeKey/history', authMiddleware, validate(marriageNodeHistoryRouteSchema), weddingController.getMarriageNodeHistory.bind(weddingController))
+router.get('/process/agreements', authMiddleware, validate(marriageAgreementListSchema), weddingController.listMarriageAgreements.bind(weddingController))
+router.post('/process/agreements', authMiddleware, validate(createMarriageAgreementSchema), weddingController.createMarriageAgreement.bind(weddingController))
+router.patch('/process/agreements/:id', authMiddleware, validate(updateMarriageAgreementRouteSchema), weddingController.updateMarriageAgreement.bind(weddingController))
+router.delete('/process/agreements/:id', authMiddleware, validate(deleteMarriageAgreementRouteSchema), weddingController.deleteMarriageAgreement.bind(weddingController))
 
 router.get('/tasks', authMiddleware, validate(weddingTaskQuerySchema), weddingController.listTasks.bind(weddingController))
 router.post('/tasks', authMiddleware, validate(createWeddingTaskSchema), weddingController.createTask.bind(weddingController))

@@ -16,6 +16,16 @@ const routeTable = routeLayers.map((layer: any) => ({
 }))
 
 const expectedRoutes = [
+  ['get', '/process'],
+  ['put', '/process'],
+  ['patch', '/process/settings'],
+  ['get', '/process/nodes'],
+  ['patch', '/process/nodes/:nodeKey'],
+  ['get', '/process/nodes/:nodeKey/history'],
+  ['get', '/process/agreements'],
+  ['post', '/process/agreements'],
+  ['patch', '/process/agreements/:id'],
+  ['delete', '/process/agreements/:id'],
   ['get', '/tasks'],
   ['post', '/tasks'],
   ['patch', '/tasks/:id'],
@@ -135,6 +145,7 @@ describe('wedding routes', () => {
       { method: 'GET', path: '/api/wedding/tasks?offset=-1', service: 'getTasks' },
       { method: 'GET', path: '/api/wedding/tasks?status=bogus', service: 'getTasks' },
       { method: 'GET', path: '/api/wedding/tasks?category=banquet', service: 'getTasks' },
+      { method: 'GET', path: '/api/wedding/tasks?stageKey=not-a-node', service: 'getTasks' },
       { method: 'POST', path: '/api/wedding/tasks', service: 'createTask', body: {} },
       { method: 'POST', path: '/api/wedding/tasks', service: 'createTask', body: { ...taskBody, taskName: '   ' } },
       { method: 'POST', path: '/api/wedding/tasks', service: 'createTask', body: { ...taskBody, priority: 6 } },
@@ -165,6 +176,13 @@ describe('wedding routes', () => {
       { method: 'PUT', path: '/api/wedding/budget', service: 'upsertBudget', body: { totalBudget: 1000, weddingDate: '2026-02-30' } },
       { method: 'GET', path: '/api/wedding/overview?injected=1', service: 'getOverview' },
       { method: 'GET', path: '/api/wedding/timeline?injected=1', service: 'getTimeline' },
+      { method: 'PUT', path: '/api/wedding/process', service: 'ensureMarriageProcess', body: {} },
+      { method: 'PATCH', path: '/api/wedding/process/settings', service: 'updateMarriageSettings', body: {} },
+      { method: 'PATCH', path: '/api/wedding/process/nodes/not-a-node', service: 'updateMarriageNode', body: { status: 'completed' } },
+      { method: 'PATCH', path: '/api/wedding/process/nodes/wedding', service: 'updateMarriageNode', body: {} },
+      { method: 'GET', path: '/api/wedding/process/nodes/not-a-node/history', service: 'getMarriageNodeHistory' },
+      { method: 'POST', path: '/api/wedding/process/agreements', service: 'createAgreement', body: { title: '   ' } },
+      { method: 'PATCH', path: '/api/wedding/process/agreements/not-a-uuid', service: 'updateAgreement', body: { status: 'agreed' } },
     ] as const
 
     for (const route of cases) {
@@ -179,6 +197,52 @@ describe('wedding routes', () => {
 
   it('returns the complete success envelope for every endpoint through real requests', async () => {
     const cases = [
+      {
+        method: 'GET', path: '/api/wedding/process', service: 'getMarriageProcess', body: undefined,
+        result: null, args: ['u1'], expected: { success: true, data: null },
+      },
+      {
+        method: 'PUT', path: '/api/wedding/process', service: 'ensureMarriageProcess', body: { recorderRole: 'record_keeper' },
+        result: { id: 'p1' }, args: ['u1', { recorderRole: 'record_keeper' }],
+        expected: { success: true, data: { id: 'p1' }, message: '婚姻进程已建立' },
+      },
+      {
+        method: 'PATCH', path: '/api/wedding/process/settings', service: 'updateMarriageSettings', body: { visitOrder: 'female_first' },
+        result: { id: 'p1', visitOrder: 'female_first' }, args: ['u1', { visitOrder: 'female_first' }],
+        expected: { success: true, data: { id: 'p1', visitOrder: 'female_first' }, message: '流程设置已更新' },
+      },
+      {
+        method: 'GET', path: '/api/wedding/process/nodes', service: 'getMarriageNodes', body: undefined,
+        result: [{ nodeKey: 'wedding' }], args: ['u1'], expected: { success: true, data: [{ nodeKey: 'wedding' }] },
+      },
+      {
+        method: 'PATCH', path: '/api/wedding/process/nodes/wedding', service: 'updateMarriageNode', body: { plannedDate: '2026-12-01' },
+        result: { nodeKey: 'wedding', plannedDate: '2026-12-01' }, args: ['u1', 'wedding', { plannedDate: '2026-12-01' }],
+        expected: { success: true, data: { nodeKey: 'wedding', plannedDate: '2026-12-01' }, message: '婚姻节点已更新' },
+      },
+      {
+        method: 'GET', path: '/api/wedding/process/nodes/wedding/history', service: 'getMarriageNodeHistory', body: undefined,
+        result: [], args: ['u1', 'wedding'], expected: { success: true, data: [] },
+      },
+      {
+        method: 'GET', path: '/api/wedding/process/agreements', service: 'getAgreements', body: undefined,
+        result: [], args: ['u1'], expected: { success: true, data: [] },
+      },
+      {
+        method: 'POST', path: '/api/wedding/process/agreements', service: 'createAgreement', body: { title: '婚后城市' },
+        result: { id: 'a1', title: '婚后城市' }, args: ['u1', { title: '婚后城市' }],
+        expected: { success: true, data: { id: 'a1', title: '婚后城市' }, message: '共识议题已添加' },
+      },
+      {
+        method: 'PATCH', path: '/api/wedding/process/agreements/00000000-0000-0000-0000-00000000000b', service: 'updateAgreement', body: { status: 'agreed' },
+        result: { id: 'a1', status: 'agreed' }, args: ['u1', '00000000-0000-0000-0000-00000000000b', { status: 'agreed' }],
+        expected: { success: true, data: { id: 'a1', status: 'agreed' }, message: '共识议题已更新' },
+      },
+      {
+        method: 'DELETE', path: '/api/wedding/process/agreements/00000000-0000-0000-0000-00000000000b', service: 'archiveAgreement', body: undefined,
+        result: undefined, args: ['u1', '00000000-0000-0000-0000-00000000000b'],
+        expected: { success: true, data: null, message: '共识议题已归档' },
+      },
       {
         method: 'GET', path: '/api/wedding/tasks', service: 'getTasks', body: undefined,
         result: [{ id: 't1' }], args: ['u1', {}],

@@ -1,8 +1,16 @@
 import { Prisma } from '@prisma/client'
 import {
+  ActionOwnerRole,
+  AgreementStatus,
   CreateWeddingExpenseRequest,
   CreateWeddingTaskRequest,
+  EngagementMode,
+  MarriageNodeKey,
+  MarriageNodeStatus,
+  MarriageOrder,
+  MarriageRecorderRole,
   PaidStatus,
+  RecordSource,
   TaskStatus,
   UpdateWeddingExpenseRequest,
   UpdateWeddingTaskRequest,
@@ -15,6 +23,23 @@ import {
   WeddingTaskQueryParams,
   WeddingTaskResponse,
   WeddingTimelineResponse,
+  AgreementTopicResponse,
+  CreateAgreementTopicRequest,
+  MarriageNodeHistoryResponse,
+  MarriageNodeResponse,
+  MarriageProcessResponse,
+  MarriageOverviewSummary,
+  PutMarriageProcessRequest,
+  UpdateAgreementTopicRequest,
+  UpdateMarriageNodeRequest,
+  UpdateMarriageSettingsRequest,
+  WeddingTimelineNodeItem,
+  VisitOrder,
+} from '@xiaowoniu/shared'
+import {
+  AgreementStatusLabels,
+  MarriageNodeKeyLabels,
+  MarriageNodeStatusLabels,
 } from '@xiaowoniu/shared'
 import prisma from '../config/database'
 
@@ -22,6 +47,13 @@ export class WeddingNotFoundError extends Error {
   constructor(message = '备婚资源不存在') {
     super(message)
     this.name = 'WeddingNotFoundError'
+  }
+}
+
+export class WeddingValidationError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'WeddingValidationError'
   }
 }
 
@@ -37,6 +69,186 @@ const decimalValue = (value: Prisma.Decimal | number | string) => new Prisma.Dec
 const roundPercentage = (value: Prisma.Decimal | number) => {
   const decimal = value instanceof Prisma.Decimal ? value : decimalValue(value)
   return decimal.toDecimalPlaces(2).toNumber()
+}
+
+const MARRIAGE_NODE_ORDER: MarriageNodeKey[] = [
+  MarriageNodeKey.INTENTION,
+  MarriageNodeKey.MALE_VISIT,
+  MarriageNodeKey.FEMALE_VISIT,
+  MarriageNodeKey.PARENTS_MEETING,
+  MarriageNodeKey.AGREEMENT,
+  MarriageNodeKey.ENGAGEMENT,
+  MarriageNodeKey.REGISTRATION,
+  MarriageNodeKey.WEDDING,
+]
+
+const DEFAULT_AGREEMENT_TITLES = [
+  '是否确定进入婚姻',
+  '婚后居住城市 / 居住安排',
+  '领证与婚礼时间',
+  '婚礼规模和双方家庭参与方式',
+  '费用、礼金和预算边界',
+  '婚后家庭责任和重要生活安排',
+]
+
+const hasMarriageDelegate = () => Boolean((prisma as any).marriageProcess)
+const nullableText = (value: string | null | undefined) => {
+  if (value === undefined || value === null) return value === null ? null : undefined
+  const trimmed = value.trim()
+  return trimmed || null
+}
+
+function isTerminalNode(node: { nodeKey: MarriageNodeKey; status: MarriageNodeStatus }) {
+  return node.status === MarriageNodeStatus.COMPLETED
+    || (node.nodeKey === MarriageNodeKey.ENGAGEMENT && node.status === MarriageNodeStatus.SKIPPED)
+}
+
+function toAgreementResponse(record: any): AgreementTopicResponse {
+  return {
+    id: record.id,
+    processId: record.processId,
+    title: record.title,
+    status: record.status as AgreementStatus,
+    sortOrder: record.sortOrder,
+    notes: record.notes,
+    archivedAt: record.archivedAt ? record.archivedAt.toISOString() : null,
+    createdAt: record.createdAt.toISOString(),
+    updatedAt: record.updatedAt.toISOString(),
+  }
+}
+
+function toNodeResponse(record: any, actionItemCount: number, today: Date): MarriageNodeResponse {
+  const nodeKey = record.nodeKey as MarriageNodeKey
+  const status = record.status as MarriageNodeStatus
+  return {
+    id: record.id,
+    processId: record.processId,
+    nodeKey,
+    status,
+    plannedDate: record.plannedDate ? formatDate(record.plannedDate) : null,
+    actualDate: record.actualDate ? formatDate(record.actualDate) : null,
+    participants: record.participants,
+    conclusion: record.conclusion,
+    disagreements: record.disagreements,
+    nextStep: record.nextStep,
+    notes: record.notes,
+    skipReason: record.skipReason,
+    backfilled: Boolean(record.backfilled),
+    recordSource: record.backfilled ? RecordSource.BACKFILLED : RecordSource.DIRECT,
+    actionItemCount,
+    isOverdue: Boolean(record.plannedDate)
+      && record.plannedDate < today
+      && !isTerminalNode({ nodeKey, status }),
+    createdAt: record.createdAt.toISOString(),
+    updatedAt: record.updatedAt.toISOString(),
+  }
+}
+
+function toHistoryResponse(record: any): MarriageNodeHistoryResponse {
+  return {
+    id: record.id,
+    nodeId: record.nodeId,
+    eventType: record.eventType,
+    fromStatus: record.fromStatus as MarriageNodeStatus | null,
+    toStatus: record.toStatus as MarriageNodeStatus | null,
+    fromPlannedDate: record.fromPlannedDate ? formatDate(record.fromPlannedDate) : null,
+    toPlannedDate: record.toPlannedDate ? formatDate(record.toPlannedDate) : null,
+    fromActualDate: record.fromActualDate ? formatDate(record.fromActualDate) : null,
+    toActualDate: record.toActualDate ? formatDate(record.toActualDate) : null,
+    reason: record.reason,
+    createdAt: record.createdAt.toISOString(),
+  }
+}
+
+function orderedNodes(records: any[]) {
+  return [...records].sort((left, right) => MARRIAGE_NODE_ORDER.indexOf(left.nodeKey) - MARRIAGE_NODE_ORDER.indexOf(right.nodeKey))
+}
+
+function getNode(records: any[], nodeKey: MarriageNodeKey) {
+  return records.find((record) => record.nodeKey === nodeKey)
+}
+
+function deriveMarriageState(process: any, nodes: MarriageNodeResponse[], agreements: AgreementTopicResponse[]) {
+  const byKey = new Map(nodes.map((node) => [node.nodeKey, node]))
+  const terminalNodes = nodes.filter((node) => isTerminalNode(node))
+  const completed = terminalNodes.length
+  const percentage = MARRIAGE_NODE_ORDER.length === 0 ? 0 : roundPercentage(decimalValue(completed).div(MARRIAGE_NODE_ORDER.length).mul(100))
+  const outOfOrder = MARRIAGE_NODE_ORDER.some((key, index) => {
+    const current = byKey.get(key)
+    if (!current || isTerminalNode(current)) return false
+    return MARRIAGE_NODE_ORDER.slice(index + 1).some((laterKey) => {
+      const later = byKey.get(laterKey)
+      return Boolean(later && isTerminalNode(later))
+    })
+  })
+
+  let recommendedNext: MarriageNodeKey | null = null
+  const intention = byKey.get(MarriageNodeKey.INTENTION)
+  const maleVisit = byKey.get(MarriageNodeKey.MALE_VISIT)
+  const femaleVisit = byKey.get(MarriageNodeKey.FEMALE_VISIT)
+  if (intention && !isTerminalNode(intention)) recommendedNext = MarriageNodeKey.INTENTION
+  else if (maleVisit && femaleVisit && (!isTerminalNode(maleVisit) || !isTerminalNode(femaleVisit))) {
+    const preferred = process.visitOrder === VisitOrder.FEMALE_FIRST
+      ? [femaleVisit, maleVisit]
+      : [maleVisit, femaleVisit]
+    recommendedNext = preferred.find((node) => !isTerminalNode(node))?.nodeKey ?? null
+  } else {
+    for (const key of MARRIAGE_NODE_ORDER.slice(3)) {
+      const node = byKey.get(key)
+      if (node && !isTerminalNode(node)) {
+        recommendedNext = key
+        break
+      }
+    }
+  }
+
+  let currentStage: MarriageNodeKey | null = null
+  for (const key of MARRIAGE_NODE_ORDER) {
+    const node = byKey.get(key)
+    if (node && !isTerminalNode(node)) {
+      currentStage = key
+      break
+    }
+  }
+  if (!currentStage && completed < MARRIAGE_NODE_ORDER.length) currentStage = recommendedNext
+
+  const warnings: MarriageProcessResponse['warnings'] = []
+  const addWarning = (code: string, level: 'info' | 'warning' | 'risk', message: string, nodeKey?: MarriageNodeKey, agreementId?: string) => {
+    warnings.push({ code, level, message, ...(nodeKey ? { nodeKey } : {}), ...(agreementId ? { agreementId } : {}) })
+  }
+
+  if (maleVisit && !isTerminalNode(maleVisit)) addWarning('MISSING_MALE_VISIT', 'warning', '男方上门尚未完成，请记录安排或实际结果。', MarriageNodeKey.MALE_VISIT)
+  if (femaleVisit && !isTerminalNode(femaleVisit)) addWarning('MISSING_FEMALE_VISIT', 'warning', '女方上门尚未完成，请记录安排或实际结果。', MarriageNodeKey.FEMALE_VISIT)
+  const parentsMeeting = byKey.get(MarriageNodeKey.PARENTS_MEETING)
+  if (parentsMeeting?.status === MarriageNodeStatus.COMPLETED && (parentsMeeting.disagreements || !parentsMeeting.nextStep)) {
+    addWarning('PARENTS_MEETING_FOLLOW_UP', 'warning', '双方父母见面已记录，请继续处理分歧或补充下一步。', MarriageNodeKey.PARENTS_MEETING)
+  }
+  for (const agreement of agreements) {
+    if (agreement.status === AgreementStatus.NEEDS_DISCUSSION || agreement.status === AgreementStatus.NOT_DISCUSSED) {
+      addWarning(
+        agreement.status === AgreementStatus.NEEDS_DISCUSSION ? 'AGREEMENT_NEEDS_DISCUSSION' : 'AGREEMENT_NOT_DISCUSSED',
+        agreement.status === AgreementStatus.NEEDS_DISCUSSION ? 'risk' : 'warning',
+        `共识议题“${agreement.title}”${AgreementStatusLabels[agreement.status]}。`,
+        MarriageNodeKey.AGREEMENT,
+        agreement.id,
+      )
+    }
+  }
+  for (const node of nodes) {
+    if (node.isOverdue) addWarning('NODE_OVERDUE', 'risk', `${MarriageNodeKeyLabels[node.nodeKey]}的计划日期已过，但尚未记录完成。`, node.nodeKey)
+  }
+  const registration = byKey.get(MarriageNodeKey.REGISTRATION)
+  const wedding = byKey.get(MarriageNodeKey.WEDDING)
+  if (registration && !registration.plannedDate && !isTerminalNode(registration)) addWarning('REGISTRATION_DATE_MISSING', 'info', '还没有设置依法办理结婚登记的计划日期。', MarriageNodeKey.REGISTRATION)
+  if (wedding && !wedding.plannedDate && !isTerminalNode(wedding)) addWarning('WEDDING_DATE_MISSING', 'info', '还没有设置婚礼计划日期。', MarriageNodeKey.WEDDING)
+
+  return {
+    currentStage,
+    recommendedNext,
+    outOfOrder,
+    progress: { completed, total: MARRIAGE_NODE_ORDER.length, percentage },
+    warnings,
+  }
 }
 
 function prismaErrorCode(error: unknown) {
@@ -61,7 +273,7 @@ function pagination(query: Pick<WeddingTaskQueryParams, 'limit' | 'offset'>) {
 }
 
 function toTaskResponse(record: any): WeddingTaskResponse {
-  return {
+  const response: WeddingTaskResponse = {
     id: record.id,
     userId: record.userId,
     taskName: record.taskName,
@@ -74,6 +286,11 @@ function toTaskResponse(record: any): WeddingTaskResponse {
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString(),
   }
+  if (record.processId !== undefined) response.processId = record.processId
+  if (record.stageKey !== undefined) response.stageKey = record.stageKey as MarriageNodeKey | null
+  if (record.ownerRole !== undefined) response.ownerRole = (record.ownerRole ?? ActionOwnerRole.BOTH) as ActionOwnerRole
+  if (record.completionCriteria !== undefined) response.completionCriteria = record.completionCriteria
+  return response
 }
 
 function toExpenseResponse(record: any): WeddingExpenseResponse {
@@ -132,13 +349,250 @@ function expenseDateFilter(query: Pick<WeddingExpenseQueryParams, 'startDate' | 
   return Object.keys(date).length ? date : undefined
 }
 
+function buildMarriageProcessResponse(record: any, today: Date): MarriageProcessResponse {
+  const tasksByStage = new Map<string, number>()
+  for (const task of record.tasks ?? []) {
+    if (task.stageKey) tasksByStage.set(task.stageKey, (tasksByStage.get(task.stageKey) ?? 0) + 1)
+  }
+  const nodes = orderedNodes(record.nodes ?? []).map((node) => toNodeResponse(node, tasksByStage.get(node.nodeKey) ?? 0, today))
+  const agreements = (record.agreements ?? []).map(toAgreementResponse)
+  const derived = deriveMarriageState(record, nodes, agreements)
+  return {
+    id: record.id,
+    recorderRole: record.recorderRole as MarriageRecorderRole,
+    visitOrder: record.visitOrder as VisitOrder,
+    marriageOrder: record.marriageOrder as MarriageOrder,
+    engagementMode: record.engagementMode as EngagementMode,
+    nodes,
+    agreements,
+    ...derived,
+    createdAt: record.createdAt.toISOString(),
+    updatedAt: record.updatedAt.toISOString(),
+  }
+}
+
+function processInclude() {
+  return {
+    nodes: { orderBy: { createdAt: 'asc' } },
+    agreements: { where: { archivedAt: null }, orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }] },
+    tasks: { select: { stageKey: true } },
+  }
+}
+
 export class WeddingService {
+  private async findProcess(userId: string) {
+    if (!hasMarriageDelegate()) return null
+    return (prisma as any).marriageProcess.findUnique({ where: { userId }, include: processInclude() })
+  }
+
+  private async requireProcess(userId: string) {
+    const process = await this.findProcess(userId)
+    if (!process) throw new WeddingNotFoundError('婚姻进程不存在')
+    return process
+  }
+
+  async getMarriageProcess(userId: string): Promise<MarriageProcessResponse | null> {
+    const process = await this.findProcess(userId)
+    return process ? buildMarriageProcessResponse(process, utcToday()) : null
+  }
+
+  async ensureMarriageProcess(userId: string, data: PutMarriageProcessRequest): Promise<MarriageProcessResponse> {
+    if (!hasMarriageDelegate()) throw new WeddingValidationError('婚姻进程数据表尚未就绪')
+    const existing = await this.findProcess(userId)
+    if (existing) return buildMarriageProcessResponse(existing, utcToday())
+
+    const createData = {
+      userId,
+      recorderRole: data.recorderRole,
+      visitOrder: data.visitOrder ?? VisitOrder.MALE_FIRST,
+      marriageOrder: data.marriageOrder ?? MarriageOrder.REGISTRATION_FIRST,
+      engagementMode: data.engagementMode ?? EngagementMode.UNDECIDED,
+    }
+    try {
+      await (prisma as any).$transaction(async (tx: any) => {
+        const process = await tx.marriageProcess.create({ data: createData })
+        const budget = await tx.weddingBudget.findUnique({ where: { userId }, select: { weddingDate: true } })
+        await tx.marriageNode.createMany({
+          data: MARRIAGE_NODE_ORDER.map((nodeKey) => ({
+            processId: process.id,
+            nodeKey,
+            ...(nodeKey === MarriageNodeKey.WEDDING && budget ? { plannedDate: budget.weddingDate } : {}),
+          })),
+        })
+        await tx.agreementTopic.createMany({
+          data: DEFAULT_AGREEMENT_TITLES.map((title, sortOrder) => ({ processId: process.id, title, sortOrder })),
+        })
+        await tx.weddingTask.updateMany({
+          where: { userId, processId: null },
+          data: { processId: process.id, stageKey: MarriageNodeKey.WEDDING, ownerRole: ActionOwnerRole.BOTH },
+        })
+      })
+    } catch (error) {
+      if (prismaErrorCode(error) !== 'P2002') throw error
+    }
+    const process = await this.requireProcess(userId)
+    return buildMarriageProcessResponse(process, utcToday())
+  }
+
+  async updateMarriageSettings(userId: string, data: UpdateMarriageSettingsRequest): Promise<MarriageProcessResponse> {
+    const process = await this.requireProcess(userId)
+    const nodes = process.nodes ?? []
+    if (data.visitOrder !== undefined && data.visitOrder !== process.visitOrder) {
+      const visitCompleted = nodes.some((node: any) => [MarriageNodeKey.MALE_VISIT, MarriageNodeKey.FEMALE_VISIT].includes(node.nodeKey) && node.status === MarriageNodeStatus.COMPLETED)
+      if (visitCompleted) throw new WeddingValidationError('已有上门记录后不能覆盖事实顺序，只能调整未完成节点的计划日期')
+    }
+    if (data.marriageOrder !== undefined && data.marriageOrder !== process.marriageOrder) {
+      const marriageFactRecorded = nodes.some((node: any) => [MarriageNodeKey.REGISTRATION, MarriageNodeKey.WEDDING].includes(node.nodeKey) && isTerminalNode(node))
+      if (marriageFactRecorded) throw new WeddingValidationError('领证或婚礼已有事实记录后不能覆盖历史顺序')
+    }
+    if (data.engagementMode !== undefined && data.engagementMode !== process.engagementMode) {
+      const engagement = getNode(nodes, MarriageNodeKey.ENGAGEMENT)
+      if (engagement && isTerminalNode(engagement)) throw new WeddingValidationError('订婚节点已有事实记录后不能直接改变选择')
+    }
+    await (prisma as any).marriageProcess.update({ where: { id: process.id }, data })
+    const updated = await this.requireProcess(userId)
+    return buildMarriageProcessResponse(updated, utcToday())
+  }
+
+  async getMarriageNodes(userId: string): Promise<MarriageNodeResponse[]> {
+    const process = await this.requireProcess(userId)
+    return buildMarriageProcessResponse(process, utcToday()).nodes
+  }
+
+  async updateMarriageNode(userId: string, nodeKey: MarriageNodeKey, data: UpdateMarriageNodeRequest): Promise<MarriageNodeResponse> {
+    const process = await this.requireProcess(userId)
+    const existing = getNode(process.nodes ?? [], nodeKey)
+    if (!existing) throw new WeddingNotFoundError('婚姻进程节点不存在')
+    const nextStatus = data.status ?? existing.status as MarriageNodeStatus
+    if (nextStatus === MarriageNodeStatus.SKIPPED && nodeKey !== MarriageNodeKey.ENGAGEMENT) {
+      throw new WeddingValidationError('只有订婚节点可以跳过')
+    }
+    const actualDate = data.actualDate === undefined
+      ? existing.actualDate
+      : data.actualDate === null ? null : utcDate(data.actualDate)
+    if (nextStatus === MarriageNodeStatus.COMPLETED && existing.status !== MarriageNodeStatus.COMPLETED && !actualDate) {
+      throw new WeddingValidationError('节点标记为已完成时必须提供实际日期')
+    }
+    if (existing.status === MarriageNodeStatus.COMPLETED && nextStatus === MarriageNodeStatus.COMPLETED && data.actualDate !== undefined && data.actualDate !== (existing.actualDate ? formatDate(existing.actualDate) : null)) {
+      throw new WeddingValidationError('已完成节点的实际日期不能通过普通编辑覆盖')
+    }
+    if (existing.status === MarriageNodeStatus.COMPLETED && nextStatus !== MarriageNodeStatus.COMPLETED && data.actualDate !== undefined && data.actualDate !== (existing.actualDate ? formatDate(existing.actualDate) : null)) {
+      throw new WeddingValidationError('重新打开节点时仍保留历史实际日期')
+    }
+    if (nodeKey === MarriageNodeKey.PARENTS_MEETING && nextStatus === MarriageNodeStatus.COMPLETED) {
+      const visitsComplete = [MarriageNodeKey.MALE_VISIT, MarriageNodeKey.FEMALE_VISIT].every((key) => {
+        const node = getNode(process.nodes ?? [], key)
+        return node?.status === MarriageNodeStatus.COMPLETED
+      })
+      if (!visitsComplete && !data.backfilled && !existing.backfilled) {
+        throw new WeddingValidationError('两次上门尚未都完成时补录父母见面，必须明确标记为用户补录')
+      }
+    }
+    const updateData: Record<string, unknown> = {
+      ...(data.status !== undefined ? { status: nextStatus } : {}),
+      ...(data.plannedDate !== undefined ? { plannedDate: data.plannedDate === null ? null : utcDate(data.plannedDate) } : {}),
+      ...(data.actualDate !== undefined && !(existing.status === MarriageNodeStatus.COMPLETED && nextStatus !== MarriageNodeStatus.COMPLETED) ? { actualDate } : {}),
+      ...(data.participants !== undefined ? { participants: nullableText(data.participants) } : {}),
+      ...(data.conclusion !== undefined ? { conclusion: nullableText(data.conclusion) } : {}),
+      ...(data.disagreements !== undefined ? { disagreements: nullableText(data.disagreements) } : {}),
+      ...(data.nextStep !== undefined ? { nextStep: nullableText(data.nextStep) } : {}),
+      ...(data.notes !== undefined ? { notes: nullableText(data.notes) } : {}),
+      ...(data.skipReason !== undefined ? { skipReason: nullableText(data.skipReason) } : {}),
+      ...(data.backfilled !== undefined ? { backfilled: data.backfilled } : {}),
+    }
+    if (nextStatus === MarriageNodeStatus.SKIPPED) {
+      updateData.actualDate = null
+      updateData.backfilled = false
+    }
+    if (nodeKey === MarriageNodeKey.WEDDING && data.plannedDate === null) {
+      const budget = await prisma.weddingBudget.findUnique({ where: { userId }, select: { weddingDate: true } })
+      if (budget) throw new WeddingValidationError('已有预算时不能清空婚礼计划日期，请通过预算设置修改')
+    }
+    const hasChange = Object.keys(updateData).some((key) => {
+      const oldValue = existing[key]
+      const newValue = updateData[key]
+      if (oldValue instanceof Date && newValue instanceof Date) return oldValue.getTime() !== newValue.getTime()
+      return oldValue !== newValue
+    })
+    await (prisma as any).$transaction(async (tx: any) => {
+      await tx.marriageNode.update({ where: { id: existing.id }, data: updateData })
+      if (hasChange) {
+        await tx.marriageNodeHistory.create({
+          data: {
+            processId: process.id,
+            nodeId: existing.id,
+            eventType: existing.status === MarriageNodeStatus.COMPLETED && nextStatus !== MarriageNodeStatus.COMPLETED ? 'reopened' : 'updated',
+            fromStatus: existing.status,
+            toStatus: nextStatus,
+            fromPlannedDate: existing.plannedDate,
+            toPlannedDate: data.plannedDate === undefined ? existing.plannedDate : data.plannedDate ? utcDate(data.plannedDate) : null,
+            fromActualDate: existing.actualDate,
+            toActualDate: nextStatus === MarriageNodeStatus.SKIPPED ? null : (existing.status === MarriageNodeStatus.COMPLETED && nextStatus !== MarriageNodeStatus.COMPLETED ? existing.actualDate : actualDate),
+            reason: nullableText(data.reason) ?? null,
+          },
+        })
+      }
+      if (nodeKey === MarriageNodeKey.WEDDING && data.plannedDate) {
+        await tx.weddingBudget.updateMany({ where: { userId }, data: { weddingDate: data.plannedDate ? utcDate(data.plannedDate) : null } })
+      }
+      if (nodeKey === MarriageNodeKey.ENGAGEMENT && nextStatus === MarriageNodeStatus.SKIPPED) {
+        await tx.marriageProcess.update({ where: { id: process.id }, data: { engagementMode: EngagementMode.SKIP } })
+      }
+    })
+    const updatedProcess = await this.requireProcess(userId)
+    const updatedNode = getNode(updatedProcess.nodes ?? [], nodeKey)
+    if (!updatedNode) throw new WeddingNotFoundError('婚姻进程节点不存在')
+    return toNodeResponse(updatedNode, (updatedProcess.tasks ?? []).filter((task: any) => task.stageKey === nodeKey).length, utcToday())
+  }
+
+  async getMarriageNodeHistory(userId: string, nodeKey: MarriageNodeKey): Promise<MarriageNodeHistoryResponse[]> {
+    const process = await this.requireProcess(userId)
+    const node = getNode(process.nodes ?? [], nodeKey)
+    if (!node) throw new WeddingNotFoundError('婚姻进程节点不存在')
+    const histories = await (prisma as any).marriageNodeHistory.findMany({ where: { processId: process.id, nodeId: node.id }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] })
+    return histories.map(toHistoryResponse)
+  }
+
+  async getAgreements(userId: string): Promise<AgreementTopicResponse[]> {
+    const process = await this.requireProcess(userId)
+    const records = await (prisma as any).agreementTopic.findMany({ where: { processId: process.id, archivedAt: null }, orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }] })
+    return records.map(toAgreementResponse)
+  }
+
+  async createAgreement(userId: string, data: CreateAgreementTopicRequest): Promise<AgreementTopicResponse> {
+    const process = await this.requireProcess(userId)
+    const record = await (prisma as any).agreementTopic.create({ data: { processId: process.id, title: data.title.trim(), status: data.status ?? AgreementStatus.NOT_DISCUSSED, notes: nullableText(data.notes) ?? null, sortOrder: data.sortOrder ?? 0 } })
+    return toAgreementResponse(record)
+  }
+
+  async updateAgreement(userId: string, id: string, data: UpdateAgreementTopicRequest): Promise<AgreementTopicResponse> {
+    const process = await this.requireProcess(userId)
+    const existing = await (prisma as any).agreementTopic.findFirst({ where: { id, processId: process.id, archivedAt: null } })
+    if (!existing) throw new WeddingNotFoundError('共识议题不存在')
+    const updateData = {
+      ...(data.title !== undefined ? { title: data.title.trim() } : {}),
+      ...(data.status !== undefined ? { status: data.status } : {}),
+      ...(data.notes !== undefined ? { notes: nullableText(data.notes) } : {}),
+      ...(data.sortOrder !== undefined ? { sortOrder: data.sortOrder } : {}),
+    }
+    const record = await (prisma as any).agreementTopic.update({ where: { id: existing.id }, data: updateData })
+    return toAgreementResponse(record)
+  }
+
+  async archiveAgreement(userId: string, id: string): Promise<void> {
+    const process = await this.requireProcess(userId)
+    const result = await (prisma as any).agreementTopic.updateMany({ where: { id, processId: process.id, archivedAt: null }, data: { archivedAt: new Date() } })
+    if (result.count === 0) throw new WeddingNotFoundError('共识议题不存在')
+  }
+
   async getTasks(userId: string, query: WeddingTaskQueryParams): Promise<WeddingTaskResponse[]> {
     const records = await prisma.weddingTask.findMany({
       where: {
         userId,
         ...(query.status ? { status: query.status } : {}),
         ...(query.category ? { category: query.category } : {}),
+        ...(query.processId ? { processId: query.processId } : {}),
+        ...(query.stageKey ? { stageKey: query.stageKey } : {}),
       },
       orderBy: [{ priority: 'desc' }, { plannedDate: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
       ...pagination(query),
@@ -148,16 +602,26 @@ export class WeddingService {
 
   async createTask(userId: string, data: CreateWeddingTaskRequest): Promise<WeddingTaskResponse> {
     const status = data.status ?? TaskStatus.PENDING
+    const category = data.category ?? WeddingTaskCategory.OTHER
+    if (data.processId) {
+      const process = await (prisma as any).marriageProcess?.findFirst({ where: { id: data.processId, userId } })
+      if (!process) throw new WeddingNotFoundError('婚姻进程不存在')
+    }
+    const ownerRole = data.ownerRole ?? ActionOwnerRole.BOTH
     const record = await prisma.weddingTask.create({
       data: {
         userId,
         taskName: data.taskName.trim(),
-        category: data.category,
+        category,
         plannedDate: data.plannedDate ? utcDate(data.plannedDate) : null,
         ...(status === TaskStatus.COMPLETED ? { completedDate: utcToday() } : {}),
         status,
         priority: data.priority ?? 3,
         notes: data.notes === undefined || data.notes === null ? null : data.notes.trim() || null,
+        processId: data.processId ?? null,
+        stageKey: data.stageKey ?? MarriageNodeKey.WEDDING,
+        ownerRole,
+        completionCriteria: nullableText(data.completionCriteria) ?? null,
       },
     })
     return toTaskResponse(record)
@@ -174,6 +638,14 @@ export class WeddingService {
       if (data.plannedDate !== undefined) updateData.plannedDate = data.plannedDate ? utcDate(data.plannedDate) : null
       if (data.priority !== undefined) updateData.priority = data.priority
       if (data.notes !== undefined) updateData.notes = data.notes === null ? null : data.notes.trim() || null
+      if (data.processId !== undefined) updateData.processId = data.processId
+      if (data.stageKey !== undefined) updateData.stageKey = data.stageKey
+      if (data.ownerRole !== undefined) updateData.ownerRole = data.ownerRole
+      if (data.completionCriteria !== undefined) updateData.completionCriteria = nullableText(data.completionCriteria)
+      if (data.processId) {
+        const process = await (prisma as any).marriageProcess?.findFirst({ where: { id: data.processId, userId } })
+        if (!process) throw new WeddingNotFoundError('婚姻进程不存在')
+      }
       if (data.status !== undefined) {
         const currentStatus = existing.status as TaskStatus
         const nextStatus = data.status
@@ -285,23 +757,30 @@ export class WeddingService {
   }
 
   async upsertBudget(userId: string, data: UpsertWeddingBudgetRequest): Promise<WeddingBudgetResponse> {
-    const record = await prisma.weddingBudget.upsert({
-      where: { userId },
-      create: {
-        userId,
-        totalBudget: decimalValue(data.totalBudget),
-        weddingDate: utcDate(data.weddingDate),
-      },
-      update: {
-        totalBudget: decimalValue(data.totalBudget),
-        weddingDate: utcDate(data.weddingDate),
-      },
-    })
+    const weddingDate = utcDate(data.weddingDate)
+    const record = hasMarriageDelegate()
+      ? await (prisma as any).$transaction(async (tx: any) => {
+        const budget = await tx.weddingBudget.upsert({
+          where: { userId },
+          create: { userId, totalBudget: decimalValue(data.totalBudget), weddingDate },
+          update: { totalBudget: decimalValue(data.totalBudget), weddingDate },
+        })
+        const process = await tx.marriageProcess.findUnique({ where: { userId }, select: { id: true } })
+        if (process) {
+          await tx.marriageNode.updateMany({ where: { processId: process.id, nodeKey: MarriageNodeKey.WEDDING }, data: { plannedDate: weddingDate } })
+        }
+        return budget
+      })
+      : await prisma.weddingBudget.upsert({
+        where: { userId },
+        create: { userId, totalBudget: decimalValue(data.totalBudget), weddingDate },
+        update: { totalBudget: decimalValue(data.totalBudget), weddingDate },
+      })
     return toBudgetResponse(record)
   }
 
   async getOverview(userId: string): Promise<WeddingOverviewResponse> {
-    const [budgetRecord, expenses, taskGroups] = await Promise.all([
+    const [budgetRecord, expenses, taskGroups, processRecord] = await Promise.all([
       prisma.weddingBudget.findUnique({ where: { userId } }),
       prisma.weddingExpense.findMany({ where: { userId } }),
       prisma.weddingTask.groupBy({
@@ -309,6 +788,7 @@ export class WeddingService {
         where: { userId },
         _count: { _all: true },
       }),
+      this.findProcess(userId),
     ])
 
     let plannedExpenseTotal = decimalValue(0)
@@ -365,7 +845,7 @@ export class WeddingService {
       ? signedDayDiff(utcToday(), budgetRecord.weddingDate)
       : null
 
-    return {
+    const response: WeddingOverviewResponse = {
       budget: budgetRecord ? toBudgetResponse(budgetRecord) : null,
       plannedExpenseTotal: plannedExpenseTotal.toNumber(),
       actualExpenseTotal: actualExpenseTotal.toNumber(),
@@ -391,10 +871,34 @@ export class WeddingService {
       },
       categoryBreakdown,
     }
+    if (processRecord) {
+      const process = buildMarriageProcessResponse(processRecord, utcToday())
+      const registration = process.nodes.find((node) => node.nodeKey === MarriageNodeKey.REGISTRATION)
+      const wedding = process.nodes.find((node) => node.nodeKey === MarriageNodeKey.WEDDING)
+      const marriage: MarriageOverviewSummary = {
+        processId: process.id,
+        currentStage: process.currentStage,
+        recommendedNext: process.recommendedNext,
+        progress: process.progress,
+        warnings: process.warnings,
+        registrationDate: registration?.actualDate ?? null,
+        weddingDate: wedding?.plannedDate ?? null,
+        registrationCompleted: registration?.status === MarriageNodeStatus.COMPLETED,
+        weddingCompleted: wedding?.status === MarriageNodeStatus.COMPLETED,
+        marriageStageCompleted: registration?.status === MarriageNodeStatus.COMPLETED && wedding?.status === MarriageNodeStatus.COMPLETED,
+        visitOrder: process.visitOrder,
+        marriageOrder: process.marriageOrder,
+        engagementMode: process.engagementMode,
+      }
+      response.marriage = marriage
+    } else {
+      response.marriage = null
+    }
+    return response
   }
 
   async getTimeline(userId: string): Promise<WeddingTimelineResponse> {
-    const [budgetRecord, tasks] = await Promise.all([
+    const [budgetRecord, tasks, processRecord] = await Promise.all([
       prisma.weddingBudget.findUnique({ where: { userId } }),
       prisma.weddingTask.findMany({
         where: {
@@ -404,6 +908,7 @@ export class WeddingService {
         },
         orderBy: [{ plannedDate: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
       }),
+      this.findProcess(userId),
     ])
 
     const today = utcToday()
@@ -418,11 +923,28 @@ export class WeddingService {
       isOverdue: record.status !== TaskStatus.COMPLETED && record.plannedDate! < today,
     }))
 
-    return {
+    const response: WeddingTimelineResponse = {
       weddingDate: budgetRecord ? formatDate(budgetRecord.weddingDate) : null,
       daysUntilWedding: budgetRecord ? signedDayDiff(today, budgetRecord.weddingDate) : null,
       items,
     }
+    if (processRecord) {
+      const process = buildMarriageProcessResponse(processRecord, today)
+      response.marriageNodes = process.nodes
+        .filter((node) => node.plannedDate || node.actualDate)
+        .map((node): WeddingTimelineNodeItem => ({
+          nodeId: node.id,
+          nodeKey: node.nodeKey,
+          nodeName: MarriageNodeKeyLabels[node.nodeKey],
+          status: node.status,
+          plannedDate: node.plannedDate,
+          actualDate: node.actualDate,
+          isOverdue: node.isOverdue,
+          backfilled: node.backfilled,
+        }))
+        .sort((left, right) => (left.actualDate ?? left.plannedDate ?? '').localeCompare(right.actualDate ?? right.plannedDate ?? ''))
+    }
+    return response
   }
 }
 

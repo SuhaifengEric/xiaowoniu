@@ -1,12 +1,31 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Prisma } from '@prisma/client'
-import { PaidStatus, TaskStatus, WeddingTaskCategory } from '@xiaowoniu/shared'
+import {
+  ActionOwnerRole,
+  AgreementStatus,
+  EngagementMode,
+  MarriageNodeKey,
+  MarriageNodeStatus,
+  MarriageOrder,
+  MarriageRecorderRole,
+  PaidStatus,
+  TaskStatus,
+  VisitOrder,
+  WeddingTaskCategory,
+} from '@xiaowoniu/shared'
 
-const prisma = vi.hoisted(() => ({
-  weddingTask: { findMany: vi.fn(), create: vi.fn(), findFirst: vi.fn(), update: vi.fn(), deleteMany: vi.fn(), count: vi.fn(), groupBy: vi.fn() },
-  weddingExpense: { findMany: vi.fn(), create: vi.fn(), findFirst: vi.fn(), update: vi.fn(), deleteMany: vi.fn() },
-  weddingBudget: { findUnique: vi.fn(), upsert: vi.fn() },
-}))
+const prisma = vi.hoisted(() => {
+  const db = {
+    weddingTask: { findMany: vi.fn(), create: vi.fn(), findFirst: vi.fn(), update: vi.fn(), updateMany: vi.fn(), deleteMany: vi.fn(), count: vi.fn(), groupBy: vi.fn() },
+    weddingExpense: { findMany: vi.fn(), create: vi.fn(), findFirst: vi.fn(), update: vi.fn(), deleteMany: vi.fn() },
+    weddingBudget: { findUnique: vi.fn(), upsert: vi.fn() },
+    marriageProcess: { findUnique: vi.fn(), findFirst: vi.fn(), create: vi.fn(), update: vi.fn() },
+    marriageNode: { createMany: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
+    marriageNodeHistory: { findMany: vi.fn(), create: vi.fn() },
+    agreementTopic: { findMany: vi.fn(), create: vi.fn(), createMany: vi.fn(), findFirst: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
+  }
+  return { ...db, $transaction: vi.fn(async (callback: (tx: typeof db) => unknown) => callback(db)) }
+})
 
 vi.mock('../config/database', () => ({ default: prisma }))
 
@@ -38,6 +57,7 @@ const budget = {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  prisma.$transaction.mockImplementation(async (callback: (tx: typeof prisma) => unknown) => callback(prisma as never))
   vi.useFakeTimers()
   vi.setSystemTime(today)
 })
@@ -60,12 +80,13 @@ describe('wedding tasks', () => {
     expect(result[0].taskName).toBe('确认婚礼场地')
   })
 
-  it('creates a task with default pending status and priority 3', async () => {
+  it('creates a task with default pending status, priority, wedding stage, and both owners', async () => {
     prisma.weddingTask.create.mockResolvedValue({ ...task, plannedDate: null })
     await weddingService.createTask('u1', { taskName: ' 拍婚纱照 ', category: WeddingTaskCategory.PHOTO })
     expect(prisma.weddingTask.create).toHaveBeenCalledWith({ data: {
       userId: 'u1', taskName: '拍婚纱照', category: WeddingTaskCategory.PHOTO,
       plannedDate: null, status: TaskStatus.PENDING, priority: 3, notes: null,
+      processId: null, stageKey: MarriageNodeKey.WEDDING, ownerRole: ActionOwnerRole.BOTH, completionCriteria: null,
     } })
   })
 
@@ -118,6 +139,138 @@ describe('wedding tasks', () => {
 
     prisma.weddingTask.deleteMany.mockResolvedValue({ count: 0 })
     await expect(weddingService.deleteTask('u1', 't1')).rejects.toBeInstanceOf(WeddingNotFoundError)
+  })
+})
+
+describe('marriage process', () => {
+  const nodeRecord = (nodeKey: MarriageNodeKey, overrides: Record<string, unknown> = {}) => ({
+    id: `${nodeKey}-id`, processId: 'p1', nodeKey, status: MarriageNodeStatus.NOT_STARTED,
+    plannedDate: null, actualDate: null, participants: null, conclusion: null,
+    disagreements: null, nextStep: null, notes: null, skipReason: null, backfilled: false,
+    createdAt, updatedAt, ...overrides,
+  })
+  const processRecord = (overrides: Record<string, unknown> = {}) => ({
+    id: 'p1', userId: 'u1', recorderRole: MarriageRecorderRole.RECORD_KEEPER,
+    visitOrder: VisitOrder.MALE_FIRST, marriageOrder: MarriageOrder.REGISTRATION_FIRST,
+    engagementMode: EngagementMode.UNDECIDED, createdAt, updatedAt,
+    nodes: Object.values(MarriageNodeKey).map((key) => nodeRecord(key)),
+    agreements: [], tasks: [], ...overrides,
+  })
+
+  it('initializes one process, eight nodes, six agreements and adopts legacy tasks', async () => {
+    prisma.marriageProcess.findUnique.mockResolvedValueOnce(null).mockResolvedValueOnce(processRecord())
+    prisma.weddingBudget.findUnique.mockResolvedValue({ weddingDate: budget.weddingDate })
+    prisma.marriageProcess.create.mockResolvedValue({ id: 'p1' })
+    const result = await weddingService.ensureMarriageProcess('u1', { recorderRole: MarriageRecorderRole.RECORD_KEEPER })
+
+    expect(result.nodes).toHaveLength(8)
+    expect(prisma.marriageNode.createMany).toHaveBeenCalledWith({ data: expect.arrayContaining([
+      expect.objectContaining({ processId: 'p1', nodeKey: MarriageNodeKey.WEDDING, plannedDate: budget.weddingDate }),
+    ]) })
+    expect(prisma.agreementTopic.createMany).toHaveBeenCalledWith({ data: expect.arrayContaining([
+      expect.objectContaining({ processId: 'p1', title: '是否确定进入婚姻', sortOrder: 0 }),
+    ]) })
+    expect(prisma.weddingTask.updateMany).toHaveBeenCalledWith({
+      where: { userId: 'u1', processId: null },
+      data: { processId: 'p1', stageKey: MarriageNodeKey.WEDDING, ownerRole: ActionOwnerRole.BOTH },
+    })
+  })
+
+  it('is idempotent and does not reset an existing process', async () => {
+    const existing = processRecord({
+      visitOrder: VisitOrder.FEMALE_FIRST,
+      nodes: [nodeRecord(MarriageNodeKey.INTENTION, { status: MarriageNodeStatus.COMPLETED, actualDate: new Date('2026-01-02T00:00:00.000Z') })],
+    })
+    prisma.marriageProcess.findUnique.mockResolvedValue(existing)
+    const result = await weddingService.ensureMarriageProcess('u1', { recorderRole: MarriageRecorderRole.MALE, visitOrder: VisitOrder.MALE_FIRST })
+    expect(result.visitOrder).toBe(VisitOrder.FEMALE_FIRST)
+    expect(prisma.marriageProcess.create).not.toHaveBeenCalled()
+    expect(prisma.marriageNode.createMany).not.toHaveBeenCalled()
+    expect(prisma.marriageProcess.update).not.toHaveBeenCalled()
+  })
+
+  it('requires actual date, records history, and preserves actual date when reopening', async () => {
+    const initial = processRecord({ nodes: [nodeRecord(MarriageNodeKey.INTENTION)] })
+    const completed = nodeRecord(MarriageNodeKey.INTENTION, { status: MarriageNodeStatus.COMPLETED, actualDate: new Date('2026-08-01T00:00:00.000Z') })
+    const pending = nodeRecord(MarriageNodeKey.INTENTION)
+    const reopened = nodeRecord(MarriageNodeKey.INTENTION, { status: MarriageNodeStatus.IN_PROGRESS, actualDate: completed.actualDate })
+    prisma.marriageProcess.findUnique.mockResolvedValueOnce(initial)
+    await expect(weddingService.updateMarriageNode('u1', MarriageNodeKey.INTENTION, { status: MarriageNodeStatus.COMPLETED })).rejects.toThrow('实际日期')
+
+    prisma.marriageProcess.findUnique
+      .mockResolvedValueOnce(processRecord({ nodes: [pending] }))
+      .mockResolvedValueOnce(processRecord({ nodes: [completed] }))
+    prisma.marriageNode.update.mockResolvedValue(completed)
+    await weddingService.updateMarriageNode('u1', MarriageNodeKey.INTENTION, { status: MarriageNodeStatus.COMPLETED, actualDate: '2026-08-01' })
+    expect(prisma.marriageNodeHistory.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ toStatus: MarriageNodeStatus.COMPLETED }) }))
+
+    prisma.marriageProcess.findUnique
+      .mockResolvedValueOnce(processRecord({ nodes: [completed] }))
+      .mockResolvedValueOnce(processRecord({ nodes: [reopened] }))
+    prisma.marriageNode.update.mockResolvedValue(reopened)
+    await weddingService.updateMarriageNode('u1', MarriageNodeKey.INTENTION, { status: MarriageNodeStatus.IN_PROGRESS })
+    expect(prisma.marriageNode.update).toHaveBeenLastCalledWith({ where: { id: `${MarriageNodeKey.INTENTION}-id` }, data: expect.objectContaining({ status: MarriageNodeStatus.IN_PROGRESS }) })
+    expect(prisma.marriageNodeHistory.create).toHaveBeenLastCalledWith(expect.objectContaining({ data: expect.objectContaining({ eventType: 'reopened', toActualDate: completed.actualDate }) }))
+  })
+
+  it('allows only engagement to skip and excludes skipped engagement from overdue state', async () => {
+    const process = processRecord({ nodes: [
+      nodeRecord(MarriageNodeKey.ENGAGEMENT, { plannedDate: new Date('2026-07-01T00:00:00.000Z') }),
+      nodeRecord(MarriageNodeKey.INTENTION),
+    ] })
+    prisma.marriageProcess.findUnique.mockResolvedValue(process)
+    await expect(weddingService.updateMarriageNode('u1', MarriageNodeKey.INTENTION, { status: MarriageNodeStatus.SKIPPED })).rejects.toThrow('只有订婚节点')
+
+    const skipped = nodeRecord(MarriageNodeKey.ENGAGEMENT, { plannedDate: new Date('2026-07-01T00:00:00.000Z'), status: MarriageNodeStatus.SKIPPED })
+    prisma.marriageProcess.findUnique.mockResolvedValueOnce(process).mockResolvedValueOnce(processRecord({ nodes: [skipped, nodeRecord(MarriageNodeKey.INTENTION)] }))
+    prisma.marriageNode.update.mockResolvedValue(skipped)
+    const result = await weddingService.updateMarriageNode('u1', MarriageNodeKey.ENGAGEMENT, { status: MarriageNodeStatus.SKIPPED, skipReason: '双方不单独安排订婚' })
+    expect(result.status).toBe(MarriageNodeStatus.SKIPPED)
+    expect(result.isOverdue).toBe(false)
+    expect(prisma.marriageProcess.update).toHaveBeenCalledWith({ where: { id: 'p1' }, data: { engagementMode: EngagementMode.SKIP } })
+  })
+
+  it('requires an explicit backfill flag for an early parents meeting', async () => {
+    const process = processRecord({ nodes: [nodeRecord(MarriageNodeKey.PARENTS_MEETING), nodeRecord(MarriageNodeKey.MALE_VISIT), nodeRecord(MarriageNodeKey.FEMALE_VISIT)] })
+    prisma.marriageProcess.findUnique.mockResolvedValue(process)
+    await expect(weddingService.updateMarriageNode('u1', MarriageNodeKey.PARENTS_MEETING, { status: MarriageNodeStatus.COMPLETED, actualDate: '2026-08-01' })).rejects.toThrow('用户补录')
+
+    const backfilled = nodeRecord(MarriageNodeKey.PARENTS_MEETING, { status: MarriageNodeStatus.COMPLETED, actualDate: new Date('2026-08-01T00:00:00.000Z'), backfilled: true })
+    prisma.marriageProcess.findUnique.mockResolvedValueOnce(process).mockResolvedValueOnce(processRecord({ nodes: [backfilled, nodeRecord(MarriageNodeKey.MALE_VISIT), nodeRecord(MarriageNodeKey.FEMALE_VISIT)] }))
+    prisma.marriageNode.update.mockResolvedValue(backfilled)
+    const result = await weddingService.updateMarriageNode('u1', MarriageNodeKey.PARENTS_MEETING, { status: MarriageNodeStatus.COMPLETED, actualDate: '2026-08-01', backfilled: true })
+    expect(result.backfilled).toBe(true)
+    expect(result.recordSource).toBe('backfilled')
+  })
+
+  it('keeps registration and wedding independent and protects settings after facts', async () => {
+    const process = processRecord({ nodes: [
+      nodeRecord(MarriageNodeKey.REGISTRATION, { status: MarriageNodeStatus.COMPLETED, actualDate: new Date('2026-07-01T00:00:00.000Z') }),
+      nodeRecord(MarriageNodeKey.WEDDING, { status: MarriageNodeStatus.NOT_STARTED, plannedDate: new Date('2026-12-01T00:00:00.000Z') }),
+    ] })
+    prisma.marriageProcess.findUnique.mockResolvedValue(process)
+    await expect(weddingService.updateMarriageSettings('u1', { marriageOrder: MarriageOrder.WEDDING_FIRST })).rejects.toThrow('事实记录')
+    expect(process.nodes.find((node: any) => node.nodeKey === MarriageNodeKey.WEDDING)?.status).toBe(MarriageNodeStatus.NOT_STARTED)
+  })
+
+  it('scopes agreement CRUD to the authenticated process and archives rather than deletes', async () => {
+    prisma.marriageProcess.findUnique.mockResolvedValue(processRecord())
+    prisma.agreementTopic.create.mockResolvedValue({ id: 'a1', processId: 'p1', title: '城市', status: AgreementStatus.NOT_DISCUSSED, sortOrder: 0, notes: null, archivedAt: null, createdAt, updatedAt })
+    const created = await weddingService.createAgreement('u1', { title: ' 城市 ' })
+    expect(created.title).toBe('城市')
+    expect(prisma.agreementTopic.create).toHaveBeenCalledWith({ data: expect.objectContaining({ processId: 'p1', title: '城市', status: AgreementStatus.NOT_DISCUSSED }) })
+
+    prisma.agreementTopic.findFirst.mockResolvedValue(null)
+    await expect(weddingService.updateAgreement('u1', 'foreign', { title: '不应更新' })).rejects.toBeInstanceOf(WeddingNotFoundError)
+    prisma.agreementTopic.updateMany.mockResolvedValue({ count: 1 })
+    await weddingService.archiveAgreement('u1', 'a1')
+    expect(prisma.agreementTopic.updateMany).toHaveBeenCalledWith({ where: { id: 'a1', processId: 'p1', archivedAt: null }, data: { archivedAt: expect.any(Date) } })
+  })
+
+  it('requires a process for process-scoped resources and never accepts another user id', async () => {
+    prisma.marriageProcess.findUnique.mockResolvedValue(null)
+    await expect(weddingService.getMarriageNodes('u2')).rejects.toBeInstanceOf(WeddingNotFoundError)
+    await expect(weddingService.getAgreements('u2')).rejects.toBeInstanceOf(WeddingNotFoundError)
   })
 })
 

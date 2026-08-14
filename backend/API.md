@@ -569,7 +569,123 @@ Authorization: Bearer <token>
 
 所有成功响应均为 HTTP `200`，统一包络为 `{ "success": true, "data": ..., "message": ... }`；GET 接口不设置 `message`。金额均为数字，最多保留两位小数；日期严格使用 `YYYY-MM-DD`。资源不存在或属于其他用户时统一返回 `404 NOT_FOUND`，消息不泄露记录是否存在。本模块没有 409 业务规则。
 
-Wedding 共 12 条路由，全部以 `/api/wedding` 为前缀。
+Wedding 共 22 条路由，全部以 `/api/wedding` 为前缀。除旧备婚任务、花费、预算、概览和时间线接口外，新增的婚姻进程接口用于记录事实与计划，不会根据日期自动完成节点，也不会把父母意见建模为审批。
+
+### 嫁嫁嫁婚姻进程
+
+| 方法 | 路径 | 认证 | 成功消息 |
+| --- | --- | --- | --- |
+| `GET` | `/wedding/process` | JWT | - |
+| `PUT` | `/wedding/process` | JWT | `婚姻进程已建立` |
+| `PATCH` | `/wedding/process/settings` | JWT | `流程设置已更新` |
+| `GET` | `/wedding/process/nodes` | JWT | - |
+| `PATCH` | `/wedding/process/nodes/:nodeKey` | JWT | `婚姻节点已更新` |
+| `GET` | `/wedding/process/nodes/:nodeKey/history` | JWT | - |
+| `GET` | `/wedding/process/agreements` | JWT | - |
+| `POST` | `/wedding/process/agreements` | JWT | `共识议题已添加` |
+| `PATCH` | `/wedding/process/agreements/:id` | JWT | `共识议题已更新` |
+| `DELETE` | `/wedding/process/agreements/:id` | JWT | `共识议题已归档` |
+
+#### 建档与流程设置
+
+查询当前用户的婚姻进程：
+
+```http
+GET /api/wedding/process
+Authorization: Bearer <token>
+```
+
+未建档时 `data` 为 `null`。首次建档使用幂等 `PUT`：
+
+```http
+PUT /api/wedding/process
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "recorderRole": "record_keeper",
+  "visitOrder": "male_first",
+  "marriageOrder": "registration_first",
+  "engagementMode": "undecided"
+}
+```
+
+`recorderRole` 可为 `male`、`female`、`record_keeper`，只影响称呼，不代表决策权；`visitOrder` 可为 `male_first` 或 `female_first`；`marriageOrder` 可为 `registration_first`、`wedding_first` 或 `same_or_near`；`engagementMode` 可为 `adopt`、`skip` 或 `undecided`。后三个字段缺省时分别使用 `male_first`、`registration_first` 和 `undecided`。
+
+首次建档在一个事务中初始化 8 个节点和 6 个默认共识议题；已有预算的 `weddingDate` 只复制为婚礼节点的 `plannedDate`，不会推断婚礼已经完成；已有且尚未归属进程的旧任务归入婚礼阶段、负责人设为双方，任务原有状态和日期不变。重复 `PUT` 返回已有进程，不重置节点、议题或设置。
+
+更新设置：
+
+```http
+PATCH /api/wedding/process/settings
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{ "marriageOrder": "wedding_first" }
+```
+
+任一上门节点已完成后，不能用设置覆盖事实上的上门顺序；领证或婚礼已有事实记录后，不能覆盖历史顺序；已确定订婚结果后不能直接改订婚选择。未来未完成节点仍可通过节点接口单独调整计划日期。
+
+#### 婚姻节点与历史
+
+固定节点及状态如下：
+
+| `nodeKey` | 含义 | 可跳过 |
+| --- | --- | --- |
+| `intention` | 确认以婚姻为目标 | 否 |
+| `male_visit` | 男方上门见女方家长 | 否 |
+| `female_visit` | 女方上门见男方家长 | 否 |
+| `parents_meeting` | 双方父母正式见面 | 否 |
+| `agreement` | 确认婚姻基本共识 | 否 |
+| `engagement` | 订婚与婚姻约定 | 是 |
+| `registration` | 依法办理结婚登记 | 否 |
+| `wedding` | 婚礼筹备与婚礼 | 否 |
+
+节点状态为 `not_started`、`scheduled`、`in_progress`、`completed`、`paused`、`skipped`；只有订婚节点允许 `skipped`。`plannedDate` 是计划日期，`actualDate` 是实际发生日期；首次从非完成状态改为 `completed` 必须明确提供实际日期。已完成节点重新打开会保留历史实际日期并写入历史，不会由普通编辑覆盖已发生日期。日期到期不会自动完成节点。
+
+更新节点示例：
+
+```http
+PATCH /api/wedding/process/nodes/parents_meeting
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "status": "completed",
+  "actualDate": "2026-08-04",
+  "participants": "双方父母",
+  "conclusion": "完成正式见面",
+  "disagreements": "礼金仍需沟通",
+  "nextStep": "下周继续讨论",
+  "backfilled": true,
+  "reason": "补录已经发生的见面"
+}
+```
+
+两次上门尚未都完成时，父母见面只有在明确传 `backfilled: true` 后才能完成；这表示用户补录事实，不是父母审批。`recordSource` 会返回 `direct` 或 `backfilled`。婚礼节点的计划日期与已有预算的婚礼日期保持同步；已有预算时不能通过节点接口清空婚礼计划日期，应通过预算接口修改。
+
+查询节点历史：
+
+```http
+GET /api/wedding/process/nodes/wedding/history
+Authorization: Bearer <token>
+```
+
+历史记录包含状态、计划日期、实际日期的前后值和可选原因。跨用户的进程、节点、历史、议题和行动项均统一返回 `404 NOT_FOUND`。
+
+#### 双方共识议题
+
+建档默认创建 6 个议题。议题状态为 `not_discussed`（尚未讨论）、`discussing`（讨论中）、`agreed`（已达成共识）或 `needs_discussion`（需再沟通）；标题 trim 后为 1–100 个字符，备注最多 2000 字符。`DELETE /process/agreements/:id` 是归档，不删除历史记录；归档议题不再出现在默认列表。共识未完成只产生提醒和推荐，不阻止后续节点，也没有“审批通过/拒绝”字段。
+
+新增议题示例：
+
+```http
+POST /api/wedding/process/agreements
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{ "title": "婚后居住城市", "status": "needs_discussion", "notes": "下次沟通通勤安排" }
+```
 
 ### 备婚任务
 
@@ -606,7 +722,7 @@ Content-Type: application/json
 }
 ```
 
-`taskName` 和 `category` 必填；`plannedDate`、`status`、`priority`、`notes` 可缺省，缺省时分别取 `null`、`pending`、`3`、`null`。`plannedDate` 和 `notes` 可传 `null`。`priority` 为 1–5 的整数，5 最高。客户端不能提交 `completedDate`；当创建任务的最终状态为 `completed` 时，服务端写入 UTC 当天的完成日期。
+`taskName` 必填；`category`、`plannedDate`、`status`、`priority`、`notes`、`processId`、`stageKey`、`ownerRole` 和 `completionCriteria` 可缺省。缺省时 `category` 为 `other`、`plannedDate` 为 `null`、`status` 为 `pending`、`priority` 为 `3`、`notes` 为 `null`、`processId` 为 `null`、`stageKey` 为 `wedding`、`ownerRole` 为 `both`、`completionCriteria` 为 `null`。`plannedDate` 和 `notes` 可传 `null`。`stageKey` 使用上述 8 个节点键；`ownerRole` 使用 `male`、`female`、`both` 或 `family`；`completionCriteria` 最多 500 字符。客户端不能提交 `completedDate`；当创建任务的最终状态为 `completed` 时，服务端写入 UTC 当天的完成日期。
 
 更新任务：
 
@@ -620,7 +736,7 @@ Content-Type: application/json
 }
 ```
 
-更新请求至少提供一个字段，可更新 `taskName`、`category`、`plannedDate`、`status`、`priority` 或 `notes`；`plannedDate: null` 清空计划日期，`notes: null` 清空备注，字段缺省表示不修改。完成日期完全由服务端维护：从非 `completed` 转为 `completed` 时写入服务端 UTC 当天；`completed -> completed` 保留原完成日期；从 `completed` 转为其他状态时清空完成日期，以后再完成时写入新的服务端 UTC 当天。
+更新请求至少提供一个字段，可更新 `taskName`、`category`、`plannedDate`、`status`、`priority`、`notes`、`processId`、`stageKey`、`ownerRole` 或 `completionCriteria`；`plannedDate: null` 清空计划日期，`notes: null` 清空备注，`processId: null` 解除进程归属，字段缺省表示不修改。完成日期完全由服务端维护：从非 `completed` 转为 `completed` 时写入服务端 UTC 当天；`completed -> completed` 保留原完成日期；从 `completed` 转为其他状态时清空完成日期，以后再完成时写入新的服务端 UTC 当天。任务仍按当前 JWT 用户隔离，若传入 `processId`，该进程必须属于当前用户。
 
 删除任务：
 

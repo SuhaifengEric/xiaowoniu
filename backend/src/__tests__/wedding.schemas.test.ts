@@ -1,8 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import {
+  createMarriageAgreementSchema,
   createWeddingExpenseSchema,
   createWeddingTaskSchema,
+  deleteMarriageAgreementRouteSchema,
+  getMarriageProcessSchema,
+  marriageNodeHistoryRouteSchema,
+  marriageNodeListSchema,
   upsertWeddingBudgetSchema,
+  putMarriageProcessSchema,
+  updateMarriageAgreementRouteSchema,
+  updateMarriageNodeRouteSchema,
+  updateMarriageSettingsSchema,
   weddingEmptySchema,
   weddingExpenseQuerySchema,
   weddingIdParamSchema,
@@ -36,6 +45,13 @@ const expense = {
 const budget = {
   totalBudget: 150000,
   weddingDate: '2026-12-01',
+}
+
+const process = {
+  recorderRole: 'record_keeper',
+  visitOrder: 'male_first',
+  marriageOrder: 'registration_first',
+  engagementMode: 'undecided',
 }
 
 describe('wedding validation schemas', () => {
@@ -183,5 +199,47 @@ describe('wedding validation schemas', () => {
     expect(weddingEmptySchema.safeParse({ body: {}, query: {}, params: {} }).success).toBe(true)
     expect(weddingEmptySchema.safeParse({ body: {}, query: { x: 1 }, params: {} }).success).toBe(false)
     expect(weddingEmptySchema.safeParse({ body: {}, query: {}, params: { id } }).success).toBe(false)
+  })
+
+  it('accepts valid marriage process, node, and agreement requests', () => {
+    expect(getMarriageProcessSchema.safeParse({ body: {}, query: {}, params: {} }).success).toBe(true)
+    expect(putMarriageProcessSchema.safeParse({ body: process }).success).toBe(true)
+    expect(updateMarriageSettingsSchema.safeParse({ body: { visitOrder: 'female_first' } }).success).toBe(true)
+    expect(marriageNodeListSchema.safeParse({ body: {}, query: {}, params: {} }).success).toBe(true)
+    expect(updateMarriageNodeRouteSchema.safeParse({
+      params: { nodeKey: 'parents_meeting' },
+      body: {
+        status: 'completed', actualDate: '2026-08-04', participants: '双方父母',
+        conclusion: '已见面', disagreements: '礼金仍需沟通', nextStep: '下周继续讨论',
+        backfilled: true, reason: '补录',
+      },
+    }).success).toBe(true)
+    expect(marriageNodeHistoryRouteSchema.safeParse({ params: { nodeKey: 'wedding' }, body: {}, query: {} }).success).toBe(true)
+    expect(createMarriageAgreementSchema.safeParse({ body: { title: ' 婚后居住城市 ', status: 'agreed', notes: '已确认' } }).success).toBe(true)
+    expect(updateMarriageAgreementRouteSchema.safeParse({ params: { id }, body: { status: 'needs_discussion' } }).success).toBe(true)
+    expect(deleteMarriageAgreementRouteSchema.safeParse({ params: { id }, body: {}, query: {} }).success).toBe(true)
+  })
+
+  it('rejects invalid marriage process enums, unknown fields, and empty patches', () => {
+    expect(putMarriageProcessSchema.safeParse({ body: { ...process, recorderRole: 'parent' } }).success).toBe(false)
+    expect(putMarriageProcessSchema.safeParse({ body: { ...process, unexpected: true } }).success).toBe(false)
+    expect(updateMarriageSettingsSchema.safeParse({ body: {} }).success).toBe(false)
+    expect(updateMarriageSettingsSchema.safeParse({ body: { marriageOrder: 'later' } }).success).toBe(false)
+    expect(updateMarriageNodeRouteSchema.safeParse({ params: { nodeKey: 'not-a-node' }, body: { status: 'completed' } }).success).toBe(false)
+    expect(updateMarriageNodeRouteSchema.safeParse({ params: { nodeKey: 'wedding' }, body: {} }).success).toBe(false)
+    expect(updateMarriageNodeRouteSchema.safeParse({ params: { nodeKey: 'wedding' }, body: { plannedDate: '2026-02-30' } }).success).toBe(false)
+    expect(updateMarriageNodeRouteSchema.safeParse({ params: { nodeKey: 'wedding' }, body: { participants: 'x'.repeat(501) } }).success).toBe(false)
+    expect(updateMarriageNodeRouteSchema.safeParse({ params: { nodeKey: 'wedding' }, body: { unexpected: true } }).success).toBe(false)
+  })
+
+  it('rejects invalid agreement titles, statuses, ids, and empty patches', () => {
+    expect(createMarriageAgreementSchema.safeParse({ body: { title: '   ' } }).success).toBe(false)
+    expect(createMarriageAgreementSchema.safeParse({ body: { title: 'x'.repeat(101) } }).success).toBe(false)
+    expect(createMarriageAgreementSchema.safeParse({ body: { title: '议题', status: 'approved' } }).success).toBe(false)
+    expect(createMarriageAgreementSchema.safeParse({ body: { title: '议题', unexpected: true } }).success).toBe(false)
+    expect(updateMarriageAgreementRouteSchema.safeParse({ params: { id }, body: {} }).success).toBe(false)
+    expect(updateMarriageAgreementRouteSchema.safeParse({ params: { id: 'bad' }, body: { title: '议题' } }).success).toBe(false)
+    expect(deleteMarriageAgreementRouteSchema.safeParse({ params: { id: 'bad' }, body: {}, query: {} }).success).toBe(false)
+    expect(marriageNodeHistoryRouteSchema.safeParse({ params: { nodeKey: 'wedding' }, body: {}, query: { injected: '1' } }).success).toBe(false)
   })
 })
