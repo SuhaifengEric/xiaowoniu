@@ -1318,8 +1318,21 @@
     @apply min-w-0;
     border: 1px solid hsl(var(--border));
     border-radius: calc(var(--radius) + 0.125rem);
-    background: hsl(var(--muted) / 0.64);
+    background: hsl(var(--card) / 0.98);
     box-shadow: 0 14px 26px -26px hsl(var(--paper-shadow) / 0.65);
+  }
+
+  .finance-plan-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 32rem), 1fr));
+  }
+
+  .finance-plan-eyebrow {
+    color: hsl(var(--brand-pink-deep));
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    line-height: 1.2;
+    text-transform: uppercase;
   }
 
   .saving-deposit-list {
@@ -1328,6 +1341,10 @@
 
   .saving-deposit-row {
     min-height: 64px;
+  }
+
+  .saving-deposit-empty {
+    background: hsl(var(--muted) / 0.42);
   }
 
   .finance-skeleton,
