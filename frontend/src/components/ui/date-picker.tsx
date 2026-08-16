@@ -72,7 +72,7 @@ function DatePicker({
             <span>{selected ? formatDateLabel(selected) : placeholder}</span>
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-[min(22rem,calc(100vw-2rem))] p-3" align="start">
+        <PopoverContent className="date-picker-popover" align="start">
           <Calendar
             mode="single"
             selected={selected}
@@ -91,7 +91,7 @@ function DatePicker({
           type="button"
           variant="ghost"
           size="icon"
-          className="absolute right-0.5 top-1/2 h-10 w-10 -translate-y-1/2 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+          className="absolute right-0 top-1/2 h-11 w-11 -translate-y-1/2 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
           onClick={() => onValueChange('')}
           aria-label={clearLabel}
         >

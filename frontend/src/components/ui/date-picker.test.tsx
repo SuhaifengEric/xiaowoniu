@@ -25,6 +25,7 @@ describe('DatePicker', () => {
 
     await user.click(screen.getByLabelText('日期'))
     expect(await screen.findByRole('grid', { name: '2026年7月' })).toBeInTheDocument()
+    expect(screen.getByRole('dialog')).toHaveClass('date-picker-popover')
     await user.click(screen.getByRole('button', { name: '2026年7月31日' }))
 
     expect(screen.getByTestId('date-value')).toHaveTextContent('2026-07-31')

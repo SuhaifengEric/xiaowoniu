@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { AgreementStatus, EngagementMode, MarriageNodeKey, MarriageNodeStatus, MarriageOrder, MarriageRecorderRole, TaskStatus, VisitOrder, WeddingTaskCategory } from '@xiaowoniu/shared'
 import { MemoryRouter } from 'react-router-dom'
@@ -141,6 +141,11 @@ describe('Wedding page', () => {
     const agreementsTab = screen.getByRole('tab', { name: '双方共识' })
     const executionTab = screen.getByRole('tab', { name: '婚礼执行' })
     const settingsTab = screen.getByRole('tab', { name: '流程设置' })
+    expect(processTab.querySelector('.wedding-tab-label--mobile')).toHaveTextContent('进程')
+    expect(stagesTab.querySelector('.wedding-tab-label--mobile')).toHaveTextContent('阶段')
+    expect(agreementsTab.querySelector('.wedding-tab-label--mobile')).toHaveTextContent('共识')
+    expect(executionTab.querySelector('.wedding-tab-label--mobile')).toHaveTextContent('执行')
+    expect(settingsTab.querySelector('.wedding-tab-label--mobile')).toHaveTextContent('设置')
     expect(processTab).toHaveAttribute('aria-selected', 'true')
     expect(agreementsTab).toBeInTheDocument()
     expect(executionTab).toBeInTheDocument()
@@ -164,6 +169,33 @@ describe('Wedding page', () => {
     await user.keyboard('{ArrowLeft}')
     expect(settingsTab).toHaveAttribute('aria-selected', 'true')
     expect(document.activeElement).toBe(settingsTab)
+  })
+
+  it('keeps execution shortcuts inside the execution view with compact mobile labels', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    expect(screen.queryByRole('region', { name: '婚礼执行快捷操作' })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('tab', { name: '婚礼执行' }))
+    const shortcuts = screen.getByRole('region', { name: '婚礼执行快捷操作' })
+    expect(within(shortcuts).getByRole('button', { name: '新增行动' })).toBeInTheDocument()
+    expect(within(shortcuts).getByRole('button', { name: '记花费' })).toBeInTheDocument()
+    expect(within(shortcuts).getByRole('button', { name: '预算' })).toBeInTheDocument()
+  })
+
+  it('guides empty users back to process setup from stages and agreements', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(screen.getByRole('tab', { name: '阶段记录' }))
+    expect(screen.getByRole('heading', { name: '从第一个阶段开始记录' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '建立婚姻进程' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('tab', { name: '双方共识' }))
+    expect(screen.getByRole('heading', { name: '把重要共识留在这里' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '建立婚姻进程' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: '从第一个阶段开始记录' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('textbox', { name: '新共识议题' })).not.toBeInTheDocument()
   })
 
   it('restores focus to the budget trigger after closing its dialog', async () => {

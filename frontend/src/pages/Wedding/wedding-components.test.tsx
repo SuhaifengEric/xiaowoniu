@@ -112,6 +112,8 @@ describe('Wedding task board', () => {
     expect(screen.getByRole('heading', { name: '待办' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: '进行中' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: '已完成' })).toBeInTheDocument()
+    expect(screen.getByText('左右滑动查看待办、进行中和已完成')).toBeInTheDocument()
+    expect(document.querySelectorAll('.wedding-board-column')).toHaveLength(3)
     expect(screen.queryByRole('heading', { name: '已取消' })).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: /已取消归档/ }))

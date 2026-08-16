@@ -1518,8 +1518,8 @@
     --rdp-today-color: hsl(var(--brand-blue-deep));
     --rdp-day-height: 44px;
     --rdp-day-width: 44px;
-    --rdp-day_button-height: 42px;
-    --rdp-day_button-width: 42px;
+    --rdp-day_button-height: 44px;
+    --rdp-day_button-width: 44px;
     --rdp-day_button-border-radius: 0.75rem;
     --rdp-nav_button-height: 2.5rem;
     --rdp-nav_button-width: 2.5rem;
@@ -1527,6 +1527,36 @@
     --rdp-animation_duration: 160ms;
     --rdp-animation_timing: cubic-bezier(0.16, 1, 0.3, 1);
     color: hsl(var(--foreground));
+  }
+
+  .date-picker-popover {
+    width: min(22rem, 100vw);
+    padding: 0.25rem;
+  }
+
+  @media (min-width: 366px) {
+    .date-picker-popover {
+      width: min(22rem, calc(100vw - 2rem));
+      padding: 0.75rem;
+    }
+  }
+
+  @media (max-width: 1023px) and (max-height: 700px) {
+    [data-radix-popper-content-wrapper]:has(> .date-picker-popover) {
+      inset: 0.5rem 0 !important;
+      display: flex !important;
+      width: auto !important;
+      min-width: 0 !important;
+      align-items: center;
+      justify-content: center;
+      transform: none !important;
+    }
+
+    .date-picker-popover {
+      width: min(22rem, 100vw);
+      max-height: calc(100vh - 1rem);
+      overflow-y: auto;
+    }
   }
 
   .date-picker-calendar .rdp-month_caption {
@@ -1574,6 +1604,10 @@
     font-size: 0.875rem;
     font-weight: 600;
     transition: background-color 160ms ease, color 160ms ease;
+  }
+
+  .date-picker-calendar .rdp-day {
+    padding: 0;
   }
 
   .date-picker-calendar .rdp-day_button:hover {
@@ -2257,6 +2291,402 @@
 
     .dov-card__note {
       display: none;
+    }
+  }
+
+  /* ── 嫁嫁嫁 mobile workbench ─────────────────────────────── */
+
+  .wedding-description-mobile,
+  .wedding-tab-label--mobile,
+  .wedding-mobile-execution-actions,
+  .wedding-board-mobile-hint,
+  .wedding-node-action span,
+  .agreement-action span {
+    display: none;
+  }
+
+  @media (max-width: 767px),
+    (min-width: 768px) and (max-width: 1023px) and (max-height: 500px) and (orientation: landscape) {
+    .wedding-page.has-mobile-tabbar {
+      padding-bottom: calc(4.5rem + env(safe-area-inset-bottom));
+    }
+
+    .wedding-page .mobile-tabbar {
+      position: fixed;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      z-index: 50;
+      display: block;
+      border-top: 1px solid hsl(var(--border));
+      background: hsl(var(--card));
+      box-shadow: 0 -12px 24px -24px hsl(var(--paper-shadow) / 0.72);
+      padding: 0.375rem 0.5rem calc(0.375rem + env(safe-area-inset-bottom));
+    }
+
+    .wedding-page .mobile-tabbar__inner {
+      display: flex;
+      max-width: 34rem;
+      margin: 0 auto;
+    }
+
+    .wedding-page .mobile-tabbar__item.mobile-tabbar__item {
+      min-width: 0;
+      min-height: 3.25rem;
+      flex: 1 1 0;
+      flex-direction: column;
+      gap: 0.2rem;
+      border-radius: 0.65rem;
+      padding: 0.25rem 0.125rem;
+      font-size: 0.625rem;
+      line-height: 1.15;
+    }
+
+    .wedding-page .app-toast {
+      right: 1rem;
+      bottom: calc(4.5rem + env(safe-area-inset-bottom));
+      left: 1rem;
+      max-width: none;
+    }
+
+    .wedding-page .wedding-page-shell {
+      padding-top: 0.5rem;
+      padding-bottom: 1rem;
+    }
+
+    .wedding-page .app-nav {
+      min-height: 2.75rem;
+      padding-bottom: 0.25rem;
+    }
+
+    .wedding-page .app-nav-action.app-nav-action {
+      min-width: 2.75rem;
+      padding-inline: 0;
+    }
+
+    .wedding-back-label,
+    .wedding-page .account-menu__name {
+      display: none;
+    }
+
+    .wedding-page .account-menu__trigger.account-menu__trigger {
+      width: 2.75rem;
+      max-width: 2.75rem;
+      padding: 0.25rem;
+    }
+
+    .wedding-page .wedding-toolbar {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0.75rem;
+      padding-top: 0.75rem;
+      padding-bottom: 1rem;
+    }
+
+    .wedding-page .wedding-page-kicker,
+    .wedding-page .wedding-description-desktop,
+    .wedding-page .wedding-desktop-actions {
+      display: none;
+    }
+
+    .wedding-page .wedding-description-mobile {
+      display: inline;
+    }
+
+    .wedding-toolbar .app-page-title {
+      margin-top: 0;
+      font-size: 1.5rem;
+      line-height: 1.1;
+    }
+
+    .wedding-page .wedding-page-description {
+      margin-top: 0.25rem;
+      font-size: 0.875rem;
+      line-height: 1.5;
+    }
+
+    .wedding-page .wedding-tabs {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 0;
+      margin-top: 0.125rem;
+      overflow: visible;
+    }
+
+    .wedding-page .wedding-tab {
+      min-width: 0;
+      justify-content: center;
+      gap: 0;
+      padding-inline: 0.25rem;
+      font-size: 0.8125rem;
+      white-space: nowrap;
+    }
+
+    .wedding-page .wedding-tab-icon,
+    .wedding-page .wedding-tab-label--desktop {
+      display: none;
+    }
+
+    .wedding-page .wedding-tab-label--mobile {
+      display: inline;
+      overflow: visible;
+      text-overflow: clip;
+    }
+
+    .wedding-page .wedding-view-content {
+      gap: 1rem;
+      margin-top: 0.75rem;
+    }
+
+    .wedding-page .wedding-view-content > [role='tabpanel'] {
+      gap: 1rem;
+    }
+
+    .wedding-page .wedding-panel {
+      border-radius: 1rem;
+      background: hsl(var(--card));
+      padding: 1rem;
+      box-shadow: none;
+    }
+
+    .wedding-page .wedding-process-hero {
+      background: hsl(var(--card));
+    }
+
+    .wedding-page .wedding-process-title {
+      font-size: 1.375rem;
+      line-height: 1.2;
+    }
+
+    .wedding-page .wedding-process-empty-copy {
+      margin-top: 0.5rem;
+      line-height: 1.65;
+    }
+
+    .wedding-page .wedding-process-primary {
+      width: 100%;
+      justify-content: center;
+      margin-top: 1rem;
+    }
+
+    .wedding-page .wedding-process-hero > .flex {
+      gap: 1rem;
+    }
+
+    .wedding-page .wedding-process-hero > .flex > .flex:last-child {
+      display: grid;
+      width: 100%;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .wedding-page .wedding-process-hero .mt-7 {
+      margin-top: 1rem;
+    }
+
+    .wedding-page .wedding-process-facts,
+    .wedding-page .wedding-settings-facts {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.75rem;
+    }
+
+    .wedding-page .wedding-fact-cell {
+      gap: 0.25rem;
+      border-top: 1px solid hsl(var(--border));
+      border-left: 0;
+      padding: 0.625rem 0 0;
+    }
+
+    .wedding-page .wedding-fact-cell > span:last-child {
+      display: none;
+    }
+
+    .wedding-page .wedding-process-support-overview {
+      display: none;
+    }
+
+    .wedding-page .wedding-mobile-execution-actions {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.5rem;
+    }
+
+    .wedding-mobile-action.wedding-mobile-action {
+      min-width: 0;
+      min-height: 3.5rem;
+      flex-direction: column;
+      gap: 0.2rem;
+      padding: 0.375rem 0.25rem;
+      font-size: 0.75rem;
+      line-height: 1.15;
+    }
+
+    .wedding-page .wedding-overview-header {
+      align-items: flex-start;
+    }
+
+    .wedding-page .wedding-overview-header > button {
+      display: none;
+    }
+
+    .wedding-page .wedding-overview-grid {
+      min-height: 0;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .wedding-page .wedding-overview-grid > div,
+    .wedding-page .wedding-overview-secondary > div {
+      min-width: 0;
+      background: hsl(var(--card));
+      padding: 0.75rem;
+    }
+
+    .wedding-page .wedding-overview-grid > div > p:last-child,
+    .wedding-page .wedding-overview-secondary > div > p:last-child {
+      font-size: 0.75rem;
+      line-height: 1.45;
+    }
+
+    .wedding-page .wedding-overview-secondary {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.5rem;
+    }
+
+    .wedding-page .wedding-overview-value {
+      overflow-wrap: anywhere;
+      font-size: clamp(1rem, 5.2vw, 1.25rem);
+      line-height: 1.2;
+    }
+
+    .wedding-page .wedding-overview-breakdown {
+      margin-top: 1rem;
+    }
+
+    .wedding-page .wedding-overview-chart {
+      display: none;
+    }
+
+    .marriage-node-row,
+    .agreement-row {
+      flex-wrap: wrap;
+      gap: 0.65rem;
+      padding-block: 0.75rem;
+    }
+
+    .marriage-node-row > div:nth-child(2) {
+      width: calc(100% - 2.65rem);
+    }
+
+    .agreement-row > div:first-child {
+      width: 100%;
+    }
+
+    .wedding-page .wedding-node-actions {
+      display: grid;
+      width: 100%;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.25rem;
+      padding-left: 2.4rem;
+    }
+
+    .wedding-node-action.wedding-node-action,
+    .agreement-action.agreement-action {
+      width: auto;
+      min-width: 0;
+      gap: 0.35rem;
+      padding-inline: 0.5rem;
+    }
+
+    .wedding-node-action span,
+    .agreement-action span {
+      display: inline;
+    }
+
+    .wedding-page .agreement-actions {
+      display: grid;
+      width: 100%;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      align-items: center;
+      gap: 0.25rem;
+    }
+
+    .wedding-page .agreement-status {
+      width: 100%;
+      min-width: 0;
+    }
+
+    .wedding-page .wedding-board-mobile-hint {
+      display: block;
+    }
+
+    .wedding-page .wedding-board-grid {
+      display: flex;
+      grid-template-columns: none;
+      overflow-x: auto;
+      overscroll-behavior-inline: contain;
+      padding-right: 1rem;
+      scroll-padding-inline: 0;
+      scroll-snap-type: inline mandatory;
+      scrollbar-width: none;
+    }
+
+    .wedding-page .wedding-board-grid::-webkit-scrollbar {
+      display: none;
+    }
+
+    .wedding-page .wedding-board-column {
+      min-width: 0;
+      flex: 0 0 min(88%, 20rem);
+      scroll-snap-align: start;
+    }
+
+    .wedding-page .wedding-task-card button {
+      min-height: 2.75rem;
+    }
+  }
+
+  @media (max-width: 767px) and (max-height: 700px),
+    (min-width: 768px) and (max-width: 1023px) and (max-height: 500px) and (orientation: landscape) {
+    .wedding-page .wedding-page-shell {
+      padding-top: 0.25rem;
+    }
+
+    .wedding-page .app-nav {
+      padding-bottom: 0;
+    }
+
+    .wedding-page .wedding-toolbar {
+      padding-top: 0.375rem;
+      padding-bottom: 0.5rem;
+    }
+
+    .wedding-toolbar .app-page-title {
+      font-size: 1.375rem;
+    }
+
+    .wedding-page .wedding-page-description,
+    .wedding-page .wedding-process-empty-copy {
+      display: none;
+    }
+
+    .wedding-page .wedding-tabs {
+      margin-top: 0;
+    }
+
+    .wedding-page .wedding-view-content {
+      margin-top: 0.5rem;
+    }
+
+    .wedding-page .wedding-panel {
+      padding: 0.75rem;
+    }
+
+    .wedding-page .wedding-process-title {
+      margin-top: 0.375rem;
+      font-size: 1.25rem;
+    }
+
+    .wedding-page .wedding-process-primary {
+      margin-top: 0.75rem;
     }
   }
 }

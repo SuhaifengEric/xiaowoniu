@@ -7,6 +7,7 @@ interface MarriageProcessCardProps {
   process: MarriageProcessResponse | null
   nodes: MarriageNodeResponse[]
   loading: boolean
+  emptyView?: 'process' | 'stages' | 'agreements'
   onCreate: () => void
   onEditNode: (node: MarriageNodeResponse) => void
   onOpenAgreements: () => void
@@ -15,17 +16,37 @@ interface MarriageProcessCardProps {
 
 const formatDate = (value: string | null) => value ? value.replace(/-/g, '.') : '待安排'
 
-export function MarriageProcessCard({ process, nodes, loading, onCreate, onEditNode, onOpenAgreements, onOpenSettings }: MarriageProcessCardProps) {
+const emptyViewCopy = {
+  process: {
+    eyebrow: '嫁嫁嫁 · 婚姻进程',
+    title: '先把你们正在经历的阶段记下来',
+    description: '从确认婚姻意愿到领证与婚礼，系统只记录你明确确认的事实和计划。记录人视角只影响称呼，不代表谁拥有决定权。',
+  },
+  stages: {
+    eyebrow: '嫁嫁嫁 · 阶段记录',
+    title: '从第一个阶段开始记录',
+    description: '建立婚姻进程后，这里会按真实发生的节点展示上门、见面、登记和婚礼等阶段。尚未发生的事保持待安排，不会替你们推断。',
+  },
+  agreements: {
+    eyebrow: '嫁嫁嫁 · 双方共识',
+    title: '把重要共识留在这里',
+    description: '建立婚姻进程后，这里会准备六个默认议题，记录你们的决定、分歧和下一步。共识不是审批，也不会替你们做决定。',
+  },
+} as const
+
+export function MarriageProcessCard({ process, nodes, loading, emptyView, onCreate, onEditNode, onOpenAgreements, onOpenSettings }: MarriageProcessCardProps) {
   if (loading && !process) {
     return <section className="wedding-process-hero wedding-panel" role="status" aria-busy="true" aria-label="婚姻进程加载中"><div className="wedding-skeleton h-8 w-52" /><div className="wedding-skeleton mt-4 h-5 w-80 max-w-full" /><div className="wedding-skeleton mt-8 h-3 w-full" /></section>
   }
 
   if (!process) {
+    const view = emptyView ?? 'process'
+    const copy = emptyViewCopy[view]
     return <section className="wedding-process-hero wedding-panel" aria-labelledby="marriage-process-empty-title">
-      <p className="wedding-eyebrow">嫁嫁嫁 · 婚姻进程</p>
-      <h2 id="marriage-process-empty-title" className="mt-3 text-2xl font-semibold tracking-tight text-stone-950 sm:text-3xl">先把你们正在经历的阶段记下来</h2>
-      <p className="mt-3 max-w-2xl text-sm leading-7 text-stone-600">从确认婚姻意愿到领证与婚礼，系统只记录你明确确认的事实和计划。记录人视角只影响称呼，不代表谁拥有决定权。</p>
-      <Button type="button" className="mt-7 min-h-11 gap-2" onClick={onCreate}><HeartHandshake aria-hidden="true" className="h-4 w-4" />建立婚姻进程</Button>
+      <p className="wedding-eyebrow">{copy.eyebrow}</p>
+      <h2 id="marriage-process-empty-title" className="wedding-process-title mt-3 text-2xl font-semibold tracking-tight text-stone-950 sm:text-3xl">{copy.title}</h2>
+      <p className="wedding-process-empty-copy mt-3 max-w-2xl text-sm leading-7 text-stone-600">{copy.description}</p>
+      <Button type="button" className="wedding-process-primary mt-7 min-h-11 gap-2" onClick={onCreate}><HeartHandshake aria-hidden="true" className="h-4 w-4" />建立婚姻进程</Button>
     </section>
   }
 
@@ -40,7 +61,7 @@ export function MarriageProcessCard({ process, nodes, loading, onCreate, onEditN
     <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
       <div className="min-w-0">
         <p className="wedding-eyebrow">嫁嫁嫁 · 婚姻进程</p>
-        <h2 id="marriage-process-title" className="mt-2 text-2xl font-semibold tracking-tight text-stone-950 sm:text-3xl">{currentName}</h2>
+        <h2 id="marriage-process-title" className="wedding-process-title mt-2 text-2xl font-semibold tracking-tight text-stone-950 sm:text-3xl">{currentName}</h2>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-600">推荐下一步：<span className="font-semibold text-stone-900">{nextName}</span>。推荐是提醒，不是必须遵循的法律或家庭顺序。</p>
       </div>
       <div className="flex shrink-0 flex-wrap gap-2">
@@ -54,7 +75,7 @@ export function MarriageProcessCard({ process, nodes, loading, onCreate, onEditN
       <div className="mt-3 h-2 overflow-hidden rounded-full bg-rose-100"><span className="block h-full rounded-full bg-rose-700 transition-[width] duration-500 motion-reduce:transition-none" style={{ width: `${process.progress.percentage}%` }} /></div>
     </div>
 
-    <div className="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="wedding-process-facts mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
       <div className="wedding-fact-cell"><span className="wedding-fact-label">两次上门</span><strong>{visits.filter((node) => node.status === 'completed').length} / 2</strong><span>{visits.every((node) => node.status === 'completed') ? '两场都已记录' : '仍需分别安排和记录'}</span></div>
       <div className="wedding-fact-cell"><span className="wedding-fact-label">需要再沟通</span><strong>{riskCount}</strong><span>{riskCount ? '打开共识记录查看' : '当前没有高优先级提醒'}</span></div>
       <div className="wedding-fact-cell"><span className="wedding-fact-label">依法办理结婚登记</span><strong>{legal?.status === 'completed' ? '已记录' : formatDate(legal?.plannedDate ?? null)}</strong><span>{legal?.status === 'completed' ? `实际日期 ${formatDate(legal.actualDate)}` : '法律节点独立记录'}</span></div>

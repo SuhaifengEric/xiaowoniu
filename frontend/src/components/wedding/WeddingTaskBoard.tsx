@@ -69,12 +69,12 @@ export function WeddingTaskBoard({ tasks, loading, hasMore, onLoadMore, onEdit, 
       <div><h2 id="wedding-board-title" className="text-xl font-semibold text-stone-950">备婚任务看板</h2></div>
       {hasMore && <Button type="button" variant="outline" className="min-h-11" onClick={onLoadMore}><Loader2 aria-hidden="true" className="mr-2 h-4 w-4" />加载更多任务</Button>}
     </div>
-    {loading && tasks.length === 0 ? <div className="mt-4 grid gap-4 md:grid-cols-3" role="status" aria-label="任务加载中" aria-busy="true"><div className="wedding-skeleton h-40" /><div className="wedding-skeleton h-40" /><div className="wedding-skeleton h-40" /></div> : active.length === 0 ? <div className="py-10 text-center"><ListTodo className="mx-auto h-8 w-8 text-stone-400" aria-hidden="true" /><p className="mt-3 text-sm text-stone-600">还没有备婚任务</p></div> : <div className="wedding-board-grid mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-      {columns.map(({ status, title, icon: Icon }) => <div key={status} className="rounded-sm border border-stone-200 bg-stone-50 p-3">
+    {loading && tasks.length === 0 ? <div className="mt-4 grid gap-4 md:grid-cols-3" role="status" aria-label="任务加载中" aria-busy="true"><div className="wedding-skeleton h-40" /><div className="wedding-skeleton h-40" /><div className="wedding-skeleton h-40" /></div> : active.length === 0 ? <div className="py-10 text-center"><ListTodo className="mx-auto h-8 w-8 text-stone-400" aria-hidden="true" /><p className="mt-3 text-sm text-stone-600">还没有备婚任务</p></div> : <><p className="wedding-board-mobile-hint mt-3 text-xs text-stone-500">左右滑动查看待办、进行中和已完成</p><div className="wedding-board-grid mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      {columns.map(({ status, title, icon: Icon }) => <div key={status} className="wedding-board-column rounded-sm border border-stone-200 bg-stone-50 p-3">
         <h3 className="flex items-center gap-2 text-sm font-semibold text-stone-800"><Icon aria-hidden="true" className="h-4 w-4 text-pink-700" />{title}</h3>
         <div className="mt-3 grid gap-3">{active.filter((task) => task.status === status).map((task) => <TaskCard key={task.id} task={task} onEdit={onEdit} onDelete={onDelete} onStatusChange={onStatusChange} />)}</div>
       </div>)}
-    </div>}
+    </div></>}
     {cancelled.length > 0 && <div className="mt-5">
       <Button type="button" variant="ghost" className="min-h-11 gap-2 text-stone-600" aria-expanded={archiveOpen} aria-controls="wedding-cancelled-archive" onClick={() => setArchiveOpen((value) => !value)}><Archive aria-hidden="true" className="h-4 w-4" />已取消归档（{cancelled.length}）<ChevronDown aria-hidden="true" className={`h-4 w-4 transition-transform ${archiveOpen ? 'rotate-180' : ''}`} /></Button>
       {archiveOpen && <div id="wedding-cancelled-archive" className="mt-2 grid gap-3 rounded-sm border border-stone-200 bg-stone-50 p-3 md:grid-cols-2 lg:grid-cols-3">
